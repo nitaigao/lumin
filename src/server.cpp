@@ -16,7 +16,6 @@ void Server::destroy_output_notify(struct wl_listener *listener, void* data) {
   struct wlr_output *wlr_output = static_cast<struct wlr_output*>(data);
   Output* output = static_cast<Output*>(wlr_output->data);
   server->remove_output(output);
-  // server->quit();
 }
 
 void Server::new_output_notify(struct wl_listener *listener, void* data) {
