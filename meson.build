@@ -1,8 +1,11 @@
 project('turbo', 'cpp', default_options : [
   'warning_level=3',
   'werror=true',
-  'cpp_std=c++17'
+  'cpp_std=c++2a',
+  'c_std=c11'
 ])
+
+add_global_arguments('-Wno-unused-parameter', language : 'cpp')
 
 add_project_arguments([
   '-DWLR_USE_UNSTABLE'
@@ -11,11 +14,13 @@ add_project_arguments([
 wayland_server = dependency('wayland-server')
 wlroots = dependency('wlroots')
 pixman = dependency('pixman-1')
+xkbcommon = dependency('xkbcommon')
 
 dependencies = [
   pixman,
   wlroots,
-  wayland_server
+  wayland_server,
+  xkbcommon
 ]
 
 includes = include_directories('include')

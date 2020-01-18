@@ -7,8 +7,8 @@ extern "C" {
   #include <wlr/interfaces/wlr_output.h>
 }
 
-Output::Output(struct wlr_output *output)
-  : output(output) {
+Output::Output(struct wlr_output *output_)
+  : output(output_) {
     clock_gettime(CLOCK_MONOTONIC, &last_frame);
   output->data = this;
 }
