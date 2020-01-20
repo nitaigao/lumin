@@ -28,13 +28,7 @@ dependencies = [
 includes = include_directories('include')
 
 sources = [
-  'src/keyboard.cpp',
-  'src/main.cpp',
-  'src/mouse.cpp',
-  'src/output.cpp',
-  'src/seat.cpp',
   'src/server.cpp',
-  'src/view.cpp',
 ]
 
 executable(
