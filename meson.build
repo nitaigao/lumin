@@ -15,20 +15,26 @@ wayland_server = dependency('wayland-server')
 wlroots = dependency('wlroots')
 pixman = dependency('pixman-1')
 xkbcommon = dependency('xkbcommon')
+wayland_protocols = dependency('wayland-protocols', version: '>=1.17')
 
 dependencies = [
   pixman,
   wlroots,
   wayland_server,
-  xkbcommon
+  xkbcommon,
+  wayland_protocols
 ]
 
 includes = include_directories('include')
 
 sources = [
+  'src/keyboard.cpp',
+  'src/main.cpp',
+  'src/mouse.cpp',
   'src/output.cpp',
+  'src/seat.cpp',
   'src/server.cpp',
-  'src/main.cpp'
+  'src/view.cpp',
 ]
 
 executable(

@@ -3,19 +3,37 @@
 
 #include <time.h>
 #include <wayland-server.h>
+#include <vector>
+#include <memory>
 
 struct wlr_output;
+
+class View;
+class Server;
 
 class Output {
 
 public:
 
-  Output(struct wlr_output *output);
+  Output(struct wlr_output *output, const Server* server);
+
+public:
+
+  void render(const std::vector<std::shared_ptr<View>>& views) const;
 
 private:
 
-  struct wlr_output *output;
   struct timespec last_frame;
+
+
+public:
+
+  struct wl_listener frame;
+
+public:
+
+  struct wlr_output *output;
+  const Server *server;
 
 };
 
