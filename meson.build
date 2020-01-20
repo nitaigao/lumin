@@ -28,7 +28,7 @@ dependencies = [
 includes = include_directories('include')
 
 sources = [
-  'src/server.cpp',
+  'src/main.cpp',
 ]
 
 executable(
