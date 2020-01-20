@@ -278,7 +278,6 @@ static void server_new_pointer(turbo_server *server, struct wlr_input_device *de
 	 * opportunity to do libinput configuration on the device to set
 	 * acceleration, etc. */
 	wlr_cursor_attach_input_device(server->cursor, device);
-  std::clog << "server_new_pointer" << std::endl;
 }
 
 static void server_new_input(struct wl_listener *listener, void *data) {
@@ -541,8 +540,7 @@ struct render_data {
 	struct timespec *when;
 };
 
-static void render_surface(struct wlr_surface *surface,
-		int sx, int sy, void *data) {
+static void render_surface(struct wlr_surface *surface, int sx, int sy, void *data) {
 	/* This function is called for every surface that needs to be rendered. */
 	auto rdata = static_cast<struct render_data*>(data);
 	turbo_view *view = rdata->view;
@@ -562,17 +560,18 @@ static void render_surface(struct wlr_surface *surface,
 	 * one next to the other, both 1080p, a view on the rightmost display might
 	 * have layout coordinates of 2000,100. We need to translate that to
 	 * output-local coordinates, or (2000 - 1920). */
-	double ox = 0, oy = 0;
+	double ox, oy = 0;
 	wlr_output_layout_output_coords(view->server->output_layout, output, &ox, &oy);
-	ox += view->x + sx, oy += view->y + sy;
+	ox += view->x + sx;
+  oy += view->y + sy;
 
 	/* We also have to apply the scale factor for HiDPI outputs. This is only
 	 * part of the puzzle, TinyWL does not fully support HiDPI. */
 	struct wlr_box box = {
 		.x = (int)ox * (int)output->scale,
 		.y = (int)oy * (int)output->scale,
-		.width = (int)surface->current.width * (int)output->scale,
-		.height = (int)surface->current.height * (int)output->scale,
+		.width = surface->current.width * (int)output->scale,
+		.height = surface->current.height * (int)output->scale,
 	};
 
 	/*
@@ -602,8 +601,7 @@ static void render_surface(struct wlr_surface *surface,
 static void output_frame(struct wl_listener *listener, void *data) {
 	/* This function is called every time an output is ready to display a frame,
 	 * generally at the output's refresh rate (e.g. 60Hz). */
-	struct turbo_output *output =
-		wl_container_of(listener, output, frame);
+	struct turbo_output *output = wl_container_of(listener, output, frame);
 	struct wlr_renderer *renderer = output->server->renderer;
 
 	struct timespec now;
@@ -672,7 +670,6 @@ static void server_new_output(struct wl_listener *listener, void *data) {
 	if (!wl_list_empty(&wlr_output->modes)) {
 		struct wlr_output_mode *mode = wlr_output_preferred_mode(wlr_output);
 		wlr_output_set_mode(wlr_output, mode);
-
   	wlr_output_enable(wlr_output, true);
 
     if (!wlr_output_commit(wlr_output)) {
@@ -680,16 +677,10 @@ static void server_new_output(struct wl_listener *listener, void *data) {
     }
 	}
 
+  wlr_output_enable(wlr_output, true);
+
   wlr_output_set_scale(wlr_output, 2.0);
-
-  // std::clog << wlr_output->width << std::endl;
-
-  // if (wlr_output->width > 3000) {
-  //   wlr_output_set_scale(wlr_output, 3.0);
-  // }
-  // else if (wlr_output->width > 2000) {
-  //   wlr_output_set_scale(wlr_output, 2.0);
-  // }
+  wlr_output_commit(wlr_output);
 
 	/* Allocates and configures our state for this output */
 	struct turbo_output *output = new turbo_output();
@@ -733,8 +724,7 @@ static void xdg_surface_destroy(struct wl_listener *listener, void *data) {
 	free(view);
 }
 
-static void begin_interactive(turbo_view *view,
-		enum turbo_cursor_mode mode, uint32_t edges) {
+static void begin_interactive(turbo_view *view, enum turbo_cursor_mode mode, uint32_t edges) {
 	/* This function sets up an interactive move or resize operation, where the
 	 * compositor stops propegating pointer events to clients and instead
 	 * consumes them itself, to move or resize windows. */
@@ -805,15 +795,19 @@ static void server_new_xdg_surface(struct wl_listener *listener, void *data) {
 	/* Listen to the various events it can emit */
 	view->map.notify = xdg_surface_map;
 	wl_signal_add(&xdg_surface->events.map, &view->map);
+
 	view->unmap.notify = xdg_surface_unmap;
 	wl_signal_add(&xdg_surface->events.unmap, &view->unmap);
+
 	view->destroy.notify = xdg_surface_destroy;
 	wl_signal_add(&xdg_surface->events.destroy, &view->destroy);
 
 	/* cotd */
 	struct wlr_xdg_toplevel *toplevel = xdg_surface->toplevel;
+
 	view->request_move.notify = xdg_toplevel_request_move;
 	wl_signal_add(&toplevel->events.request_move, &view->request_move);
+
 	view->request_resize.notify = xdg_toplevel_request_resize;
 	wl_signal_add(&toplevel->events.request_resize, &view->request_resize);
 
