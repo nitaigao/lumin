@@ -28,6 +28,8 @@ dependencies = [
 includes = include_directories('include')
 
 sources = [
+  'src/view.cpp',
+  'src/server.cpp',
   'src/main.cpp',
 ]
 
