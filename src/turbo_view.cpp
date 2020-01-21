@@ -30,11 +30,12 @@ void turbo_view::toggle_maximize() {
     old_height = xdg_surface->geometry.height;
     old_x = x;
     old_y = y;
-    x = 0;
-    y = 0;
     wlr_xdg_toplevel_set_maximized(xdg_surface, true);
     wlr_output* output = wlr_output_layout_output_at(server->output_layout, x, y);
-    wlr_xdg_toplevel_set_size(xdg_surface, output->width, output->height);
+    wlr_box *output_box = wlr_output_layout_get_box(server->output_layout, output);
+    x = output_box->x;
+    y = output_box->y;
+    wlr_xdg_toplevel_set_size(xdg_surface, output_box->width, output_box->height);
     maximized = true;
   } else {
     wlr_xdg_toplevel_set_maximized(xdg_surface, false);
