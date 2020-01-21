@@ -151,6 +151,9 @@ struct render_data {
 };
 
 static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
+  if (surface == NULL) {
+    return;
+  }
   /* This function is called for every surface that needs to be rendered. */
   auto rdata = static_cast<struct render_data*>(data);
   turbo_view *view = rdata->view;
@@ -246,14 +249,14 @@ static void output_frame_notify(wl_listener *listener, void *data) {
       .output = output->wlr_output,
       .renderer = renderer,
       .view = view,
-      .when = &now,
+      .when = &now
     };
 
-    if (view->surface_type == TURBO_XWAYLAND_SURFACE) {
-      render_surface(view->xwayland_surface->surface, 0, 0, &rdata);
+    if (view->surface_type == TURBO_XWAYLAND_SURFACE && view->xwayland_surface->surface) {
+      wlr_surface_for_each_surface(view->xwayland_surface->surface, render_surface, &rdata);
     }
 
-    if (view->surface_type == TURBO_XDG_SURFACE) {
+    if (view->surface_type == TURBO_XDG_SURFACE && view->xdg_surface->surface) {
       /* This calls our render_surface function for each surface among the
       * xdg_surface's toplevel and popups. */
       wlr_xdg_surface_for_each_surface(view->xdg_surface, render_surface, &rdata);
@@ -332,11 +335,11 @@ static void xdg_surface_map_notify(wl_listener *listener, void *data) {
   turbo_view *view = wl_container_of(listener, view, map);
   view->mapped = true;
   if (view->surface_type == TURBO_XWAYLAND_SURFACE) {
-    //view->focus_view(view->xwayland_surface->surface);
+    view->focus_view(view->xwayland_surface->surface);
   }
 
   if (view->surface_type == TURBO_XDG_SURFACE) {
-    //view->focus_view(view->xdg_surface->surface);
+    view->focus_view(view->xdg_surface->surface);
   }
 }
 
@@ -379,22 +382,49 @@ static void xdg_toplevel_request_maximize_notify(wl_listener *listener, void *da
   view->toggle_maximize();
 }
 
+static void xwayland_surface_request_configure_notify(wl_listener *listener, void *data) {
+  turbo_view_xwayland *view = wl_container_of(listener, view, request_maximize);
+  auto event = static_cast<wlr_xwayland_surface_configure_event*>(data);
+  view->x = event->x;
+  view->y = event->y;
+  wlr_xwayland_surface_configure(event->surface, event->x, event->y, event->width, event->height);
+}
+
+
 static void new_xwayland_surface_notify(wl_listener *listener, void *data) {
   wlr_log(WLR_INFO, "new_xwayland_surface_notify");
 
   turbo_server *server = wl_container_of(listener, server, new_xwayland_surface);
   auto xwayland_surface = static_cast<wlr_xwayland_surface*>(data);
 
-  turbo_view *view = new turbo_view();
+  turbo_view_xwayland *view = new turbo_view_xwayland();
 
-  view->x = 0;
-  view->y = 0;
+  view->x = 100;
+  view->y = 100;
   view->server = server;
   view->xwayland_surface = xwayland_surface;
   view->surface_type = TURBO_XWAYLAND_SURFACE;
 
   view->map.notify = xdg_surface_map_notify;
   wl_signal_add(&xwayland_surface->events.map, &view->map);
+
+  view->unmap.notify = xdg_surface_map_notify;
+  wl_signal_add(&xwayland_surface->events.unmap, &view->unmap);
+
+  view->destroy.notify = xdg_surface_destroy_notify;
+  wl_signal_add(&xwayland_surface->events.destroy, &view->destroy);
+
+  view->request_configure.notify = xwayland_surface_request_configure_notify;
+  wl_signal_add(&xwayland_surface->events.request_configure, &view->request_configure);
+
+  view->request_move.notify = xdg_toplevel_request_move_notify;
+  wl_signal_add(&xwayland_surface->events.request_move, &view->request_move);
+
+  view->request_resize.notify = xdg_toplevel_request_resize_notify;
+  wl_signal_add(&xwayland_surface->events.request_resize, &view->request_resize);
+
+  view->request_maximize.notify = xdg_toplevel_request_maximize_notify;
+  wl_signal_add(&xwayland_surface->events.request_maximize, &view->request_maximize);
 
    /* Add it to the list of views. */
   wl_list_insert(&server->views, &view->link);
@@ -410,7 +440,7 @@ static void new_xdg_surface_notify(wl_listener *listener, void *data) {
   }
 
   /* Allocate a turbo_view for this surface */
-  turbo_view *view = new turbo_view();
+  turbo_view *view = new turbo_view_xdg();
   view->x = 0;
   view->y = 0;
   view->server = server;
@@ -573,11 +603,11 @@ int main(int argc, char *argv[]) {
   wl_display_init_shm(server.wl_display);
   wlr_data_device_manager_create(server.wl_display);
   server.xwayland = wlr_xwayland_create(server.wl_display, compositor, true);
+  wlr_xwayland_set_seat(server.xwayland, server.seat);
 
   server.new_xwayland_surface.notify = new_xwayland_surface_notify;
   wl_signal_add(&server.xwayland->events.new_surface, &server.new_xwayland_surface);
   wlr_log(WLR_INFO, "Running XWayland on DISPLAY=%s", server.xwayland->display_name);
-
 
   /* Run the Wayland event loop. This does not return until you exit the
    * compositor. Starting the backend rigged up all of the necessary event

@@ -253,7 +253,7 @@ void turbo_server::process_cursor_resize(uint32_t time) {
   view->x = x;
   view->y = y;
 
-  wlr_xdg_toplevel_set_size(view->xdg_surface, width, height);
+  view->set_size(width, height);
 }
 
 void turbo_server::process_cursor_motion(uint32_t time) {
