@@ -63,6 +63,9 @@ struct turbo_server {
   void new_pointer(wlr_input_device *device);
 
   turbo_view* desktop_view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
+  void process_cursor_move(uint32_t time);
+  void process_cursor_resize(uint32_t time);
+  void process_cursor_motion(uint32_t time);
 };
 
 struct turbo_output {
@@ -85,6 +88,10 @@ struct turbo_view {
 	int x, y;
 
   bool view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
+
+  void focus_view(wlr_surface *surface);
+
+  void begin_interactive(enum turbo_cursor_mode mode, uint32_t edges);
 };
 
 struct turbo_keyboard {
@@ -95,64 +102,6 @@ struct turbo_keyboard {
 	wl_listener modifiers;
 	wl_listener key;
 };
-
-static void focus_view(turbo_view *view, wlr_surface *surface) {
-	/* Note: this function only deals with keyboard focus. */
-	if (view == NULL) {
-		return;
-	}
-
-	turbo_server *server = view->server;
-	wlr_seat *seat = server->seat;
-	wlr_surface *prev_surface = seat->keyboard_state.focused_surface;
-	if (prev_surface == surface) {
-		/* Don't re-focus an already focused surface. */
-		return;
-	}
-
-	if (prev_surface) {
-		/*
-		 * Deactivate the previously focused surface. This lets the client know
-		 * it no longer has focus and the client will repaint accordingly, e.g.
-		 * stop displaying a caret.
-		 */
-		struct wlr_xdg_surface *previous = wlr_xdg_surface_from_wlr_surface(
-					seat->keyboard_state.focused_surface);
-		wlr_xdg_toplevel_set_activated(previous, false);
-	}
-
-	wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat);
-	/* Move the view to the front */
-	wl_list_remove(&view->link);
-	wl_list_insert(&server->views, &view->link);
-	/* Activate the new surface */
-	wlr_xdg_toplevel_set_activated(view->xdg_surface, true);
-	/*
-	 * Tell the seat to have the keyboard enter this surface. wlroots will keep
-	 * track of this and automatically send key events to the appropriate
-	 * clients without additional work on your part.
-	 */
-	wlr_seat_keyboard_notify_enter(seat, view->xdg_surface->surface,
-    keyboard->keycodes, keyboard->num_keycodes, &keyboard->modifiers);
-}
-
-static void keyboard_modifiers_notify(wl_listener *listener, void *data) {
-	/* This event is raised when a modifier key, such as shift or alt, is
-	 * pressed. We simply communicate this to the client. */
-	turbo_keyboard *keyboard = wl_container_of(listener, keyboard, modifiers);
-
-	/*
-	 * A seat can only have one keyboard, but this is a limitation of the
-	 * Wayland protocol - not wlroots. We assign all connected keyboards to the
-	 * same seat. You can swap out the underlying wlr_keyboard like this and
-	 * wlr_seat handles this transparently.
-	 */
-	wlr_seat_set_keyboard(keyboard->server->seat, keyboard->device);
-
-	/* Send modifiers to the client. */
-	wlr_seat_keyboard_notify_modifiers(keyboard->server->seat,
-		&keyboard->device->keyboard->modifiers);
-}
 
 static bool handle_alt_keybinding(turbo_server *server, xkb_keysym_t sym) {
 	/*
@@ -173,7 +122,7 @@ static bool handle_alt_keybinding(turbo_server *server, xkb_keysym_t sym) {
 		}
 		turbo_view *current_view = wl_container_of(server->views.next, current_view, link);
 		turbo_view *next_view = wl_container_of(current_view->link.next, next_view, link);
-		focus_view(next_view, next_view->xdg_surface->surface);
+    next_view->focus_view(next_view->xdg_surface->surface);
 		/* Move the previous view to the end of the list */
 		wl_list_remove(&current_view->link);
 		wl_list_insert(server->views.prev, &current_view->link);
@@ -214,82 +163,6 @@ static bool handle_ctrl_keybinding(turbo_server *server, xkb_keysym_t sym) {
 	}
 
 	return true;
-}
-
-static void keyboard_key_notify(wl_listener *listener, void *data) {
-	/* This event is raised when a key is pressed or released. */
-	turbo_keyboard *keyboard = wl_container_of(listener, keyboard, key);
-	turbo_server *server = keyboard->server;
-	auto event = static_cast<struct wlr_event_keyboard_key *>(data);
-	wlr_seat *seat = server->seat;
-
-	/* Translate libinput keycode -> xkbcommon */
-	uint32_t keycode = event->keycode + 8;
-	/* Get a list of keysyms based on the keymap for this keyboard */
-	const xkb_keysym_t *syms;
-	int nsyms = xkb_state_key_get_syms(keyboard->device->keyboard->xkb_state, keycode, &syms);
-
-	bool handled = false;
-	uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->device->keyboard);
-	if ((modifiers & WLR_MODIFIER_ALT) && event->state == WLR_KEY_PRESSED) {
-		/* If alt is held down and this button was _pressed_, we attempt to
-		 * process it as a compositor keybinding. */
-		for (int i = 0; i < nsyms; i++) {
-			handled = handle_alt_keybinding(server, syms[i]);
-		}
-	}
-
-  if ((modifiers & WLR_MODIFIER_CTRL) && event->state == WLR_KEY_PRESSED) {
-		/* If ctrl is held down and this button was _pressed_, we attempt to
-		 * process it as a compositor keybinding. */
-		for (int i = 0; i < nsyms; i++) {
-			handled = handle_ctrl_keybinding(server, syms[i]);
-		}
-	}
-
-	if (!handled) {
-		/* Otherwise, we pass it along to the client. */
-		wlr_seat_set_keyboard(seat, keyboard->device);
-		wlr_seat_keyboard_notify_key(seat, event->time_msec, event->keycode, event->state);
-	}
-}
-
-void turbo_server::new_keyboard(wlr_input_device *device) {
-	turbo_keyboard *keyboard = new turbo_keyboard();
-	keyboard->server = this;
-	keyboard->device = device;
-
-	/* We need to prepare an XKB keymap and assign it to the keyboard. This
-	 * assumes the defaults (e.g. layout = "us"). */
-	xkb_rule_names rules;
-  memset(&rules, 0, sizeof(xkb_rule_names));
-	xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-	xkb_keymap *keymap = xkb_map_new_from_names(context, &rules, XKB_KEYMAP_COMPILE_NO_FLAGS);
-
-	wlr_keyboard_set_keymap(device->keyboard, keymap);
-	xkb_keymap_unref(keymap);
-	xkb_context_unref(context);
-	wlr_keyboard_set_repeat_info(device->keyboard, 25, 600);
-
-	/* Here we set up listeners for keyboard events. */
-	keyboard->modifiers.notify = keyboard_modifiers_notify;
-	wl_signal_add(&device->keyboard->events.modifiers, &keyboard->modifiers);
-
-	keyboard->key.notify = keyboard_key_notify;
-	wl_signal_add(&device->keyboard->events.key, &keyboard->key);
-
-	wlr_seat_set_keyboard(seat, device);
-
-	/* And add the keyboard to our list of keyboards */
-	wl_list_insert(&keyboards, &keyboard->link);
-}
-
-void turbo_server::new_pointer(wlr_input_device *device) {
-	/* We don't do anything special with pointers. All of our pointer handling
-	 * is proxied through wlr_cursor. On another compositor, you might take this
-	 * opportunity to do libinput configuration on the device to set
-	 * acceleration, etc. */
-	wlr_cursor_attach_input_device(cursor, device);
 }
 
 static void new_input_notify(wl_listener *listener, void *data) {
@@ -338,140 +211,6 @@ static void seat_request_cursor_notify(wl_listener *listener, void *data) {
 	}
 }
 
-bool turbo_view::view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy) {
-	/*
-	 * XDG toplevels may have nested surfaces, such as popup windows for context
-	 * menus or tooltips. This function tests if any of those are underneath the
-	 * coordinates lx and ly (in output Layout Coordinates). If so, it sets the
-	 * surface pointer to that wlr_surface and the sx and sy coordinates to the
-	 * coordinates relative to that surface's top-left corner.
-	 */
-	double view_sx = lx - x;
-	double view_sy = ly - y;
-
-	double _sx, _sy;
-	wlr_surface *_surface = NULL;
-	_surface = wlr_xdg_surface_surface_at(xdg_surface, view_sx, view_sy, &_sx, &_sy);
-
-	if (_surface != NULL) {
-		*sx = _sx;
-		*sy = _sy;
-		*surface = _surface;
-		return true;
-	}
-
-	return false;
-}
-
-turbo_view* turbo_server::desktop_view_at(double lx, double ly,
-  wlr_surface **surface, double *sx, double *sy) {
-	/* This iterates over all of our surfaces and attempts to find one under the
-	 * cursor. This relies on server->views being ordered from top-to-bottom. */
-	turbo_view *view;
-	wl_list_for_each(view, &views, link) {
-		if (view->view_at(lx, ly, surface, sx, sy)) {
-			return view;
-		}
-	}
-	return NULL;
-}
-
-static void process_cursor_move(turbo_server *server, uint32_t time) {
-	/* Move the grabbed view to the new position. */
-	server->grabbed_view->x = server->cursor->x - server->grab_x;
-	server->grabbed_view->y = server->cursor->y - server->grab_y;
-}
-
-static void process_cursor_resize(turbo_server *server, uint32_t time) {
-	/*
-	 * Resizing the grabbed view can be a little bit complicated, because we
-	 * could be resizing from any corner or edge. This not only resizes the view
-	 * on one or two axes, but can also move the view if you resize from the top
-	 * or left edges (or top-left corner).
-	 *
-	 * Note that I took some shortcuts here. In a more fleshed-out compositor,
-	 * you'd wait for the client to prepare a buffer at the new size, then
-	 * commit any movement that was prepared.
-	 */
-	turbo_view *view = server->grabbed_view;
-	double dx = server->cursor->x - server->grab_x;
-	double dy = server->cursor->y - server->grab_y;
-	double x = view->x;
-	double y = view->y;
-	int width = server->grab_width;
-	int height = server->grab_height;
-
-	if (server->resize_edges & WLR_EDGE_TOP) {
-		y = server->grab_y + dy;
-		height -= dy;
-		if (height < 1) {
-			y += height;
-		}
-	} else if (server->resize_edges & WLR_EDGE_BOTTOM) {
-		height += dy;
-	}
-
-	if (server->resize_edges & WLR_EDGE_LEFT) {
-		x = server->grab_x + dx;
-		width -= dx;
-		if (width < 1) {
-			x += width;
-		}
-	} else if (server->resize_edges & WLR_EDGE_RIGHT) {
-		width += dx;
-	}
-
-	view->x = x;
-	view->y = y;
-
-	wlr_xdg_toplevel_set_size(view->xdg_surface, width, height);
-}
-
-static void process_cursor_motion(turbo_server *server, uint32_t time) {
-	/* If the mode is non-passthrough, delegate to those functions. */
-	if (server->cursor_mode == TURBO_CURSOR_MOVE) {
-		process_cursor_move(server, time);
-		return;
-	} else if (server->cursor_mode == TURBO_CURSOR_RESIZE) {
-		process_cursor_resize(server, time);
-		return;
-	}
-
-	/* Otherwise, find the view under the pointer and send the event along. */
-	double sx, sy;
-	wlr_seat *seat = server->seat;
-	wlr_surface *surface = NULL;
-	turbo_view *view = server->desktop_view_at(server->cursor->x, server->cursor->y, &surface, &sx, &sy);
-	if (!view) {
-		/* If there's no view under the cursor, set the cursor image to a
-		 * default. This is what makes the cursor image appear when you move it
-		 * around the screen, not over any views. */
-		wlr_xcursor_manager_set_cursor_image(server->cursor_mgr, "left_ptr", server->cursor);
-	}
-
-	if (surface) {
-		bool focus_changed = seat->pointer_state.focused_surface != surface;
-		/*
-		 * "Enter" the surface if necessary. This lets the client know that the
-		 * cursor has entered one of its surfaces.
-		 *
-		 * Note that this gives the surface "pointer focus", which is distinct
-		 * from keyboard focus. You get pointer focus by moving the pointer over
-		 * a window.
-		 */
-		wlr_seat_pointer_notify_enter(seat, surface, sx, sy);
-
-		if (!focus_changed) {
-			/* The enter event contains coordinates, so we only need to notify
-			 * on motion if the focus did not change. */
-			wlr_seat_pointer_notify_motion(seat, time, sx, sy);
-		}
-	} else {
-		/* Clear pointer focus so future button events and such are not sent to
-		 * the last client to have the cursor over it. */
-		wlr_seat_pointer_clear_focus(seat);
-	}
-}
 
 static void cursor_motion_notify(wl_listener *listener, void *data) {
 	/* This event is forwarded by the cursor when a pointer emits a _relative_
@@ -484,7 +223,7 @@ static void cursor_motion_notify(wl_listener *listener, void *data) {
 	 * generated the event. You can pass NULL for the device if you want to move
 	 * the cursor around without any input. */
 	wlr_cursor_move(server->cursor, event->device, event->delta_x, event->delta_y);
-	process_cursor_motion(server, event->time_msec);
+	server->process_cursor_motion(event->time_msec);
 }
 
 static void cursor_motion_absolute_notify(wl_listener *listener, void *data) {
@@ -497,7 +236,7 @@ static void cursor_motion_absolute_notify(wl_listener *listener, void *data) {
 	turbo_server *server = wl_container_of(listener, server, cursor_motion_absolute);
 	auto event = static_cast<struct wlr_event_pointer_motion_absolute*>(data);
 	wlr_cursor_warp_absolute(server->cursor, event->device, event->x, event->y);
-	process_cursor_motion(server, event->time_msec);
+	server->process_cursor_motion(event->time_msec);
 }
 
 static void cursor_button_notify(wl_listener *listener, void *data) {
@@ -517,7 +256,7 @@ static void cursor_button_notify(wl_listener *listener, void *data) {
 		server->cursor_mode = TURBO_CURSOR_PASSTHROUGH;
 	} else {
 		/* Focus that client if the button was _pressed_ */
-		focus_view(view, surface);
+    view->focus_view(surface);
 	}
 }
 
@@ -541,13 +280,69 @@ static void cursor_frame_notify(wl_listener *listener, void *data) {
 	wlr_seat_pointer_notify_frame(server->seat);
 }
 
+static void keyboard_modifiers_notify(wl_listener *listener, void *data) {
+	/* This event is raised when a modifier key, such as shift or alt, is
+	 * pressed. We simply communicate this to the client. */
+	turbo_keyboard *keyboard = wl_container_of(listener, keyboard, modifiers);
+
+	/*
+	 * A seat can only have one keyboard, but this is a limitation of the
+	 * Wayland protocol - not wlroots. We assign all connected keyboards to the
+	 * same seat. You can swap out the underlying wlr_keyboard like this and
+	 * wlr_seat handles this transparently.
+	 */
+	wlr_seat_set_keyboard(keyboard->server->seat, keyboard->device);
+
+	/* Send modifiers to the client. */
+	wlr_seat_keyboard_notify_modifiers(keyboard->server->seat,
+		&keyboard->device->keyboard->modifiers);
+}
+
+static void keyboard_key_notify(wl_listener *listener, void *data) {
+	/* This event is raised when a key is pressed or released. */
+	turbo_keyboard *keyboard = wl_container_of(listener, keyboard, key);
+	turbo_server *server = keyboard->server;
+	auto event = static_cast<struct wlr_event_keyboard_key *>(data);
+	wlr_seat *seat = server->seat;
+
+	/* Translate libinput keycode -> xkbcommon */
+	uint32_t keycode = event->keycode + 8;
+	/* Get a list of keysyms based on the keymap for this keyboard */
+	const xkb_keysym_t *syms;
+	int nsyms = xkb_state_key_get_syms(keyboard->device->keyboard->xkb_state, keycode, &syms);
+
+	bool handled = false;
+	uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->device->keyboard);
+	if ((modifiers & WLR_MODIFIER_ALT) && event->state == WLR_KEY_PRESSED) {
+		/* If alt is held down and this button was _pressed_, we attempt to
+		 * process it as a compositor keybinding. */
+		for (int i = 0; i < nsyms; i++) {
+			handled = handle_alt_keybinding(server, syms[i]);
+		}
+	}
+
+  if ((modifiers & WLR_MODIFIER_CTRL) && event->state == WLR_KEY_PRESSED) {
+		/* If ctrl is held down and this button was _pressed_, we attempt to
+		 * process it as a compositor keybinding. */
+		for (int i = 0; i < nsyms; i++) {
+			handled = handle_ctrl_keybinding(server, syms[i]);
+		}
+	}
+
+	if (!handled) {
+		/* Otherwise, we pass it along to the client. */
+		wlr_seat_set_keyboard(seat, keyboard->device);
+		wlr_seat_keyboard_notify_key(seat, event->time_msec, event->keycode, event->state);
+	}
+}
+
 /* Used to move all of the data necessary to render a surface from the top-level
  * frame handler to the per-surface render function. */
 struct render_data {
-	struct wlr_output *output;
+	wlr_output *output;
 	wlr_renderer *renderer;
 	turbo_view *view;
-	struct timespec *when;
+	timespec *when;
 };
 
 static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
@@ -575,8 +370,6 @@ static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
 	wlr_output_layout_output_coords(view->server->output_layout, output, &ox, &oy);
 	ox += view->x + sx;
   oy += view->y + sy;
-
-  std::clog << ox << " " << oy << std::endl;
 
 	/* We also have to apply the scale factor for HiDPI outputs. This is only
 	 * part of the puzzle, TinyWL does not fully support HiDPI. */
@@ -689,8 +482,6 @@ static void new_output_notify(wl_listener *listener, void *data) {
     }
 	}
 
-  std::clog << wlr_output->name << std::endl;
-
   if (strcmp(wlr_output->name, "eDP-1") == 0) {
     wlr_output_set_scale(wlr_output, 3);
   }
@@ -728,7 +519,7 @@ static void xdg_surface_map_notify(wl_listener *listener, void *data) {
 	/* Called when the surface is mapped, or ready to display on-screen. */
 	turbo_view *view = wl_container_of(listener, view, map);
 	view->mapped = true;
-	focus_view(view, view->xdg_surface->surface);
+  view->focus_view(view->xdg_surface->surface);
 }
 
 static void xdg_surface_unmap_notify(wl_listener *listener, void *data) {
@@ -744,37 +535,6 @@ static void xdg_surface_destroy_notify(wl_listener *listener, void *data) {
 	free(view);
 }
 
-static void begin_interactive(turbo_view *view, enum turbo_cursor_mode mode, uint32_t edges) {
-	/* This function sets up an interactive move or resize operation, where the
-	 * compositor stops propegating pointer events to clients and instead
-	 * consumes them itself, to move or resize windows. */
-	turbo_server *server = view->server;
-	wlr_surface *focused_surface = server->seat->pointer_state.focused_surface;
-
-	if (view->xdg_surface->surface != focused_surface) {
-		/* Deny move/resize requests from unfocused clients. */
-		return;
-	}
-
-	server->grabbed_view = view;
-	server->cursor_mode = mode;
-
-	struct wlr_box geo_box;
-	wlr_xdg_surface_get_geometry(view->xdg_surface, &geo_box);
-
-	if (mode == TURBO_CURSOR_MOVE) {
-		server->grab_x = server->cursor->x - view->x;
-		server->grab_y = server->cursor->y - view->y;
-	} else {
-		server->grab_x = server->cursor->x + geo_box.x;
-		server->grab_y = server->cursor->y + geo_box.y;
-	}
-
-	server->grab_width = geo_box.width;
-	server->grab_height = geo_box.height;
-	server->resize_edges = edges;
-}
-
 static void xdg_toplevel_request_move_notify(wl_listener *listener, void *data) {
 	/* This event is raised when a client would like to begin an interactive
 	 * move, typically because the user clicked on their client-side
@@ -782,7 +542,7 @@ static void xdg_toplevel_request_move_notify(wl_listener *listener, void *data) 
 	 * provied serial against a list of button press serials sent to this
 	 * client, to prevent the client from requesting this whenever they want. */
 	turbo_view *view = wl_container_of(listener, view, request_move);
-	begin_interactive(view, TURBO_CURSOR_MOVE, 0);
+  view->begin_interactive(TURBO_CURSOR_MOVE, 0);
 }
 
 static void xdg_toplevel_request_resize_notify(wl_listener *listener, void *data) {
@@ -793,7 +553,7 @@ static void xdg_toplevel_request_resize_notify(wl_listener *listener, void *data
 	 * client, to prevent the client from requesting this whenever they want. */
 	auto event = static_cast<wlr_xdg_toplevel_resize_event*>(data);
 	turbo_view *view = wl_container_of(listener, view, request_resize);
-	begin_interactive(view, TURBO_CURSOR_RESIZE, event->edges);
+	view->begin_interactive(TURBO_CURSOR_RESIZE, event->edges);
 }
 
 static void new_xdg_surface_notify(wl_listener *listener, void *data) {
@@ -833,6 +593,244 @@ static void new_xdg_surface_notify(wl_listener *listener, void *data) {
 
 	/* Add it to the list of views. */
 	wl_list_insert(&server->views, &view->link);
+}
+
+void turbo_view::focus_view(wlr_surface *surface) {
+	/* Note: this function only deals with keyboard focus. */
+	wlr_seat *seat = server->seat;
+	wlr_surface *prev_surface = seat->keyboard_state.focused_surface;
+	if (prev_surface == surface) {
+		/* Don't re-focus an already focused surface. */
+		return;
+	}
+
+	if (prev_surface) {
+		/*
+		 * Deactivate the previously focused surface. This lets the client know
+		 * it no longer has focus and the client will repaint accordingly, e.g.
+		 * stop displaying a caret.
+		 */
+		struct wlr_xdg_surface *previous = wlr_xdg_surface_from_wlr_surface(
+					seat->keyboard_state.focused_surface);
+		wlr_xdg_toplevel_set_activated(previous, false);
+	}
+
+	wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat);
+	/* Move the view to the front */
+	wl_list_remove(&link);
+	wl_list_insert(&server->views, &link);
+	/* Activate the new surface */
+	wlr_xdg_toplevel_set_activated(xdg_surface, true);
+	/*
+	 * Tell the seat to have the keyboard enter this surface. wlroots will keep
+	 * track of this and automatically send key events to the appropriate
+	 * clients without additional work on your part.
+	 */
+	wlr_seat_keyboard_notify_enter(seat, xdg_surface->surface,
+    keyboard->keycodes, keyboard->num_keycodes, &keyboard->modifiers);
+}
+
+void turbo_server::new_keyboard(wlr_input_device *device) {
+	turbo_keyboard *keyboard = new turbo_keyboard();
+	keyboard->server = this;
+	keyboard->device = device;
+
+	/* We need to prepare an XKB keymap and assign it to the keyboard. This
+	 * assumes the defaults (e.g. layout = "us"). */
+	xkb_rule_names rules;
+  memset(&rules, 0, sizeof(xkb_rule_names));
+	xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+	xkb_keymap *keymap = xkb_map_new_from_names(context, &rules, XKB_KEYMAP_COMPILE_NO_FLAGS);
+
+	wlr_keyboard_set_keymap(device->keyboard, keymap);
+	xkb_keymap_unref(keymap);
+	xkb_context_unref(context);
+	wlr_keyboard_set_repeat_info(device->keyboard, 25, 600);
+
+	/* Here we set up listeners for keyboard events. */
+	keyboard->modifiers.notify = keyboard_modifiers_notify;
+	wl_signal_add(&device->keyboard->events.modifiers, &keyboard->modifiers);
+
+	keyboard->key.notify = keyboard_key_notify;
+	wl_signal_add(&device->keyboard->events.key, &keyboard->key);
+
+	wlr_seat_set_keyboard(seat, device);
+
+	/* And add the keyboard to our list of keyboards */
+	wl_list_insert(&keyboards, &keyboard->link);
+}
+
+void turbo_server::new_pointer(wlr_input_device *device) {
+	/* We don't do anything special with pointers. All of our pointer handling
+	 * is proxied through wlr_cursor. On another compositor, you might take this
+	 * opportunity to do libinput configuration on the device to set
+	 * acceleration, etc. */
+	wlr_cursor_attach_input_device(cursor, device);
+}
+
+bool turbo_view::view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy) {
+	/*
+	 * XDG toplevels may have nested surfaces, such as popup windows for context
+	 * menus or tooltips. This function tests if any of those are underneath the
+	 * coordinates lx and ly (in output Layout Coordinates). If so, it sets the
+	 * surface pointer to that wlr_surface and the sx and sy coordinates to the
+	 * coordinates relative to that surface's top-left corner.
+	 */
+	double view_sx = lx - x;
+	double view_sy = ly - y;
+
+	double _sx, _sy;
+	wlr_surface *_surface = NULL;
+	_surface = wlr_xdg_surface_surface_at(xdg_surface, view_sx, view_sy, &_sx, &_sy);
+
+	if (_surface != NULL) {
+		*sx = _sx;
+		*sy = _sy;
+		*surface = _surface;
+		return true;
+	}
+
+	return false;
+}
+
+void turbo_view::begin_interactive(enum turbo_cursor_mode mode, uint32_t edges) {
+	/* This function sets up an interactive move or resize operation, where the
+	 * compositor stops propegating pointer events to clients and instead
+	 * consumes them itself, to move or resize windows. */
+	wlr_surface *focused_surface = server->seat->pointer_state.focused_surface;
+
+	if (xdg_surface->surface != focused_surface) {
+		/* Deny move/resize requests from unfocused clients. */
+		return;
+	}
+
+	server->grabbed_view = this;
+	server->cursor_mode = mode;
+
+	struct wlr_box geo_box;
+	wlr_xdg_surface_get_geometry(xdg_surface, &geo_box);
+
+	if (mode == TURBO_CURSOR_MOVE) {
+		server->grab_x = server->cursor->x - x;
+		server->grab_y = server->cursor->y - y;
+	} else {
+		server->grab_x = server->cursor->x + geo_box.x;
+		server->grab_y = server->cursor->y + geo_box.y;
+	}
+
+	server->grab_width = geo_box.width;
+	server->grab_height = geo_box.height;
+	server->resize_edges = edges;
+}
+
+turbo_view* turbo_server::desktop_view_at(double lx, double ly,
+  wlr_surface **surface, double *sx, double *sy) {
+	/* This iterates over all of our surfaces and attempts to find one under the
+	 * cursor. This relies on server->views being ordered from top-to-bottom. */
+	turbo_view *view;
+	wl_list_for_each(view, &views, link) {
+		if (view->view_at(lx, ly, surface, sx, sy)) {
+			return view;
+		}
+	}
+	return NULL;
+}
+
+void turbo_server::process_cursor_move(uint32_t time) {
+	/* Move the grabbed view to the new position. */
+	grabbed_view->x = cursor->x - grab_x;
+	grabbed_view->y = cursor->y - grab_y;
+}
+
+void turbo_server::process_cursor_resize(uint32_t time) {
+	/*
+	 * Resizing the grabbed view can be a little bit complicated, because we
+	 * could be resizing from any corner or edge. This not only resizes the view
+	 * on one or two axes, but can also move the view if you resize from the top
+	 * or left edges (or top-left corner).
+	 *
+	 * Note that I took some shortcuts here. In a more fleshed-out compositor,
+	 * you'd wait for the client to prepare a buffer at the new size, then
+	 * commit any movement that was prepared.
+	 */
+	turbo_view *view = grabbed_view;
+	double dx = cursor->x - grab_x;
+	double dy = cursor->y - grab_y;
+	double x = view->x;
+	double y = view->y;
+	int width = grab_width;
+	int height = grab_height;
+
+	if (resize_edges & WLR_EDGE_TOP) {
+		y = grab_y + dy;
+		height -= dy;
+		if (height < 1) {
+			y += height;
+		}
+	} else if (resize_edges & WLR_EDGE_BOTTOM) {
+		height += dy;
+	}
+
+	if (resize_edges & WLR_EDGE_LEFT) {
+		x = grab_x + dx;
+		width -= dx;
+		if (width < 1) {
+			x += width;
+		}
+	} else if (resize_edges & WLR_EDGE_RIGHT) {
+		width += dx;
+	}
+
+	view->x = x;
+	view->y = y;
+
+	wlr_xdg_toplevel_set_size(view->xdg_surface, width, height);
+}
+
+void turbo_server::process_cursor_motion(uint32_t time) {
+	/* If the mode is non-passthrough, delegate to those functions. */
+	if (cursor_mode == TURBO_CURSOR_MOVE) {
+		process_cursor_move(time);
+		return;
+	} else if (cursor_mode == TURBO_CURSOR_RESIZE) {
+		process_cursor_resize(time);
+		return;
+	}
+
+	/* Otherwise, find the view under the pointer and send the event along. */
+	double sx, sy;
+	wlr_surface *surface = NULL;
+	turbo_view *view = desktop_view_at(cursor->x, cursor->y, &surface, &sx, &sy);
+
+  if (!view) {
+		/* If there's no view under the cursor, set the cursor image to a
+		 * default. This is what makes the cursor image appear when you move it
+		 * around the screen, not over any views. */
+		wlr_xcursor_manager_set_cursor_image(cursor_mgr, "left_ptr", cursor);
+	}
+
+	if (surface) {
+		bool focus_changed = seat->pointer_state.focused_surface != surface;
+		/*
+		 * "Enter" the surface if necessary. This lets the client know that the
+		 * cursor has entered one of its surfaces.
+		 *
+		 * Note that this gives the surface "pointer focus", which is distinct
+		 * from keyboard focus. You get pointer focus by moving the pointer over
+		 * a window.
+		 */
+		wlr_seat_pointer_notify_enter(seat, surface, sx, sy);
+
+		if (!focus_changed) {
+			/* The enter event contains coordinates, so we only need to notify
+			 * on motion if the focus did not change. */
+			wlr_seat_pointer_notify_motion(seat, time, sx, sy);
+		}
+	} else {
+		/* Clear pointer focus so future button events and such are not sent to
+		 * the last client to have the cursor over it. */
+		wlr_seat_pointer_clear_focus(seat);
+	}
 }
 
 int main(int argc, char *argv[]) {
