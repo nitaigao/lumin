@@ -2,6 +2,7 @@ extern "C" {
   #include <unistd.h>
   #include <wayland-server-core.h>
   #include <wlr/backend.h>
+  #include <wlr/xwayland.h>
   #include <wlr/render/wlr_renderer.h>
   #include <wlr/types/wlr_cursor.h>
   #include <wlr/types/wlr_compositor.h>
@@ -247,9 +248,16 @@ static void output_frame_notify(wl_listener *listener, void *data) {
       .view = view,
       .when = &now,
     };
-    /* This calls our render_surface function for each surface among the
-     * xdg_surface's toplevel and popups. */
-    wlr_xdg_surface_for_each_surface(view->xdg_surface, render_surface, &rdata);
+
+    if (view->surface_type == TURBO_XWAYLAND_SURFACE) {
+      render_surface(view->xwayland_surface->surface, 0, 0, &rdata);
+    }
+
+    if (view->surface_type == TURBO_XDG_SURFACE) {
+      /* This calls our render_surface function for each surface among the
+      * xdg_surface's toplevel and popups. */
+      wlr_xdg_surface_for_each_surface(view->xdg_surface, render_surface, &rdata);
+    }
   }
 
   /* Hardware cursors are rendered by the GPU on a separate plane, and can be
@@ -323,7 +331,13 @@ static void xdg_surface_map_notify(wl_listener *listener, void *data) {
   /* Called when the surface is mapped, or ready to display on-screen. */
   turbo_view *view = wl_container_of(listener, view, map);
   view->mapped = true;
-  view->focus_view(view->xdg_surface->surface);
+  if (view->surface_type == TURBO_XWAYLAND_SURFACE) {
+    //view->focus_view(view->xwayland_surface->surface);
+  }
+
+  if (view->surface_type == TURBO_XDG_SURFACE) {
+    //view->focus_view(view->xdg_surface->surface);
+  }
 }
 
 static void xdg_surface_unmap_notify(wl_listener *listener, void *data) {
@@ -365,6 +379,27 @@ static void xdg_toplevel_request_maximize_notify(wl_listener *listener, void *da
   view->toggle_maximize();
 }
 
+static void new_xwayland_surface_notify(wl_listener *listener, void *data) {
+  wlr_log(WLR_INFO, "new_xwayland_surface_notify");
+
+  turbo_server *server = wl_container_of(listener, server, new_xwayland_surface);
+  auto xwayland_surface = static_cast<wlr_xwayland_surface*>(data);
+
+  turbo_view *view = new turbo_view();
+
+  view->x = 0;
+  view->y = 0;
+  view->server = server;
+  view->xwayland_surface = xwayland_surface;
+  view->surface_type = TURBO_XWAYLAND_SURFACE;
+
+  view->map.notify = xdg_surface_map_notify;
+  wl_signal_add(&xwayland_surface->events.map, &view->map);
+
+   /* Add it to the list of views. */
+  wl_list_insert(&server->views, &view->link);
+}
+
 static void new_xdg_surface_notify(wl_listener *listener, void *data) {
   /* This event is raised when wlr_xdg_shell receives a new xdg surface from a
    * client, either a toplevel (application window) or popup. */
@@ -380,6 +415,7 @@ static void new_xdg_surface_notify(wl_listener *listener, void *data) {
   view->y = 0;
   view->server = server;
   view->xdg_surface = xdg_surface;
+  view->surface_type = TURBO_XDG_SURFACE;
 
   /* Listen to the various events it can emit */
   view->map.notify = xdg_surface_map_notify;
@@ -434,7 +470,7 @@ int main(int argc, char *argv[]) {
    * necessary for clients to allocate surfaces and the data device manager
    * handles the clipboard. Each of these wlroots interfaces has room for you
    * to dig your fingers in and play with their behavior if you want. */
-  wlr_compositor_create(server.wl_display, server.renderer);
+  wlr_compositor *compositor = wlr_compositor_create(server.wl_display, server.renderer);
   // wlr_data_device_manager_create(server.wl_display);
 
   /* Creates an output layout, which a wlroots utility for working with an
@@ -536,6 +572,12 @@ int main(int argc, char *argv[]) {
 
   wl_display_init_shm(server.wl_display);
   wlr_data_device_manager_create(server.wl_display);
+  server.xwayland = wlr_xwayland_create(server.wl_display, compositor, true);
+
+  server.new_xwayland_surface.notify = new_xwayland_surface_notify;
+  wl_signal_add(&server.xwayland->events.new_surface, &server.new_xwayland_surface);
+  wlr_log(WLR_INFO, "Running XWayland on DISPLAY=%s", server.xwayland->display_name);
+
 
   /* Run the Wayland event loop. This does not return until you exit the
    * compositor. Starting the backend rigged up all of the necessary event

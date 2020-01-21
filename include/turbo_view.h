@@ -7,18 +7,29 @@
 
 struct turbo_server;
 struct wlr_xdg_surface;
+struct wlr_xwayland_surface;
 struct wlr_surface;
+
+enum surface_type {
+  TURBO_SURFACE_TYPE_NONE = 0,
+  TURBO_XDG_SURFACE = 1,
+  TURBO_XWAYLAND_SURFACE = 2
+};
 
 struct turbo_view {
   wl_list link;
   turbo_server *server;
   wlr_xdg_surface *xdg_surface;
+  wlr_xwayland_surface *xwayland_surface;
+  enum surface_type surface_type;
+
   wl_listener map;
   wl_listener unmap;
   wl_listener destroy;
   wl_listener request_move;
   wl_listener request_resize;
   wl_listener request_maximize;
+
   bool mapped;
   int x, y;
   bool maximized;

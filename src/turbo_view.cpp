@@ -26,22 +26,26 @@ extern "C" {
 
 void turbo_view::toggle_maximize() {
   if (!maximized) {
+    wlr_output* output = wlr_output_layout_output_at(server->output_layout,
+      server->cursor->x, server->cursor->y);
+    wlr_box *output_box = wlr_output_layout_get_box(server->output_layout, output);
+
     old_width = xdg_surface->geometry.width;
     old_height = xdg_surface->geometry.height;
     old_x = x;
     old_y = y;
-    wlr_xdg_toplevel_set_maximized(xdg_surface, true);
-    wlr_output* output = wlr_output_layout_output_at(server->output_layout, server->cursor->x, server->cursor->y);
-    wlr_box *output_box = wlr_output_layout_get_box(server->output_layout, output);
     x = output_box->x;
     y = output_box->y;
+
+    wlr_xdg_toplevel_set_maximized(xdg_surface, true);
     wlr_xdg_toplevel_set_size(xdg_surface, output_box->width, output_box->height);
+
     maximized = true;
   } else {
     wlr_xdg_toplevel_set_maximized(xdg_surface, false);
+    wlr_xdg_toplevel_set_size(xdg_surface, old_width, old_height);
     x = old_x;
     y = old_y;
-    wlr_xdg_toplevel_set_size(xdg_surface, old_width, old_height);
     maximized = false;
   }
 }

@@ -17,6 +17,9 @@ struct turbo_server {
 
   struct wlr_xdg_shell *xdg_shell;
   wl_listener new_xdg_surface;
+
+  struct wlr_xwayland *xwayland;
+  wl_listener new_xwayland_surface;
   struct wl_list views;
 
   struct wlr_cursor *cursor;

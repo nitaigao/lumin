@@ -176,10 +176,13 @@ void turbo_server::new_keyboard(wlr_input_device *device) {
 }
 
 void turbo_server::new_pointer(wlr_input_device *device) {
-  libinput_device *libinput_device = wlr_libinput_get_device_handle(device);
-  libinput_device_config_tap_set_enabled(libinput_device, LIBINPUT_CONFIG_TAP_ENABLED);
-  libinput_device_config_scroll_set_natural_scroll_enabled(libinput_device, 1);
-  libinput_device_config_accel_set_profile(libinput_device, LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT);
+  bool is_libinput = wlr_input_device_is_libinput(device);
+  if (is_libinput) {
+    libinput_device *libinput_device = wlr_libinput_get_device_handle(device);
+    libinput_device_config_tap_set_enabled(libinput_device, LIBINPUT_CONFIG_TAP_ENABLED);
+    libinput_device_config_scroll_set_natural_scroll_enabled(libinput_device, 1);
+    libinput_device_config_accel_set_profile(libinput_device, LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT);
+  }
 
   /* We don't do anything special with pointers. All of our pointer handling
    * is proxied through wlr_cursor. On another compositor, you might take this
