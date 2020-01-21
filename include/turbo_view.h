@@ -10,17 +10,17 @@ struct wlr_xdg_surface;
 struct wlr_surface;
 
 struct turbo_view {
-	wl_list link;
-	turbo_server *server;
-	wlr_xdg_surface *xdg_surface;
-	wl_listener map;
-	wl_listener unmap;
-	wl_listener destroy;
-	wl_listener request_move;
-	wl_listener request_resize;
-	wl_listener request_maximize;
-	bool mapped;
-	int x, y;
+  wl_list link;
+  turbo_server *server;
+  wlr_xdg_surface *xdg_surface;
+  wl_listener map;
+  wl_listener unmap;
+  wl_listener destroy;
+  wl_listener request_move;
+  wl_listener request_resize;
+  wl_listener request_maximize;
+  bool mapped;
+  int x, y;
   bool maximized;
 
   int old_width, old_height;

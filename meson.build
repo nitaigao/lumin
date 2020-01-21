@@ -15,6 +15,7 @@ wayland_server = dependency('wayland-server')
 wlroots = dependency('wlroots')
 pixman = dependency('pixman-1')
 xkbcommon = dependency('xkbcommon')
+libinput = dependency('libinput')
 wayland_protocols = dependency('wayland-protocols', version: '>=1.17')
 
 dependencies = [
@@ -22,10 +23,11 @@ dependencies = [
   wlroots,
   wayland_server,
   xkbcommon,
-  wayland_protocols
+  wayland_protocols,
+  libinput
 ]
 
-includes = include_directories('include')
+includes = include_directories(['include', 'protocols'])
 
 sources = [
   'src/turbo_view.cpp',

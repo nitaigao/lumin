@@ -6,10 +6,10 @@
 struct turbo_server;
 
 struct turbo_output {
-	wl_list link;
-	turbo_server *server;
-	struct wlr_output *wlr_output;
-	wl_listener frame;
+  wl_list link;
+  turbo_server *server;
+  struct wlr_output *wlr_output;
+  wl_listener frame;
 };
 
 #endif
