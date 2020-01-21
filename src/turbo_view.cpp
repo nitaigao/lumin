@@ -31,7 +31,7 @@ void turbo_view::toggle_maximize() {
     old_x = x;
     old_y = y;
     wlr_xdg_toplevel_set_maximized(xdg_surface, true);
-    wlr_output* output = wlr_output_layout_output_at(server->output_layout, x, y);
+    wlr_output* output = wlr_output_layout_output_at(server->output_layout, server->cursor->x, server->cursor->y);
     wlr_box *output_box = wlr_output_layout_get_box(server->output_layout, output);
     x = output_box->x;
     y = output_box->y;
