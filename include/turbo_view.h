@@ -18,14 +18,21 @@ struct turbo_view {
 	wl_listener destroy;
 	wl_listener request_move;
 	wl_listener request_resize;
+	wl_listener request_maximize;
 	bool mapped;
 	int x, y;
+  bool maximized;
+
+  int old_width, old_height;
+  int old_x, old_y;
 
   bool view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
 
   void focus_view(wlr_surface *surface);
 
   void begin_interactive(enum turbo_cursor_mode mode, uint32_t edges);
+
+  void toggle_maximize();
 };
 
 

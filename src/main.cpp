@@ -360,6 +360,11 @@ static void xdg_toplevel_request_resize_notify(wl_listener *listener, void *data
 	view->begin_interactive(TURBO_CURSOR_RESIZE, event->edges);
 }
 
+static void xdg_toplevel_request_maximize_notify(wl_listener *listener, void *data) {
+	turbo_view *view = wl_container_of(listener, view, request_maximize);
+	view->toggle_maximize();
+}
+
 static void new_xdg_surface_notify(wl_listener *listener, void *data) {
 	/* This event is raised when wlr_xdg_shell receives a new xdg surface from a
 	 * client, either a toplevel (application window) or popup. */
@@ -394,6 +399,9 @@ static void new_xdg_surface_notify(wl_listener *listener, void *data) {
 
 	view->request_resize.notify = xdg_toplevel_request_resize_notify;
 	wl_signal_add(&toplevel->events.request_resize, &view->request_resize);
+
+	view->request_maximize.notify = xdg_toplevel_request_maximize_notify;
+  wl_signal_add(&toplevel->events.request_maximize, &view->request_maximize);
 
 	/* Add it to the list of views. */
 	wl_list_insert(&server->views, &view->link);

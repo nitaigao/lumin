@@ -24,6 +24,27 @@ extern "C" {
 #include "turbo_server.h"
 #include "turbo_cursor_mode.h"
 
+void turbo_view::toggle_maximize() {
+  if (!maximized) {
+    old_width = xdg_surface->geometry.width;
+    old_height = xdg_surface->geometry.height;
+    old_x = x;
+    old_y = y;
+    x = 0;
+    y = 0;
+    wlr_xdg_toplevel_set_maximized(xdg_surface, true);
+    wlr_output* output = wlr_output_layout_output_at(server->output_layout, x, y);
+    wlr_xdg_toplevel_set_size(xdg_surface, output->width, output->height);
+    maximized = true;
+  } else {
+    wlr_xdg_toplevel_set_maximized(xdg_surface, false);
+    x = old_x;
+    y = old_y;
+    wlr_xdg_toplevel_set_size(xdg_surface, old_width, old_height);
+    maximized = false;
+  }
+}
+
 void turbo_view::focus_view(wlr_surface *surface) {
 	/* Note: this function only deals with keyboard focus. */
 	wlr_seat *seat = server->seat;
