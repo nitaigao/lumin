@@ -43,7 +43,7 @@ struct turbo_view {
   virtual void set_size(int width, int heigth) = 0;
 
   bool mapped;
-  int x, y;
+  double x, y;
   bool maximized;
 
   int old_width, old_height;
@@ -80,5 +80,7 @@ struct turbo_view_xdg : public turbo_view {
   void toggle_maximize();
   void set_size(int width, int height);
 };
+
+void scale_coords(turbo_view *view, double inx, double iny, double *outx, double *outy);
 
 #endif

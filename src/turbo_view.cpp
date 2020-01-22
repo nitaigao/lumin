@@ -25,6 +25,18 @@ extern "C" {
 #include "turbo_server.h"
 #include "turbo_cursor_mode.h"
 
+void scale_coords(turbo_view *view, double inx, double iny, double *outx, double *outy) {
+  if (view->surface_type != TURBO_XWAYLAND_SURFACE) {
+    *outx = inx;
+    *outy = iny;
+    return;
+  }
+
+  wlr_output* output = wlr_output_layout_output_at(view->server->output_layout, inx, iny);
+  *outx = inx * output->scale;
+  *outy = iny * output->scale;
+}
+
 void turbo_view_xdg::geometry(struct wlr_box *box) const {
   wlr_surface_get_extends(xdg_surface->surface, box);
 	/* The client never set the geometry */
@@ -245,12 +257,14 @@ void turbo_view::begin_interactive(enum turbo_cursor_mode mode, uint32_t edges) 
   wlr_box geo_box;
   geometry(&geo_box);
 
+  scale_coords(this, server->cursor->x, server->cursor->y, &server->grab_x, &server->grab_y);
+
   if (mode == TURBO_CURSOR_MOVE) {
-    server->grab_x = server->cursor->x - x;
-    server->grab_y = server->cursor->y - y;
+    server->grab_x -= x;
+    server->grab_y -= y;
   } else {
-    server->grab_x = server->cursor->x + geo_box.x;
-    server->grab_y = server->cursor->y + geo_box.y;
+    server->grab_x += geo_box.x;
+    server->grab_y += geo_box.y;
   }
 
   server->grab_width = geo_box.width;

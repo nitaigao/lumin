@@ -550,6 +550,8 @@ int main(int argc, char *argv[]) {
    * HiDPI support). We add a cursor theme at scale factor 1 to begin with. */
   server.cursor_mgr = wlr_xcursor_manager_create(NULL, 24);
   wlr_xcursor_manager_load(server.cursor_mgr, 1);
+  wlr_xcursor_manager_load(server.cursor_mgr, 2);
+  wlr_xcursor_manager_load(server.cursor_mgr, 3);
 
   /*
    * wlr_cursor *only* displays an image on screen. It does not move around

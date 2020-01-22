@@ -82,7 +82,7 @@ static bool handle_ctrl_keybinding(turbo_server *server, xkb_keysym_t sym) {
     break;
   }
 
-  case XKB_KEY_c: {
+  case XKB_KEY_g: {
     if (fork() == 0) {
       execl("/bin/sh", "/bin/sh", "-c", "DISPLAY=:1 GDK_SCALE=3 brave", (void *)NULL);
     }
@@ -201,19 +201,14 @@ void turbo_server::new_pointer(wlr_input_device *device) {
 
 turbo_view* turbo_server::desktop_view_at(double lx, double ly,
   wlr_surface **surface, double *sx, double *sy) {
-  wlr_output* output = wlr_output_layout_output_at(output_layout,
-    cursor->x, cursor->y);
-
   /* This iterates over all of our surfaces and attempts to find one under the
    * cursor. This relies on server->views being ordered from top-to-bottom. */
   turbo_view *view;
   wl_list_for_each(view, &views, link) {
-    double scaled_lx = lx;
-    double scaled_ly = ly;
-    if (view->surface_type == TURBO_XWAYLAND_SURFACE) {
-      scaled_lx = lx * output->scale;
-      scaled_ly = ly * output->scale;
-    }
+
+    double scaled_lx = 0;
+    double scaled_ly = 0;
+    scale_coords(view, lx, ly, &scaled_lx, &scaled_ly);
     if (view->view_at(scaled_lx, scaled_ly, surface, sx, sy)) {
       return view;
     }
@@ -222,9 +217,10 @@ turbo_view* turbo_server::desktop_view_at(double lx, double ly,
 }
 
 void turbo_server::process_cursor_move(uint32_t time) {
+  scale_coords(grabbed_view, cursor->x, cursor->y, &grabbed_view->x, &grabbed_view->y);
   /* Move the grabbed view to the new position. */
-  grabbed_view->x = cursor->x - grab_x;
-  grabbed_view->y = cursor->y - grab_y;
+  grabbed_view->x -= grab_x;
+  grabbed_view->y -= grab_y;
 }
 
 void turbo_server::process_cursor_resize(uint32_t time) {
@@ -239,8 +235,13 @@ void turbo_server::process_cursor_resize(uint32_t time) {
    * commit any movement that was prepared.
    */
   turbo_view *view = grabbed_view;
-  double dx = cursor->x - grab_x;
-  double dy = cursor->y - grab_y;
+  double dx = 0;
+  double dy = 0;
+  scale_coords(view, cursor->x, cursor->y, &dx, &dy);
+
+  dx -= grab_x;
+  dy -= grab_y;
+
   double x = view->x;
   double y = view->y;
   int width = grab_width;
