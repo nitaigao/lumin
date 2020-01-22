@@ -20,6 +20,8 @@ extern "C" {
   #include <xkbcommon/xkbcommon.h>
 }
 
+#include <iostream>
+
 #include "turbo_server.h"
 #include "turbo_keyboard.h"
 #include "turbo_view.h"
@@ -179,13 +181,20 @@ static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
   ox += view->x + sx;
   oy += view->y + sy;
 
+  float scale = output->scale;
+
+  // let XWayland clients scale themselves
+  if (view->surface_type == TURBO_XWAYLAND_SURFACE) {
+    scale = 1;
+  }
+
   /* We also have to apply the scale factor for HiDPI outputs. This is only
    * part of the puzzle, TinyWL does not fully support HiDPI. */
   struct wlr_box box = {
-    .x = (int)ox * (int)output->scale,
-    .y = (int)oy * (int)output->scale,
-    .width = surface->current.width * (int)output->scale,
-    .height = surface->current.height * (int)output->scale,
+    .x = (int)ox * (int)scale,
+    .y = (int)oy * (int)scale,
+    .width = surface->current.width * (int)scale,
+    .height = surface->current.height * (int)scale,
   };
 
   /*
@@ -295,6 +304,10 @@ static void new_output_notify(wl_listener *listener, void *data) {
     if (!wlr_output_commit(wlr_output)) {
       return;
     }
+  }
+
+  if (strcmp(wlr_output->name, "X11-1") == 0) {
+    wlr_output_set_scale(wlr_output, 3);
   }
 
   if (strcmp(wlr_output->name, "eDP-1") == 0) {
@@ -474,7 +487,7 @@ static void new_xdg_surface_notify(wl_listener *listener, void *data) {
 }
 
 int main(int argc, char *argv[]) {
-  wlr_log_init(WLR_DEBUG, NULL);
+  // wlr_log_init(WLR_DEBUG, NULL);
 
   turbo_server server;
   /* The Wayland display is managed by libwayland. It handles accepting

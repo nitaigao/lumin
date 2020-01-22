@@ -82,6 +82,13 @@ static bool handle_ctrl_keybinding(turbo_server *server, xkb_keysym_t sym) {
     break;
   }
 
+  case XKB_KEY_c: {
+    if (fork() == 0) {
+      execl("/bin/sh", "/bin/sh", "-c", "DISPLAY=:1 GDK_SCALE=3 brave", (void *)NULL);
+    }
+    break;
+  }
+
   default:
     return false;
   }
@@ -194,11 +201,20 @@ void turbo_server::new_pointer(wlr_input_device *device) {
 
 turbo_view* turbo_server::desktop_view_at(double lx, double ly,
   wlr_surface **surface, double *sx, double *sy) {
+  wlr_output* output = wlr_output_layout_output_at(output_layout,
+    cursor->x, cursor->y);
+
   /* This iterates over all of our surfaces and attempts to find one under the
    * cursor. This relies on server->views being ordered from top-to-bottom. */
   turbo_view *view;
   wl_list_for_each(view, &views, link) {
-    if (view->view_at(lx, ly, surface, sx, sy)) {
+    double scaled_lx = lx;
+    double scaled_ly = ly;
+    if (view->surface_type == TURBO_XWAYLAND_SURFACE) {
+      scaled_lx = lx * output->scale;
+      scaled_ly = ly * output->scale;
+    }
+    if (view->view_at(scaled_lx, scaled_ly, surface, sx, sy)) {
       return view;
     }
   }
@@ -288,6 +304,7 @@ void turbo_server::process_cursor_motion(uint32_t time) {
      * from keyboard focus. You get pointer focus by moving the pointer over
      * a window.
      */
+
     wlr_seat_pointer_notify_enter(seat, surface, sx, sy);
 
     if (!focus_changed) {
