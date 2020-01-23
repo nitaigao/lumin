@@ -10,6 +10,8 @@ struct turbo_output {
   turbo_server *server;
   struct wlr_output *wlr_output;
   wl_listener frame;
+
+  void render() const;
 };
 
 #endif
