@@ -103,7 +103,9 @@ static void cursor_motion_absolute_notify(wl_listener *listener, void *data) {
 static void cursor_button_notify(wl_listener *listener, void *data) {
   /* This event is forwarded by the cursor when a pointer emits a button
    * event. */
+
   turbo_server *server = wl_container_of(listener, server, cursor_button);
+
   auto event = static_cast<struct wlr_event_pointer_button*>(data);
   /* Notify the client with pointer focus that a button press has occurred */
   wlr_seat_pointer_notify_button(server->seat, event->time_msec, event->button, event->state);
@@ -307,7 +309,7 @@ static void new_output_notify(wl_listener *listener, void *data) {
   }
 
   if (strcmp(wlr_output->name, "X11-1") == 0) {
-    wlr_output_set_scale(wlr_output, 3);
+    wlr_output_set_scale(wlr_output, 2);
   }
 
   if (strcmp(wlr_output->name, "eDP-1") == 0) {
@@ -366,7 +368,7 @@ static void xdg_surface_destroy_notify(wl_listener *listener, void *data) {
   /* Called when the surface is destroyed and should never be shown again. */
   turbo_view *view = wl_container_of(listener, view, destroy);
   wl_list_remove(&view->link);
-  free(view);
+  // delete view;
 }
 
 static void xdg_toplevel_request_move_notify(wl_listener *listener, void *data) {
@@ -396,13 +398,12 @@ static void xdg_toplevel_request_maximize_notify(wl_listener *listener, void *da
 }
 
 static void xwayland_surface_request_configure_notify(wl_listener *listener, void *data) {
-  turbo_view_xwayland *view = wl_container_of(listener, view, request_maximize);
+  turbo_view_xwayland *view = wl_container_of(listener, view, request_configure);
   auto event = static_cast<wlr_xwayland_surface_configure_event*>(data);
   view->x = event->x;
   view->y = event->y;
   wlr_xwayland_surface_configure(event->surface, event->x, event->y, event->width, event->height);
 }
-
 
 static void new_xwayland_surface_notify(wl_listener *listener, void *data) {
   wlr_log(WLR_INFO, "new_xwayland_surface_notify");
@@ -503,11 +504,13 @@ int main(int argc, char *argv[]) {
    * don't). */
   server.backend = wlr_backend_autocreate(server.wl_display, NULL);
 
+
   /* If we don't provide a renderer, autocreate makes a GLES2 renderer for us.
    * The renderer is responsible for defining the various pixel formats it
    * supports for shared memory, this configures that for clients. */
   server.renderer = wlr_backend_get_renderer(server.backend);
   wlr_renderer_init_wl_display(server.renderer, server.wl_display);
+
 
   /* This creates some hands-off wlroots interfaces. The compositor is
    * necessary for clients to allocate surfaces and the data device manager
@@ -615,8 +618,10 @@ int main(int argc, char *argv[]) {
    * startup command if requested. */
   setenv("WAYLAND_DISPLAY", socket, true);
 
-  wl_display_init_shm(server.wl_display);
   wlr_data_device_manager_create(server.wl_display);
+
+
+  // XWayland
   server.xwayland = wlr_xwayland_create(server.wl_display, compositor, true);
   wlr_xwayland_set_seat(server.xwayland, server.seat);
 
@@ -631,8 +636,27 @@ int main(int argc, char *argv[]) {
   wlr_log(WLR_INFO, "Running Wayland compositor on WAYLAND_DISPLAY=%s", socket);
   wl_display_run(server.wl_display);
 
+  wlr_log(WLR_ERROR, "Quitting!");
+
+  wlr_xcursor_manager_destroy(server.cursor_mgr);
+
+  // wlr_xwayland_destroy(server.xwayland);
+  // wlr_seat_destroy(server.seat);
+  // wlr_xcursor_manager_destroy(server.cursor_mgr);
+  wlr_cursor_destroy(server.cursor);
+  wlr_output_layout_destroy(server.output_layout);
+
+  turbo_keyboard *keyboard, *tmp;
+  wl_list_for_each_safe(keyboard, tmp, &server.keyboards, link) {
+    delete keyboard;
+  }
+
   /* Once wl_display_run returns, we shut down the server. */
   wl_display_destroy_clients(server.wl_display);
+
+  // wlr_renderer_destroy(server.renderer);
+  wlr_backend_destroy(server.backend);
+
   wl_display_destroy(server.wl_display);
 
   return 0;

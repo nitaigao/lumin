@@ -11,6 +11,8 @@ struct wlr_input_device;
 struct wlr_surface;
 
 struct turbo_server {
+  turbo_server();
+
   struct wl_display *wl_display;
   struct wlr_backend *backend;
   wlr_renderer *renderer;

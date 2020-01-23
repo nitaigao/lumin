@@ -27,6 +27,11 @@ extern "C" {
 #include "turbo_view.h"
 #include "turbo_cursor_mode.h"
 
+turbo_server::turbo_server()
+  : cursor_mode(TURBO_CURSOR_NONE) {
+
+}
+
 static bool handle_alt_keybinding(turbo_server *server, xkb_keysym_t sym) {
   /*
    * Here we handle compositor keybindings. This is when the compositor is
@@ -142,6 +147,15 @@ static void keyboard_key_notify(wl_listener *listener, void *data) {
      * process it as a compositor keybinding. */
     for (int i = 0; i < nsyms; i++) {
       handled = handle_ctrl_keybinding(server, syms[i]);
+    }
+  }
+
+  for (int i = 0; i < nsyms; i++) {
+    switch (syms[i]) {
+    case XKB_KEY_F12:
+      wl_display_terminate(server->wl_display);
+      handled = true;
+      break;
     }
   }
 
