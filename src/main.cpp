@@ -25,6 +25,8 @@ extern "C" {
 #include "turbo_server.h"
 #include "turbo_keyboard.h"
 #include "turbo_view.h"
+#include "turbo_view_xwayland.h"
+#include "turbo_view_xdg.h"
 #include "turbo_output.h"
 
 static void new_input_notify(wl_listener *listener, void *data) {
@@ -179,7 +181,9 @@ static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
    * output-local coordinates, or (2000 - 1920). */
   double ox = 0;
   double oy = 0;
+
   wlr_output_layout_output_coords(view->server->output_layout, output, &ox, &oy);
+
   ox += view->x + sx;
   oy += view->y + sy;
 

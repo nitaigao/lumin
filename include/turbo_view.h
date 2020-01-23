@@ -21,9 +21,11 @@ struct turbo_view {
   virtual ~turbo_view() {};
 
   wl_list link;
+
   turbo_server *server;
   wlr_xdg_surface *xdg_surface;
   wlr_xwayland_surface *xwayland_surface;
+
   enum surface_type surface_type;
 
   wl_listener map;
@@ -35,12 +37,13 @@ struct turbo_view {
 
   virtual void activate() = 0;
   virtual void notify_keyboard_enter() = 0;
+
   virtual wlr_surface* surface_at(double sx, double sy, double *sub_x, double *sub_y) = 0;
   virtual void geometry(struct wlr_box *box) const = 0;
 
   virtual const wlr_surface* surface() const = 0;
-  virtual void _maximize(int new_x, int new_y, int width, int height, bool maximized) = 0;
-  virtual void set_size(int width, int heigth) = 0;
+
+  virtual void set_size(int width, int height) = 0;
 
   bool mapped;
   double x, y;
@@ -56,29 +59,6 @@ struct turbo_view {
   void begin_interactive(enum turbo_cursor_mode mode, uint32_t edges);
 
   virtual void toggle_maximize() = 0;
-};
-
-struct turbo_view_xwayland : public turbo_view {
-  const wlr_surface* surface() const;
-  wl_listener request_configure;
-  void activate();
-  void notify_keyboard_enter();
-  wlr_surface* surface_at(double sx, double sy, double *sub_x, double *sub_y);
-  void geometry(struct wlr_box *box) const;
-  void _maximize(int new_x, int new_y, int width, int height, bool maximized);
-  void toggle_maximize();
-  void set_size(int width, int height);
-};
-
-struct turbo_view_xdg : public turbo_view {
-  const wlr_surface* surface() const;
-  void activate();
-  void notify_keyboard_enter();
-  wlr_surface* surface_at(double sx, double sy, double *sub_x, double *sub_y);
-  void geometry(struct wlr_box *box) const;
-  void _maximize(int new_x, int new_y, int width, int height, bool maximized);
-  void toggle_maximize();
-  void set_size(int width, int height);
 };
 
 void scale_coords(turbo_view *view, double inx, double iny, double *outx, double *outy);

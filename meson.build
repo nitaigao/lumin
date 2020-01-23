@@ -30,6 +30,8 @@ dependencies = [
 includes = include_directories(['include', 'protocols'])
 
 sources = [
+  'src/turbo_view_xwayland.cpp',
+  'src/turbo_view_xdg.cpp',
   'src/turbo_view.cpp',
   'src/turbo_server.cpp',
   'src/main.cpp',
