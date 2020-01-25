@@ -25,17 +25,15 @@ extern "C" {
 #include "turbo_server.h"
 #include "turbo_cursor_mode.h"
 
-void scale_coords(turbo_view *view, double inx, double iny, double *outx, double *outy) {
-  if (view->surface_type != TURBO_XWAYLAND_SURFACE) {
-    *outx = inx;
-    *outy = iny;
-    return;
-  }
-
-  wlr_output* output = wlr_output_layout_output_at(view->server->output_layout, inx, iny);
-  *outx = inx * output->scale;
-  *outy = iny * output->scale;
-}
+turbo_view::turbo_view()
+  : mapped(false)
+  , x(0)
+  , y(0)
+  , maximized(false)
+  , old_width(0)
+  , old_height(0)
+  , old_x(0)
+  , old_y(0) { }
 
 void turbo_view::focus_view(wlr_surface *surface) {
   /* Note: this function only deals with keyboard focus. */
@@ -115,7 +113,7 @@ void turbo_view::begin_interactive(enum turbo_cursor_mode mode, uint32_t edges) 
   wlr_box geo_box;
   geometry(&geo_box);
 
-  scale_coords(this, server->cursor->x, server->cursor->y, &server->grab_x, &server->grab_y);
+  scale_coords(server->cursor->x, server->cursor->y, &server->grab_x, &server->grab_y);
 
   if (mode == TURBO_CURSOR_MOVE) {
     server->grab_x -= x;
@@ -128,14 +126,4 @@ void turbo_view::begin_interactive(enum turbo_cursor_mode mode, uint32_t edges) 
   server->grab_width = geo_box.width;
   server->grab_height = geo_box.height;
   server->resize_edges = edges;
-}
-
-turbo_view* turbo_view::parent() const {
-  turbo_view* parent_view = server->view_from_xdg_surface(xdg_surface->toplevel->parent);
-  return parent_view;
-}
-
-bool turbo_view::is_child() const {
-  bool is_child = xdg_surface->toplevel->parent != NULL;
-  return is_child;
 }

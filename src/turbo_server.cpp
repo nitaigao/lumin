@@ -44,19 +44,6 @@ static bool handle_alt_keybinding(turbo_server *server, xkb_keysym_t sym) {
   case XKB_KEY_Escape:
     wl_display_terminate(server->wl_display);
     break;
-  case XKB_KEY_F1: {
-    /* Cycle to the next view */
-    if (wl_list_length(&server->views) < 2) {
-      break;
-    }
-    turbo_view *current_view = wl_container_of(server->views.next, current_view, link);
-    turbo_view *next_view = wl_container_of(current_view->link.next, next_view, link);
-    next_view->focus_view(next_view->xdg_surface->surface);
-    /* Move the previous view to the end of the list */
-    wl_list_remove(&current_view->link);
-    wl_list_insert(server->views.prev, &current_view->link);
-    break;
-  }
   default:
     return false;
   }
@@ -192,7 +179,7 @@ turbo_view* turbo_server::desktop_view_at(double lx, double ly,
 
     double scaled_lx = 0;
     double scaled_ly = 0;
-    scale_coords(view, lx, ly, &scaled_lx, &scaled_ly);
+    view->scale_coords(lx, ly, &scaled_lx, &scaled_ly);
     if (view->view_at(scaled_lx, scaled_ly, surface, sx, sy)) {
       return view;
     }
@@ -201,7 +188,7 @@ turbo_view* turbo_server::desktop_view_at(double lx, double ly,
 }
 
 void turbo_server::process_cursor_move(uint32_t time) {
-  scale_coords(grabbed_view, cursor->x, cursor->y, &grabbed_view->x, &grabbed_view->y);
+  grabbed_view->scale_coords(cursor->x, cursor->y, &grabbed_view->x, &grabbed_view->y);
   grabbed_view->x -= grab_x;
   grabbed_view->y -= grab_y;
 }
@@ -210,7 +197,7 @@ void turbo_server::process_cursor_resize(uint32_t time) {
   turbo_view *view = grabbed_view;
   double dx = 0;
   double dy = 0;
-  scale_coords(view, cursor->x, cursor->y, &dx, &dy);
+  view->scale_coords(cursor->x, cursor->y, &dx, &dy);
 
   dx -= grab_x;
   dy -= grab_y;
@@ -293,10 +280,10 @@ void turbo_server::process_cursor_motion(uint32_t time) {
   }
 }
 
-turbo_view* turbo_server::view_from_xdg_surface(wlr_xdg_surface *xdg_surface) {
+turbo_view* turbo_server::view_from_surface(wlr_surface *surface) {
   turbo_view *view;
   wl_list_for_each(view, &views, link) {
-    if (view->xdg_surface == xdg_surface) {
+    if (view->surface() == surface) {
       return view;
     }
   }
@@ -313,14 +300,24 @@ void turbo_server::position_view(turbo_view *view) {
   turbo_view *parent_view = view->parent();
 
   wlr_box parent_geometry;
-  wlr_xdg_surface_get_geometry(parent_view->xdg_surface, &parent_geometry);
+  parent_view->geometry(&parent_geometry);
 
   wlr_box geometry;
-  wlr_xdg_surface_get_geometry(view->xdg_surface, &geometry);
+  view->geometry(&geometry);
 
   int inside_x = (parent_geometry.width - geometry.width) / 2.0;
   int inside_y = (parent_geometry.height - geometry.height) / 2.0;
 
   view->x = parent_view->x + inside_x;
   view->y = parent_view->y + inside_y;
+}
+
+void turbo_server::pop_view(turbo_view *old_view) {
+  turbo_view *view;
+  wl_list_for_each(view, &views, link) {
+    if (view->mapped) {
+      view->focus();
+      return;
+    }
+  }
 }

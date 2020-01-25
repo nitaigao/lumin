@@ -59,9 +59,11 @@ struct turbo_server {
   void process_cursor_resize(uint32_t time);
   void process_cursor_motion(uint32_t time);
 
-  turbo_view* view_from_xdg_surface(wlr_xdg_surface *xdg_surface);
+  turbo_view* view_from_surface(wlr_surface *surface);
 
   void position_view(turbo_view* view);
+
+  void pop_view(turbo_view* view);
 };
 
 #endif

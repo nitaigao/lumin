@@ -65,13 +65,7 @@ static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
 
   wlr_output_layout_output_coords(view->server->output_layout, output, &ox, &oy);
 
-  float scale = output->scale;
-
-  // let XWayland clients scale themselves
-  if (view->surface_type == TURBO_XWAYLAND_SURFACE) {
-    scale = 1;
-    std::clog << ox << " " << oy << std::endl;
-  }
+  float scale = view->scale_output(output);
 
   ox += view->x + sx;
   oy += view->y + sy;
@@ -130,31 +124,20 @@ void turbo_output::render() const {
   float color[4] = {0.0, 0.0, 0.0, 1.0};
   wlr_renderer_clear(renderer, color);
 
-  /* Each subsequent window we render is rendered on top of the last. Because
-   * our view list is ordered front-to-back, we iterate over it backwards. */
   turbo_view *view;
   wl_list_for_each_reverse(view, &server->views, link) {
     if (!view->mapped) {
-      /* An unmapped view should not be rendered. */
       continue;
     }
 
-    struct render_data rdata = {
+    struct render_data render_data = {
       .output = wlr_output,
       .renderer = renderer,
       .view = view,
       .when = &now
     };
 
-    if (view->surface_type == TURBO_XWAYLAND_SURFACE && view->xwayland_surface->surface) {
-      wlr_surface_for_each_surface(view->xwayland_surface->surface, render_surface, &rdata);
-    }
-
-    if (view->surface_type == TURBO_XDG_SURFACE && view->xdg_surface->surface) {
-      /* This calls our render_surface function for each surface among the
-      * xdg_surface's toplevel and popups. */
-      wlr_xdg_surface_for_each_surface(view->xdg_surface, render_surface, &rdata);
-    }
+    view->for_each_surface(render_surface, &render_data);
   }
 
   /* Hardware cursors are rendered by the GPU on a separate plane, and can be

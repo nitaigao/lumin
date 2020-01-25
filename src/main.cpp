@@ -223,6 +223,8 @@ static void xdg_surface_unmap_notify(wl_listener *listener, void *data) {
   /* Called when the surface is unmapped, and should no longer be shown. */
   turbo_view *view = wl_container_of(listener, view, unmap);
   view->mapped = false;
+  turbo_server *server = view->server;
+  server->pop_view(view);
 }
 
 static void xdg_surface_destroy_notify(wl_listener *listener, void *data) {
@@ -267,8 +269,6 @@ static void xwayland_surface_request_configure_notify(wl_listener *listener, voi
 }
 
 static void new_xwayland_surface_notify(wl_listener *listener, void *data) {
-  wlr_log(WLR_INFO, "new_xwayland_surface_notify");
-
   turbo_server *server = wl_container_of(listener, server, new_xwayland_surface);
   auto xwayland_surface = static_cast<wlr_xwayland_surface*>(data);
 
@@ -278,12 +278,12 @@ static void new_xwayland_surface_notify(wl_listener *listener, void *data) {
   view->y = 100;
   view->server = server;
   view->xwayland_surface = xwayland_surface;
-  view->surface_type = TURBO_XWAYLAND_SURFACE;
+  // view->surface_type = TURBO_XWAYLAND_SURFACE;
 
   view->map.notify = xdg_surface_map_notify;
   wl_signal_add(&xwayland_surface->events.map, &view->map);
 
-  view->unmap.notify = xdg_surface_map_notify;
+  view->unmap.notify = xdg_surface_unmap_notify;
   wl_signal_add(&xwayland_surface->events.unmap, &view->unmap);
 
   view->destroy.notify = xdg_surface_destroy_notify;
@@ -315,12 +315,12 @@ static void new_xdg_surface_notify(wl_listener *listener, void *data) {
   }
 
   /* Allocate a turbo_view for this surface */
-  turbo_view *view = new turbo_view_xdg();
+  turbo_view_xdg *view = new turbo_view_xdg();
   view->x = 0;
   view->y = 0;
   view->server = server;
   view->xdg_surface = xdg_surface;
-  view->surface_type = TURBO_XDG_SURFACE;
+  // view->surface_type = TURBO_XDG_SURFACE;
 
   /* Listen to the various events it can emit */
   view->map.notify = xdg_surface_map_notify;

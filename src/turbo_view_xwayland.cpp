@@ -23,6 +23,25 @@ extern "C" {
 }
 
 #include "turbo_server.h"
+#include "turbo_output.h"
+
+turbo_view_xwayland::turbo_view_xwayland()
+  : turbo_view() {
+
+  }
+
+void turbo_view_xwayland::scale_coords(double inx, double iny, double *outx, double *outy) const {
+  wlr_output* output = wlr_output_layout_output_at(server->output_layout, inx, iny);
+  *outx = inx * output->scale;
+  *outy = iny * output->scale;
+}
+
+void turbo_view_xwayland::for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const {
+  if (xwayland_surface->surface == NULL) {
+    return;
+  }
+  wlr_surface_for_each_surface(xwayland_surface->surface, iterator, data);
+}
 
 const wlr_surface* turbo_view_xwayland::surface() const {
   return xwayland_surface->surface;
@@ -32,8 +51,11 @@ void turbo_view_xwayland::focus() {
   focus_view(xwayland_surface->surface);
 }
 
-void turbo_view_xwayland::toggle_maximize() {
+float turbo_view_xwayland::scale_output(wlr_output *output) const {
+  return 1.0f;
+}
 
+void turbo_view_xwayland::toggle_maximize() {
   if (!maximized) {
     wlr_output* output = wlr_output_layout_output_at(server->output_layout,
       server->cursor->x, server->cursor->y);
@@ -100,3 +122,13 @@ void turbo_view_xwayland::geometry(struct wlr_box *box) const {
   geometry.height = xwayland_surface->height;
 	wlr_box_intersection(&geometry, box, box);
 }
+
+turbo_view* turbo_view_xwayland::parent() const {
+  return server->view_from_surface(xwayland_surface->parent->surface);
+}
+
+bool turbo_view_xwayland::is_child() const {
+  bool is_child = xwayland_surface->parent != NULL;
+  return is_child;
+}
+

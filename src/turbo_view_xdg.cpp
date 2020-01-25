@@ -23,6 +23,28 @@ extern "C" {
 }
 
 #include "turbo_server.h"
+#include "turbo_output.h"
+
+turbo_view_xdg::turbo_view_xdg()
+  : turbo_view() {
+
+  }
+
+void turbo_view_xdg::scale_coords(double inx, double iny, double *outx, double *outy) const {
+  *outx = inx;
+  *outy = iny;
+}
+
+float turbo_view_xdg::scale_output(wlr_output *output) const {
+  return output->scale;
+}
+
+void turbo_view_xdg::for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const {
+  if (xdg_surface->surface == NULL) {
+    return;
+  }
+  wlr_xdg_surface_for_each_surface(xdg_surface, iterator, data);
+}
 
 void turbo_view_xdg::focus() {
   focus_view(xdg_surface->surface);
@@ -82,4 +104,13 @@ void turbo_view_xdg::set_size(int width, int height) {
 
 wlr_surface* turbo_view_xdg::surface_at(double sx, double sy, double *sub_x, double *sub_y) {
   return wlr_xdg_surface_surface_at(xdg_surface, sx, sy, sub_x, sub_y);
+}
+
+turbo_view* turbo_view_xdg::parent() const {
+  return server->view_from_surface(xdg_surface->toplevel->parent->surface);
+}
+
+bool turbo_view_xdg::is_child() const {
+  bool is_child = xdg_surface->toplevel->parent != NULL;
+  return is_child;
 }

@@ -6,10 +6,12 @@
 #include "turbo_cursor_mode.h"
 
 struct turbo_server;
+
 struct wlr_xdg_surface;
 struct wlr_xwayland_surface;
 struct wlr_surface;
 struct wlr_box;
+struct wlr_output;
 
 enum surface_type {
   TURBO_SURFACE_TYPE_NONE = 0,
@@ -17,16 +19,18 @@ enum surface_type {
   TURBO_XWAYLAND_SURFACE = 2
 };
 
+typedef void (*wlr_surface_iterator_func_t)(struct wlr_surface *surface,
+	int sx, int sy, void *data);
+
 struct turbo_view {
   virtual ~turbo_view() {};
+  turbo_view();
 
   wl_list link;
 
   turbo_server *server;
-  wlr_xdg_surface *xdg_surface;
-  wlr_xwayland_surface *xwayland_surface;
 
-  enum surface_type surface_type;
+  // enum surface_type surface_type;
 
   wl_listener map;
   wl_listener unmap;
@@ -34,16 +38,6 @@ struct turbo_view {
   wl_listener request_move;
   wl_listener request_resize;
   wl_listener request_maximize;
-
-  virtual void activate() = 0;
-  virtual void notify_keyboard_enter() = 0;
-
-  virtual wlr_surface* surface_at(double sx, double sy, double *sub_x, double *sub_y) = 0;
-  virtual void geometry(struct wlr_box *box) const = 0;
-
-  virtual const wlr_surface* surface() const = 0;
-
-  virtual void set_size(int width, int height) = 0;
 
   bool mapped;
   double x, y;
@@ -58,15 +52,31 @@ struct turbo_view {
 
   void begin_interactive(enum turbo_cursor_mode mode, uint32_t edges);
 
+  virtual void activate() = 0;
+  virtual void notify_keyboard_enter() = 0;
+
+  virtual wlr_surface* surface_at(double sx, double sy, double *sub_x, double *sub_y) = 0;
+
+  virtual const wlr_surface* surface() const = 0;
+
+  virtual void set_size(int width, int height) = 0;
+
+  virtual void geometry(wlr_box *box) const = 0;
+
   virtual void focus() = 0;
 
   virtual void toggle_maximize() = 0;
 
-  turbo_view* parent() const;
+  virtual turbo_view* parent() const = 0;
 
-  bool is_child() const;
+  virtual bool is_child() const = 0;
+
+  virtual void for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const = 0;
+
+  virtual float scale_output(wlr_output *output) const = 0;
+
+  virtual void scale_coords(double inx, double iny, double *outx, double *outy) const = 0;
+
 };
-
-void scale_coords(turbo_view *view, double inx, double iny, double *outx, double *outy);
 
 #endif
