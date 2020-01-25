@@ -15,6 +15,7 @@ struct turbo_view_xwayland : public turbo_view {
   void _maximize(int new_x, int new_y, int width, int height, bool maximized);
   void toggle_maximize();
   void set_size(int width, int height);
+  void focus();
 };
 
 #endif

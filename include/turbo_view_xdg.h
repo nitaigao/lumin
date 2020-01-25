@@ -9,9 +9,9 @@ struct turbo_view_xdg : public turbo_view {
   void notify_keyboard_enter();
   wlr_surface* surface_at(double sx, double sy, double *sub_x, double *sub_y);
   void geometry(struct wlr_box *box) const;
-  void _maximize(int new_x, int new_y, int width, int height, bool maximized);
   void toggle_maximize();
   void set_size(int width, int height);
+  void focus();
 };
 
 #endif

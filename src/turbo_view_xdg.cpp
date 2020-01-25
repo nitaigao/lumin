@@ -24,6 +24,10 @@ extern "C" {
 
 #include "turbo_server.h"
 
+void turbo_view_xdg::focus() {
+  focus_view(xdg_surface->surface);
+}
+
 void turbo_view_xdg::geometry(struct wlr_box *box) const {
   wlr_surface_get_extends(xdg_surface->surface, box);
 	/* The client never set the geometry */
@@ -68,11 +72,6 @@ void turbo_view_xdg::activate() {
 
 void turbo_view_xdg::notify_keyboard_enter() {
   wlr_keyboard *keyboard = wlr_seat_get_keyboard(server->seat);
-  /*
-   * Tell the seat to have the keyboard enter this surface. wlroots will keep
-   * track of this and automatically send key events to the appropriate
-   * clients without additional work on your part.
-   */
   wlr_seat_keyboard_notify_enter(server->seat, xdg_surface->surface,
     keyboard->keycodes, keyboard->num_keycodes, &keyboard->modifiers);
 }

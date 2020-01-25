@@ -105,9 +105,7 @@ static void cursor_motion_absolute_notify(wl_listener *listener, void *data) {
 static void cursor_button_notify(wl_listener *listener, void *data) {
   /* This event is forwarded by the cursor when a pointer emits a button
    * event. */
-
   turbo_server *server = wl_container_of(listener, server, cursor_button);
-
   auto event = static_cast<struct wlr_event_pointer_button*>(data);
   /* Notify the client with pointer focus that a button press has occurred */
   wlr_seat_pointer_notify_button(server->seat, event->time_msec, event->button, event->state);
@@ -185,7 +183,7 @@ static void new_output_notify(wl_listener *listener, void *data) {
   if (strcmp(wlr_output->name, "DP-0") == 0
    || strcmp(wlr_output->name, "DP-1") == 0
    || strcmp(wlr_output->name, "DP-2") == 0) {
-    wlr_output_set_scale(wlr_output, 2);
+    wlr_output_set_scale(wlr_output, 1);
   }
 
   /* Allocates and configures our state for this output */
@@ -214,14 +212,11 @@ static void new_output_notify(wl_listener *listener, void *data) {
 static void xdg_surface_map_notify(wl_listener *listener, void *data) {
   /* Called when the surface is mapped, or ready to display on-screen. */
   turbo_view *view = wl_container_of(listener, view, map);
+  turbo_server *server = view->server;
   view->mapped = true;
-  if (view->surface_type == TURBO_XWAYLAND_SURFACE) {
-    view->focus_view(view->xwayland_surface->surface);
-  }
 
-  if (view->surface_type == TURBO_XDG_SURFACE) {
-    view->focus_view(view->xdg_surface->surface);
-  }
+  server->position_view(view);
+  view->focus();
 }
 
 static void xdg_surface_unmap_notify(wl_listener *listener, void *data) {
@@ -234,7 +229,7 @@ static void xdg_surface_destroy_notify(wl_listener *listener, void *data) {
   /* Called when the surface is destroyed and should never be shown again. */
   turbo_view *view = wl_container_of(listener, view, destroy);
   wl_list_remove(&view->link);
-  // delete view;
+  delete view;
 }
 
 static void xdg_toplevel_request_move_notify(wl_listener *listener, void *data) {

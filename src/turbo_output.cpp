@@ -23,6 +23,8 @@ extern "C" {
   #include <xkbcommon/xkbcommon.h>
 }
 
+#include <iostream>
+
 #include "turbo_view.h"
 #include "turbo_server.h"
 
@@ -63,15 +65,16 @@ static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
 
   wlr_output_layout_output_coords(view->server->output_layout, output, &ox, &oy);
 
-  ox += view->x + sx;
-  oy += view->y + sy;
-
   float scale = output->scale;
 
   // let XWayland clients scale themselves
   if (view->surface_type == TURBO_XWAYLAND_SURFACE) {
     scale = 1;
+    std::clog << ox << " " << oy << std::endl;
   }
+
+  ox += view->x + sx;
+  oy += view->y + sy;
 
   /* We also have to apply the scale factor for HiDPI outputs. This is only
    * part of the puzzle, TinyWL does not fully support HiDPI. */
@@ -124,7 +127,7 @@ void turbo_output::render() const {
   /* Begin the renderer (calls glViewport and some other GL sanity checks) */
   wlr_renderer_begin(renderer, wlr_output->width, wlr_output->height);
 
-  float color[4] = {1.0, 0.0, 0.0, 1.0};
+  float color[4] = {0.0, 0.0, 0.0, 1.0};
   wlr_renderer_clear(renderer, color);
 
   /* Each subsequent window we render is rendered on top of the last. Because

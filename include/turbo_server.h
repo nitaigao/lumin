@@ -9,51 +9,59 @@ struct wlr_renderer;
 struct wlr_seat;
 struct wlr_input_device;
 struct wlr_surface;
+struct wlr_xwayland;
+struct turbo_view;
 
 struct turbo_server {
   turbo_server();
 
   struct wl_display *wl_display;
-  struct wlr_backend *backend;
+  wlr_backend *backend;
   wlr_renderer *renderer;
 
-  struct wlr_xdg_shell *xdg_shell;
+  wlr_xdg_shell *xdg_shell;
+  wlr_xwayland *xwayland;
+  wl_list views;
+
+  wlr_cursor *cursor;
+  wlr_xcursor_manager *cursor_mgr;
+
   wl_listener new_xdg_surface;
-
-  struct wlr_xwayland *xwayland;
   wl_listener new_xwayland_surface;
-  struct wl_list views;
 
-  struct wlr_cursor *cursor;
-  struct wlr_xcursor_manager *cursor_mgr;
   wl_listener cursor_motion;
   wl_listener cursor_motion_absolute;
   wl_listener cursor_button;
   wl_listener cursor_axis;
   wl_listener cursor_frame;
-
-  wlr_seat *seat;
   wl_listener new_input;
   wl_listener request_cursor;
-  struct wl_list keyboards;
+
+  wlr_seat *seat;
+  wl_list keyboards;
   enum turbo_cursor_mode cursor_mode;
-  struct turbo_view *grabbed_view;
+  turbo_view *grabbed_view;
 
   double grab_x, grab_y;
   int grab_width, grab_height;
   uint32_t resize_edges;
 
-  struct wlr_output_layout *output_layout;
-  struct wl_list outputs;
+  wlr_output_layout *output_layout;
+  wl_list outputs;
   wl_listener new_output;
+
+  turbo_view* desktop_view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
 
   void new_keyboard(wlr_input_device *device);
   void new_pointer(wlr_input_device *device);
 
-  turbo_view* desktop_view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
   void process_cursor_move(uint32_t time);
   void process_cursor_resize(uint32_t time);
   void process_cursor_motion(uint32_t time);
+
+  turbo_view* view_from_xdg_surface(wlr_xdg_surface *xdg_surface);
+
+  void position_view(turbo_view* view);
 };
 
 #endif

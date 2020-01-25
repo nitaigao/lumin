@@ -28,6 +28,10 @@ const wlr_surface* turbo_view_xwayland::surface() const {
   return xwayland_surface->surface;
 }
 
+void turbo_view_xwayland::focus() {
+  focus_view(xwayland_surface->surface);
+}
+
 void turbo_view_xwayland::toggle_maximize() {
 
   if (!maximized) {

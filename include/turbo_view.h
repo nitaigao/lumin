@@ -58,7 +58,13 @@ struct turbo_view {
 
   void begin_interactive(enum turbo_cursor_mode mode, uint32_t edges);
 
+  virtual void focus() = 0;
+
   virtual void toggle_maximize() = 0;
+
+  turbo_view* parent() const;
+
+  bool is_child() const;
 };
 
 void scale_coords(turbo_view *view, double inx, double iny, double *outx, double *outy);

@@ -64,18 +64,11 @@ static bool handle_alt_keybinding(turbo_server *server, xkb_keysym_t sym) {
 }
 
 static bool handle_ctrl_keybinding(turbo_server *server, xkb_keysym_t sym) {
-  /*
-   * Here we handle compositor keybindings. This is when the compositor is
-   * processing keys, rather than passing them on to the client for its own
-   * processing.
-   *
-   * This function assumes Alt is held down.
-   */
   switch (sym) {
 
   case XKB_KEY_Return: {
     if (fork() == 0) {
-      execl("/bin/sh", "/bin/sh", "-c", "gnome-terminal", (void *)NULL);
+      execl("/bin/sh", "/bin/sh", "-c", "tilix", (void *)NULL);
     }
     break;
   }
@@ -102,19 +95,8 @@ static bool handle_ctrl_keybinding(turbo_server *server, xkb_keysym_t sym) {
 }
 
 static void keyboard_modifiers_notify(wl_listener *listener, void *data) {
-  /* This event is raised when a modifier key, such as shift or alt, is
-   * pressed. We simply communicate this to the client. */
   turbo_keyboard *keyboard = wl_container_of(listener, keyboard, modifiers);
-
-  /*
-   * A seat can only have one keyboard, but this is a limitation of the
-   * Wayland protocol - not wlroots. We assign all connected keyboards to the
-   * same seat. You can swap out the underlying wlr_keyboard like this and
-   * wlr_seat handles this transparently.
-   */
   wlr_seat_set_keyboard(keyboard->server->seat, keyboard->device);
-
-  /* Send modifiers to the client. */
   wlr_seat_keyboard_notify_modifiers(keyboard->server->seat,
     &keyboard->device->keyboard->modifiers);
 }
@@ -126,25 +108,19 @@ static void keyboard_key_notify(wl_listener *listener, void *data) {
   auto event = static_cast<struct wlr_event_keyboard_key *>(data);
   wlr_seat *seat = server->seat;
 
-  /* Translate libinput keycode -> xkbcommon */
   uint32_t keycode = event->keycode + 8;
-  /* Get a list of keysyms based on the keymap for this keyboard */
   const xkb_keysym_t *syms;
   int nsyms = xkb_state_key_get_syms(keyboard->device->keyboard->xkb_state, keycode, &syms);
 
   bool handled = false;
   uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->device->keyboard);
   if ((modifiers & WLR_MODIFIER_ALT) && event->state == WLR_KEY_PRESSED) {
-    /* If alt is held down and this button was _pressed_, we attempt to
-     * process it as a compositor keybinding. */
     for (int i = 0; i < nsyms; i++) {
       handled = handle_alt_keybinding(server, syms[i]);
     }
   }
 
   if ((modifiers & WLR_MODIFIER_CTRL) && event->state == WLR_KEY_PRESSED) {
-    /* If ctrl is held down and this button was _pressed_, we attempt to
-     * process it as a compositor keybinding. */
     for (int i = 0; i < nsyms; i++) {
       handled = handle_ctrl_keybinding(server, syms[i]);
     }
@@ -160,7 +136,6 @@ static void keyboard_key_notify(wl_listener *listener, void *data) {
   }
 
   if (!handled) {
-    /* Otherwise, we pass it along to the client. */
     wlr_seat_set_keyboard(seat, keyboard->device);
     wlr_seat_keyboard_notify_key(seat, event->time_msec, event->keycode, event->state);
   }
@@ -205,18 +180,13 @@ void turbo_server::new_pointer(wlr_input_device *device) {
     libinput_device_config_accel_set_profile(libinput_device, LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT);
   }
 
-  /* We don't do anything special with pointers. All of our pointer handling
-   * is proxied through wlr_cursor. On another compositor, you might take this
-   * opportunity to do libinput configuration on the device to set
-   * acceleration, etc. */
   wlr_cursor_attach_input_device(cursor, device);
 }
 
 
 turbo_view* turbo_server::desktop_view_at(double lx, double ly,
   wlr_surface **surface, double *sx, double *sy) {
-  /* This iterates over all of our surfaces and attempts to find one under the
-   * cursor. This relies on server->views being ordered from top-to-bottom. */
+
   turbo_view *view;
   wl_list_for_each(view, &views, link) {
 
@@ -232,22 +202,11 @@ turbo_view* turbo_server::desktop_view_at(double lx, double ly,
 
 void turbo_server::process_cursor_move(uint32_t time) {
   scale_coords(grabbed_view, cursor->x, cursor->y, &grabbed_view->x, &grabbed_view->y);
-  /* Move the grabbed view to the new position. */
   grabbed_view->x -= grab_x;
   grabbed_view->y -= grab_y;
 }
 
 void turbo_server::process_cursor_resize(uint32_t time) {
-  /*
-   * Resizing the grabbed view can be a little bit complicated, because we
-   * could be resizing from any corner or edge. This not only resizes the view
-   * on one or two axes, but can also move the view if you resize from the top
-   * or left edges (or top-left corner).
-   *
-   * Note that I took some shortcuts here. In a more fleshed-out compositor,
-   * you'd wait for the client to prepare a buffer at the new size, then
-   * commit any movement that was prepared.
-   */
   turbo_view *view = grabbed_view;
   double dx = 0;
   double dy = 0;
@@ -332,4 +291,36 @@ void turbo_server::process_cursor_motion(uint32_t time) {
      * the last client to have the cursor over it. */
     wlr_seat_pointer_clear_focus(seat);
   }
+}
+
+turbo_view* turbo_server::view_from_xdg_surface(wlr_xdg_surface *xdg_surface) {
+  turbo_view *view;
+  wl_list_for_each(view, &views, link) {
+    if (view->xdg_surface == xdg_surface) {
+      return view;
+    }
+  }
+  return NULL;
+}
+
+void turbo_server::position_view(turbo_view *view) {
+  bool is_child = view->is_child();
+
+  if (!is_child) {
+    return;
+  }
+
+  turbo_view *parent_view = view->parent();
+
+  wlr_box parent_geometry;
+  wlr_xdg_surface_get_geometry(parent_view->xdg_surface, &parent_geometry);
+
+  wlr_box geometry;
+  wlr_xdg_surface_get_geometry(view->xdg_surface, &geometry);
+
+  int inside_x = (parent_geometry.width - geometry.width) / 2.0;
+  int inside_y = (parent_geometry.height - geometry.height) / 2.0;
+
+  view->x = parent_view->x + inside_x;
+  view->y = parent_view->y + inside_y;
 }

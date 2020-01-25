@@ -37,7 +37,6 @@ void scale_coords(turbo_view *view, double inx, double iny, double *outx, double
   *outy = iny * output->scale;
 }
 
-
 void turbo_view::focus_view(wlr_surface *surface) {
   /* Note: this function only deals with keyboard focus. */
   wlr_seat *seat = server->seat;
@@ -129,4 +128,14 @@ void turbo_view::begin_interactive(enum turbo_cursor_mode mode, uint32_t edges) 
   server->grab_width = geo_box.width;
   server->grab_height = geo_box.height;
   server->resize_edges = edges;
+}
+
+turbo_view* turbo_view::parent() const {
+  turbo_view* parent_view = server->view_from_xdg_surface(xdg_surface->toplevel->parent);
+  return parent_view;
+}
+
+bool turbo_view::is_child() const {
+  bool is_child = xdg_surface->toplevel->parent != NULL;
+  return is_child;
 }
