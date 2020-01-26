@@ -13,6 +13,7 @@ struct wm_view_xdg : public wm_view {
   void toggle_maximize();
   void set_size(int width, int height);
   void focus();
+  void unfocus();
   void for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const;
   bool is_child() const;
   wm_view* parent() const;

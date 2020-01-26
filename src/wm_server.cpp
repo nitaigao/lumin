@@ -37,8 +37,6 @@ wm_server::wm_server()
 }
 
 static void new_input_notify(wl_listener *listener, void *data) {
-  /* This event is raised by the backend when a new input device becomes
-   * available. */
   wm_server *server = wl_container_of(listener, server, new_input);
   auto device = static_cast<struct wlr_input_device *>(data);
 
@@ -53,11 +51,8 @@ static void new_input_notify(wl_listener *listener, void *data) {
 
   default:
     break;
-
   }
-  /* We need to let the wlr_seat know what our capabilities are, which is
-   * communiciated to the client. In TinyWL we always have a cursor, even if
-   * there are no pointer devices, so we always include that capability. */
+
   uint32_t caps = WL_SEAT_CAPABILITY_POINTER;
   if (!wl_list_empty(&server->keyboards)) {
     caps |= WL_SEAT_CAPABILITY_KEYBOARD;
@@ -68,41 +63,23 @@ static void new_input_notify(wl_listener *listener, void *data) {
 
 static void seat_request_cursor_notify(wl_listener *listener, void *data) {
   wm_server *server = wl_container_of(listener, server, request_cursor);
-  /* This event is rasied by the seat when a client provides a cursor image */
+
   auto event = static_cast<wlr_seat_pointer_request_set_cursor_event*>(data);
   wlr_seat_client *focused_client = server->seat->pointer_state.focused_client;
-  /* This can be sent by any client, so we check to make sure this one is
-   * actually has pointer focus first. */
+
   if (focused_client == event->seat_client) {
-    /* Once we've vetted the client, we can tell the cursor to use the
-     * provided surface as the cursor image. It will set the hardware cursor
-     * on the output that it's currently on and continue to do so as the
-     * cursor moves between outputs. */
     wlr_cursor_set_surface(server->cursor, event->surface, event->hotspot_x, event->hotspot_y);
   }
 }
 
 static void cursor_motion_notify(wl_listener *listener, void *data) {
-  /* This event is forwarded by the cursor when a pointer emits a _relative_
-   * pointer motion event (i.e. a delta) */
   wm_server *server = wl_container_of(listener, server, cursor_motion);
   auto event = static_cast<struct wlr_event_pointer_motion*>(data);
-  /* The cursor doesn't move unless we tell it to. The cursor automatically
-   * handles constraining the motion to the output layout, as well as any
-   * special configuration applied for the specific input device which
-   * generated the event. You can pass NULL for the device if you want to move
-   * the cursor around without any input. */
   wlr_cursor_move(server->cursor, event->device, event->delta_x, event->delta_y);
   server->process_cursor_motion(event->time_msec);
 }
 
 static void cursor_motion_absolute_notify(wl_listener *listener, void *data) {
-  /* This event is forwarded by the cursor when a pointer emits an _absolute_
-   * motion event, from 0..1 on each axis. This happens, for example, when
-   * wlroots is running under a Wayland window rather than KMS+DRM, and you
-   * move the mouse over the window. You could enter the window from any edge,
-   * so we have to warp the mouse there. There is also some hardware which
-   * emits these events. */
   wm_server *server = wl_container_of(listener, server, cursor_motion_absolute);
   auto event = static_cast<struct wlr_event_pointer_motion_absolute*>(data);
   wlr_cursor_warp_absolute(server->cursor, event->device, event->x, event->y);
@@ -110,11 +87,8 @@ static void cursor_motion_absolute_notify(wl_listener *listener, void *data) {
 }
 
 static void cursor_button_notify(wl_listener *listener, void *data) {
-  /* This event is forwarded by the cursor when a pointer emits a button
-   * event. */
   wm_server *server = wl_container_of(listener, server, cursor_button);
   auto event = static_cast<struct wlr_event_pointer_button*>(data);
-  /* Notify the client with pointer focus that a button press has occurred */
   wlr_seat_pointer_notify_button(server->seat, event->time_msec, event->button, event->state);
 
   double sx, sy;
@@ -122,19 +96,15 @@ static void cursor_button_notify(wl_listener *listener, void *data) {
   wm_view *view = server->desktop_view_at(server->cursor->x, server->cursor->y, &surface, &sx, &sy);
 
   if (event->state == WLR_BUTTON_RELEASED) {
-    /* If you released any buttons, we exit interactive move/resize mode. */
     server->cursor_mode = wm_CURSOR_PASSTHROUGH;
   } else {
     if (view != NULL) {
-      /* Focus that client if the button was _pressed_ */
       view->focus_view(surface);
     }
   }
 }
 
 static void cursor_axis_notify(wl_listener *listener, void *data) {
-  /* This event is forwarded by the cursor when a pointer emits an axis event,
-   * for example when you move the scroll wheel. */
   wm_server *server = wl_container_of(listener, server, cursor_axis);
   auto event = static_cast<wlr_event_pointer_axis*>(data);
   /* Notify the client with pointer focus of the axis event. */

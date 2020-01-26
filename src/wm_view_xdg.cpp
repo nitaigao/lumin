@@ -50,6 +50,10 @@ void wm_view_xdg::focus() {
   focus_view(xdg_surface->surface);
 }
 
+void wm_view_xdg::unfocus() {
+  wlr_xdg_toplevel_set_activated(xdg_surface, false);
+}
+
 void wm_view_xdg::geometry(struct wlr_box *box) const {
   wlr_surface_get_extends(xdg_surface->surface, box);
 	/* The client never set the geometry */

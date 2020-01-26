@@ -51,6 +51,10 @@ void wm_view_xwayland::focus() {
   focus_view(xwayland_surface->surface);
 }
 
+void wm_view_xwayland::unfocus() {
+  wlr_xwayland_surface_activate(xwayland_surface, false);
+}
+
 float wm_view_xwayland::scale_output(wlr_output *output) const {
   return 1.0f;
 }

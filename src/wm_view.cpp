@@ -36,32 +36,18 @@ wm_view::wm_view()
   , old_y(0) { }
 
 void wm_view::focus_view(wlr_surface *surface) {
-  /* Note: this function only deals with keyboard focus. */
   wlr_seat *seat = server->seat;
   wlr_surface *prev_surface = seat->keyboard_state.focused_surface;
+
   if (prev_surface == surface) {
-    /* Don't re-focus an already focused surface. */
     return;
   }
 
   if (prev_surface) {
-    if (wlr_surface_is_xdg_surface(seat->keyboard_state.focused_surface)) {
-      /*
-      * Deactivate the previously focused surface. This lets the client know
-      * it no longer has focus and the client will repaint accordingly, e.g.
-      * stop displaying a caret.
-      */
-      struct wlr_xdg_surface *previous = wlr_xdg_surface_from_wlr_surface(seat->keyboard_state.focused_surface);
-      wlr_xdg_toplevel_set_activated(previous, false);
-    }
-
-    if (wlr_surface_is_xwayland_surface(seat->keyboard_state.focused_surface)) {
-      struct wlr_xwayland_surface *previous = wlr_xwayland_surface_from_wlr_surface(seat->keyboard_state.focused_surface);
-      wlr_xwayland_surface_activate(previous, false);
-    }
+    wm_view *view = server->view_from_surface(seat->keyboard_state.focused_surface);
+    view->unfocus();
   }
 
-  /* Move the view to the front */
   wl_list_remove(&link);
   wl_list_insert(&server->views, &link);
 

@@ -64,6 +64,8 @@ struct wm_view {
 
   virtual void focus() = 0;
 
+  virtual void unfocus() = 0;
+
   virtual void toggle_maximize() = 0;
 
   virtual wm_view* parent() const = 0;
