@@ -1,5 +1,5 @@
-#ifndef _wm_VIEW_XWAYLAND_H
-#define _wm_VIEW_XWAYLAND_H
+#ifndef _WM_VIEW_XWAYLAND_H
+#define _WM_VIEW_XWAYLAND_H
 
 #include <wayland-server-core.h>
 

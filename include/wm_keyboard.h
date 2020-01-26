@@ -1,5 +1,5 @@
-#ifndef _wm_KEYBOARD_H
-#define _wm_KEYBOARD_H
+#ifndef _WM_KEYBOARD_H
+#define _WM_KEYBOARD_H
 
 #include <wayland-server-core.h>
 

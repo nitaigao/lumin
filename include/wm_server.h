@@ -1,5 +1,5 @@
-#ifndef _wm_SERVER_H
-#define _wm_SERVER_H
+#ifndef _WM_SERVER_H
+#define _WM_SERVER_H
 
 #include <wayland-server-core.h>
 

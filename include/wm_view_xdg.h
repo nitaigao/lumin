@@ -1,5 +1,5 @@
-#ifndef _wm_VIEW_H
-#define _wm_VIEW_H
+#ifndef _WM_VIEW_H
+#define _WM_VIEW_H
 
 #include "wm_view.h"
 
