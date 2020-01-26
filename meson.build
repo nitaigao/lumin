@@ -30,6 +30,12 @@ dependencies = [
 includes = include_directories(['include', 'protocols'])
 
 sources = [
+  'src/wm_key_binding.cpp',
+  'src/wm_key_binding_dock_right.cpp',
+  'src/wm_key_binding_dock_left.cpp',
+  'src/wm_key_binding_maximize.cpp',
+  'src/wm_key_binding_cmd.cpp',
+  'src/wm_key_binding_quit.cpp',
   'src/wm_output.cpp',
   'src/wm_view_xwayland.cpp',
   'src/wm_view_xdg.cpp',

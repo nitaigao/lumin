@@ -2,6 +2,9 @@
 #define _WM_SERVER_H
 
 #include <wayland-server-core.h>
+#include <vector>
+#include <memory>
+#include <xkbcommon/xkbcommon.h>
 
 #include "wm_cursor_mode.h"
 
@@ -16,6 +19,7 @@ struct wlr_cursor;
 struct wlr_xcursor_manager;
 struct wlr_output_layout;
 struct wm_view;
+struct wm_key_binding;
 
 struct wm_server {
   wm_server();
@@ -70,8 +74,21 @@ struct wm_server {
 
   void pop_view(wm_view* view);
 
+  void quit();
+
   void run();
   void destroy();
+
+  bool handle_key(uint32_t keycode, const xkb_keysym_t *syms, int nsyms, uint32_t modifiers, int state);
+
+  void dock_right();
+  void dock_left();
+  void maximize();
+
+  private:
+
+  void init_keybindings();
+  std::vector<std::shared_ptr<wm_key_binding>> key_bindings;
 };
 
 #endif

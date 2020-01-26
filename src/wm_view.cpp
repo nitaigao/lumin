@@ -1,5 +1,7 @@
 #include "wm_view.h"
 
+#include <iostream>
+
 extern "C" {
   #include <unistd.h>
   #include <wayland-server-core.h>
@@ -91,6 +93,49 @@ bool wm_view::view_at(double lx, double ly, wlr_surface **surface, double *sx, d
   return false;
 }
 
+void wm_view::dock_left() {
+  unmaximize(false);
+
+  wlr_box box;
+  extends(&box);
+
+  int corner_x = x + box.x;
+  int corner_y = y + box.y;
+
+  wlr_output* output = wlr_output_layout_output_at(server->output_layout, corner_x, corner_y);
+
+  x = 0;
+  y = 0;
+
+  wlr_output_layout_output_coords(server->output_layout, output, &x, &y);
+
+  x -= box.x;
+  y -= box.y;
+
+  set_size((output->width / 2.0f) / output->scale, output->height / output->scale);
+}
+
+void wm_view::dock_right() {
+  unmaximize(false);
+
+  wlr_box box;
+  extends(&box);
+  int corner_x = x + box.x;
+  int corner_y = y + box.y;
+  wlr_output* output = wlr_output_layout_output_at(server->output_layout, corner_x, corner_y);
+
+  y = 0;
+  x = 0;
+  wlr_output_layout_output_coords(server->output_layout, output, &x, &y);
+  x -= box.x;
+  y -= box.y;
+
+  // middle of the screen
+  x += (output->width / 2.0f) / output->scale;
+
+  set_size((output->width / 2.0f) / output->scale, output->height / output->scale);
+}
+
 void wm_view::begin_interactive(enum wm_cursor_mode mode, uint32_t edges) {
   /* This function sets up an interactive move or resize operation, where the
    * compositor stops propegating pointer events to clients and instead
@@ -110,7 +155,7 @@ void wm_view::begin_interactive(enum wm_cursor_mode mode, uint32_t edges) {
 
   scale_coords(server->cursor->x, server->cursor->y, &server->grab_x, &server->grab_y);
 
-  if (mode == wm_CURSOR_MOVE) {
+  if (mode == WM_CURSOR_MOVE) {
     server->grab_x -= x;
     server->grab_y -= y;
   } else {

@@ -60,6 +60,10 @@ float wm_view_xwayland::scale_output(wlr_output *output) const {
   return 1.0f;
 }
 
+void wm_view_xwayland::extends(wlr_box *box) {
+
+}
+
 void wm_view_xwayland::maximize() {
   if (maximized) {
     return;
@@ -71,6 +75,7 @@ void wm_view_xwayland::maximize() {
 
   old_width = xwayland_surface->width;
   old_height = xwayland_surface->height;
+
   old_x = x;
   old_y = y;
 
@@ -78,8 +83,8 @@ void wm_view_xwayland::maximize() {
   y = output_box->y;
 
   wlr_xwayland_surface_set_maximized(xwayland_surface, true);
-  wlr_xwayland_surface_configure(xwayland_surface, output_box->x, output_box->y,
-    output_box->width * output->scale, output_box->height * output->scale);
+  set_size(output_box->width * output->scale, output_box->height * output->scale);
+
   maximized = true;
 }
 

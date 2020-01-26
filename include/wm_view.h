@@ -53,6 +53,14 @@ public:
 
   void unmap_view();
 
+  void dock_right();
+
+  void dock_left();
+
+  virtual void set_size(int width, int height) = 0;
+
+  virtual void extends(wlr_box *box) = 0;
+
   virtual void activate() = 0;
 
   virtual void notify_keyboard_enter() = 0;
@@ -60,8 +68,6 @@ public:
   virtual wlr_surface* surface_at(double sx, double sy, double *sub_x, double *sub_y) = 0;
 
   virtual const wlr_surface* surface() const = 0;
-
-  virtual void set_size(int width, int height) = 0;
 
   virtual void geometry(wlr_box *box) const = 0;
 
