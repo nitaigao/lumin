@@ -1,4 +1,4 @@
-#include "turbo_view.h"
+#include "wm_view.h"
 
 extern "C" {
   #include <unistd.h>
@@ -22,10 +22,10 @@ extern "C" {
   #include <xkbcommon/xkbcommon.h>
 }
 
-#include "turbo_server.h"
-#include "turbo_cursor_mode.h"
+#include "wm_server.h"
+#include "wm_cursor_mode.h"
 
-turbo_view::turbo_view()
+wm_view::wm_view()
   : mapped(false)
   , x(0)
   , y(0)
@@ -35,7 +35,7 @@ turbo_view::turbo_view()
   , old_x(0)
   , old_y(0) { }
 
-void turbo_view::focus_view(wlr_surface *surface) {
+void wm_view::focus_view(wlr_surface *surface) {
   /* Note: this function only deals with keyboard focus. */
   wlr_seat *seat = server->seat;
   wlr_surface *prev_surface = seat->keyboard_state.focused_surface;
@@ -69,7 +69,7 @@ void turbo_view::focus_view(wlr_surface *surface) {
   notify_keyboard_enter();
 }
 
-bool turbo_view::view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy) {
+bool wm_view::view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy) {
   if (!mapped) {
     return false;
   }
@@ -96,7 +96,7 @@ bool turbo_view::view_at(double lx, double ly, wlr_surface **surface, double *sx
   return false;
 }
 
-void turbo_view::begin_interactive(enum turbo_cursor_mode mode, uint32_t edges) {
+void wm_view::begin_interactive(enum wm_cursor_mode mode, uint32_t edges) {
   /* This function sets up an interactive move or resize operation, where the
    * compositor stops propegating pointer events to clients and instead
    * consumes them itself, to move or resize windows. */
@@ -115,7 +115,7 @@ void turbo_view::begin_interactive(enum turbo_cursor_mode mode, uint32_t edges) 
 
   scale_coords(server->cursor->x, server->cursor->y, &server->grab_x, &server->grab_y);
 
-  if (mode == TURBO_CURSOR_MOVE) {
+  if (mode == wm_CURSOR_MOVE) {
     server->grab_x -= x;
     server->grab_y -= y;
   } else {

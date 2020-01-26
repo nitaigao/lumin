@@ -1,12 +1,12 @@
-#ifndef _TURBO_VIEW_XWAYLAND_H
-#define _TURBO_VIEW_XWAYLAND_H
+#ifndef _wm_VIEW_XWAYLAND_H
+#define _wm_VIEW_XWAYLAND_H
 
 #include <wayland-server-core.h>
 
-#include "turbo_view.h"
+#include "wm_view.h"
 
-struct turbo_view_xwayland : public turbo_view {
-  turbo_view_xwayland();
+struct wm_view_xwayland : public wm_view {
+  wm_view_xwayland();
 
   const wlr_surface* surface() const;
   wl_listener request_configure;
@@ -19,7 +19,7 @@ struct turbo_view_xwayland : public turbo_view {
 
   void for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const;
 
-  turbo_view* parent() const;
+  wm_view* parent() const;
   bool is_child() const;
   void geometry(wlr_box *box) const;
   float scale_output(wlr_output *output) const;

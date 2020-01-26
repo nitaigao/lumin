@@ -1,4 +1,4 @@
-#include "turbo_server.h"
+#include "wm_server.h"
 
 extern "C" {
   #include <unistd.h>
@@ -25,21 +25,21 @@ extern "C" {
 
 #include <iostream>
 
-#include "turbo_keyboard.h"
-#include "turbo_view.h"
-#include "turbo_view_xwayland.h"
-#include "turbo_view_xdg.h"
-#include "turbo_output.h"
+#include "wm_keyboard.h"
+#include "wm_view.h"
+#include "wm_view_xwayland.h"
+#include "wm_view_xdg.h"
+#include "wm_output.h"
 
-turbo_server::turbo_server()
-  : cursor_mode(TURBO_CURSOR_NONE) {
+wm_server::wm_server()
+  : cursor_mode(wm_CURSOR_NONE) {
 
 }
 
 static void new_input_notify(wl_listener *listener, void *data) {
   /* This event is raised by the backend when a new input device becomes
    * available. */
-  turbo_server *server = wl_container_of(listener, server, new_input);
+  wm_server *server = wl_container_of(listener, server, new_input);
   auto device = static_cast<struct wlr_input_device *>(data);
 
   switch (device->type) {
@@ -67,7 +67,7 @@ static void new_input_notify(wl_listener *listener, void *data) {
 }
 
 static void seat_request_cursor_notify(wl_listener *listener, void *data) {
-  turbo_server *server = wl_container_of(listener, server, request_cursor);
+  wm_server *server = wl_container_of(listener, server, request_cursor);
   /* This event is rasied by the seat when a client provides a cursor image */
   auto event = static_cast<wlr_seat_pointer_request_set_cursor_event*>(data);
   wlr_seat_client *focused_client = server->seat->pointer_state.focused_client;
@@ -85,7 +85,7 @@ static void seat_request_cursor_notify(wl_listener *listener, void *data) {
 static void cursor_motion_notify(wl_listener *listener, void *data) {
   /* This event is forwarded by the cursor when a pointer emits a _relative_
    * pointer motion event (i.e. a delta) */
-  turbo_server *server = wl_container_of(listener, server, cursor_motion);
+  wm_server *server = wl_container_of(listener, server, cursor_motion);
   auto event = static_cast<struct wlr_event_pointer_motion*>(data);
   /* The cursor doesn't move unless we tell it to. The cursor automatically
    * handles constraining the motion to the output layout, as well as any
@@ -103,7 +103,7 @@ static void cursor_motion_absolute_notify(wl_listener *listener, void *data) {
    * move the mouse over the window. You could enter the window from any edge,
    * so we have to warp the mouse there. There is also some hardware which
    * emits these events. */
-  turbo_server *server = wl_container_of(listener, server, cursor_motion_absolute);
+  wm_server *server = wl_container_of(listener, server, cursor_motion_absolute);
   auto event = static_cast<struct wlr_event_pointer_motion_absolute*>(data);
   wlr_cursor_warp_absolute(server->cursor, event->device, event->x, event->y);
   server->process_cursor_motion(event->time_msec);
@@ -112,18 +112,18 @@ static void cursor_motion_absolute_notify(wl_listener *listener, void *data) {
 static void cursor_button_notify(wl_listener *listener, void *data) {
   /* This event is forwarded by the cursor when a pointer emits a button
    * event. */
-  turbo_server *server = wl_container_of(listener, server, cursor_button);
+  wm_server *server = wl_container_of(listener, server, cursor_button);
   auto event = static_cast<struct wlr_event_pointer_button*>(data);
   /* Notify the client with pointer focus that a button press has occurred */
   wlr_seat_pointer_notify_button(server->seat, event->time_msec, event->button, event->state);
 
   double sx, sy;
   wlr_surface *surface;
-  turbo_view *view = server->desktop_view_at(server->cursor->x, server->cursor->y, &surface, &sx, &sy);
+  wm_view *view = server->desktop_view_at(server->cursor->x, server->cursor->y, &surface, &sx, &sy);
 
   if (event->state == WLR_BUTTON_RELEASED) {
     /* If you released any buttons, we exit interactive move/resize mode. */
-    server->cursor_mode = TURBO_CURSOR_PASSTHROUGH;
+    server->cursor_mode = wm_CURSOR_PASSTHROUGH;
   } else {
     if (view != NULL) {
       /* Focus that client if the button was _pressed_ */
@@ -135,7 +135,7 @@ static void cursor_button_notify(wl_listener *listener, void *data) {
 static void cursor_axis_notify(wl_listener *listener, void *data) {
   /* This event is forwarded by the cursor when a pointer emits an axis event,
    * for example when you move the scroll wheel. */
-  turbo_server *server = wl_container_of(listener, server, cursor_axis);
+  wm_server *server = wl_container_of(listener, server, cursor_axis);
   auto event = static_cast<wlr_event_pointer_axis*>(data);
   /* Notify the client with pointer focus of the axis event. */
   wlr_seat_pointer_notify_axis(server->seat, event->time_msec, event->orientation,
@@ -147,7 +147,7 @@ static void cursor_frame_notify(wl_listener *listener, void *data) {
    * event. Frame events are sent after regular pointer events to group
    * multiple events together. For instance, two axis events may happen at the
    * same time, in which case a frame event won't be sent in between. */
-  turbo_server *server = wl_container_of(listener, server, cursor_frame);
+  wm_server *server = wl_container_of(listener, server, cursor_frame);
   /* Notify the client with pointer focus of the frame event. */
   wlr_seat_pointer_notify_frame(server->seat);
 }
@@ -155,14 +155,14 @@ static void cursor_frame_notify(wl_listener *listener, void *data) {
 static void output_frame_notify(wl_listener *listener, void *data) {
   /* This function is called every time an output is ready to display a frame,
    * generally at the output's refresh rate (e.g. 60Hz). */
-  turbo_output *output = wl_container_of(listener, output, frame);
+  wm_output *output = wl_container_of(listener, output, frame);
   output->render();
 }
 
 static void new_output_notify(wl_listener *listener, void *data) {
   /* This event is rasied by the backend when a new output (aka a display or
    * monitor) becomes available. */
-  turbo_server *server = wl_container_of(listener, server, new_output);
+  wm_server *server = wl_container_of(listener, server, new_output);
   auto wlr_output = static_cast<struct wlr_output*>(data);
 
   wlr_log(WLR_ERROR, "%s connected", wlr_output->name);
@@ -197,7 +197,7 @@ static void new_output_notify(wl_listener *listener, void *data) {
   }
 
   /* Allocates and configures our state for this output */
-  turbo_output *output = new turbo_output();
+  wm_output *output = new wm_output();
   output->wlr_output = wlr_output;
   output->server = server;
 
@@ -221,8 +221,8 @@ static void new_output_notify(wl_listener *listener, void *data) {
 
 static void xdg_surface_map_notify(wl_listener *listener, void *data) {
   /* Called when the surface is mapped, or ready to display on-screen. */
-  turbo_view *view = wl_container_of(listener, view, map);
-  turbo_server *server = view->server;
+  wm_view *view = wl_container_of(listener, view, map);
+  wm_server *server = view->server;
   view->mapped = true;
 
   server->position_view(view);
@@ -231,15 +231,15 @@ static void xdg_surface_map_notify(wl_listener *listener, void *data) {
 
 static void xdg_surface_unmap_notify(wl_listener *listener, void *data) {
   /* Called when the surface is unmapped, and should no longer be shown. */
-  turbo_view *view = wl_container_of(listener, view, unmap);
+  wm_view *view = wl_container_of(listener, view, unmap);
   view->mapped = false;
-  turbo_server *server = view->server;
+  wm_server *server = view->server;
   server->pop_view(view);
 }
 
 static void xdg_surface_destroy_notify(wl_listener *listener, void *data) {
   /* Called when the surface is destroyed and should never be shown again. */
-  turbo_view *view = wl_container_of(listener, view, destroy);
+  wm_view *view = wl_container_of(listener, view, destroy);
   wl_list_remove(&view->link);
   delete view;
 }
@@ -250,8 +250,8 @@ static void xdg_toplevel_request_move_notify(wl_listener *listener, void *data) 
    * decorations. Note that a more sophisticated compositor should check the
    * provied serial against a list of button press serials sent to this
    * client, to prevent the client from requesting this whenever they want. */
-  turbo_view *view = wl_container_of(listener, view, request_move);
-  view->begin_interactive(TURBO_CURSOR_MOVE, 0);
+  wm_view *view = wl_container_of(listener, view, request_move);
+  view->begin_interactive(wm_CURSOR_MOVE, 0);
 }
 
 static void xdg_toplevel_request_resize_notify(wl_listener *listener, void *data) {
@@ -261,17 +261,17 @@ static void xdg_toplevel_request_resize_notify(wl_listener *listener, void *data
    * provied serial against a list of button press serials sent to this
    * client, to prevent the client from requesting this whenever they want. */
   auto event = static_cast<wlr_xdg_toplevel_resize_event*>(data);
-  turbo_view *view = wl_container_of(listener, view, request_resize);
-  view->begin_interactive(TURBO_CURSOR_RESIZE, event->edges);
+  wm_view *view = wl_container_of(listener, view, request_resize);
+  view->begin_interactive(wm_CURSOR_RESIZE, event->edges);
 }
 
 static void xdg_toplevel_request_maximize_notify(wl_listener *listener, void *data) {
-  turbo_view *view = wl_container_of(listener, view, request_maximize);
+  wm_view *view = wl_container_of(listener, view, request_maximize);
   view->toggle_maximize();
 }
 
 static void xwayland_surface_request_configure_notify(wl_listener *listener, void *data) {
-  turbo_view_xwayland *view = wl_container_of(listener, view, request_configure);
+  wm_view_xwayland *view = wl_container_of(listener, view, request_configure);
   auto event = static_cast<wlr_xwayland_surface_configure_event*>(data);
   view->x = event->x;
   view->y = event->y;
@@ -279,16 +279,16 @@ static void xwayland_surface_request_configure_notify(wl_listener *listener, voi
 }
 
 static void new_xwayland_surface_notify(wl_listener *listener, void *data) {
-  turbo_server *server = wl_container_of(listener, server, new_xwayland_surface);
+  wm_server *server = wl_container_of(listener, server, new_xwayland_surface);
   auto xwayland_surface = static_cast<wlr_xwayland_surface*>(data);
 
-  turbo_view_xwayland *view = new turbo_view_xwayland();
+  wm_view_xwayland *view = new wm_view_xwayland();
 
   view->x = 100;
   view->y = 100;
   view->server = server;
   view->xwayland_surface = xwayland_surface;
-  // view->surface_type = TURBO_XWAYLAND_SURFACE;
+  // view->surface_type = wm_XWAYLAND_SURFACE;
 
   view->map.notify = xdg_surface_map_notify;
   wl_signal_add(&xwayland_surface->events.map, &view->map);
@@ -318,19 +318,19 @@ static void new_xwayland_surface_notify(wl_listener *listener, void *data) {
 static void new_xdg_surface_notify(wl_listener *listener, void *data) {
   /* This event is raised when wlr_xdg_shell receives a new xdg surface from a
    * client, either a toplevel (application window) or popup. */
-  turbo_server *server = wl_container_of(listener, server, new_xdg_surface);
+  wm_server *server = wl_container_of(listener, server, new_xdg_surface);
   auto xdg_surface = static_cast<wlr_xdg_surface*>(data);
   if (xdg_surface->role != WLR_XDG_SURFACE_ROLE_TOPLEVEL) {
     return;
   }
 
-  /* Allocate a turbo_view for this surface */
-  turbo_view_xdg *view = new turbo_view_xdg();
+  /* Allocate a wm_view for this surface */
+  wm_view_xdg *view = new wm_view_xdg();
   view->x = 0;
   view->y = 0;
   view->server = server;
   view->xdg_surface = xdg_surface;
-  // view->surface_type = TURBO_XDG_SURFACE;
+  // view->surface_type = wm_XDG_SURFACE;
 
   /* Listen to the various events it can emit */
   view->map.notify = xdg_surface_map_notify;
@@ -358,7 +358,7 @@ static void new_xdg_surface_notify(wl_listener *listener, void *data) {
   wl_list_insert(&server->views, &view->link);
 }
 
-void turbo_server::run() {
+void wm_server::run() {
   wlr_log_init(WLR_DEBUG, NULL);
 
   wl_display = wl_display_create();
@@ -443,7 +443,7 @@ void turbo_server::run() {
   wl_display_run(wl_display);
 }
 
-void turbo_server::destroy() {
+void wm_server::destroy() {
   wlr_log(WLR_ERROR, "Quitting!");
 
   wlr_xcursor_manager_destroy(cursor_mgr);
@@ -454,7 +454,7 @@ void turbo_server::destroy() {
   wlr_cursor_destroy(cursor);
   wlr_output_layout_destroy(output_layout);
 
-  turbo_keyboard *keyboard, *tmp;
+  wm_keyboard *keyboard, *tmp;
   wl_list_for_each_safe(keyboard, tmp, &keyboards, link) {
     delete keyboard;
   }
@@ -468,7 +468,7 @@ void turbo_server::destroy() {
   wl_display_destroy(wl_display);
 }
 
-static bool handle_alt_keybinding(turbo_server *server, xkb_keysym_t sym) {
+static bool handle_alt_keybinding(wm_server *server, xkb_keysym_t sym) {
   /*
    * Here we handle compositor keybindings. This is when the compositor is
    * processing keys, rather than passing them on to the client for its own
@@ -486,7 +486,7 @@ static bool handle_alt_keybinding(turbo_server *server, xkb_keysym_t sym) {
   return true;
 }
 
-static bool handle_ctrl_keybinding(turbo_server *server, xkb_keysym_t sym) {
+static bool handle_ctrl_keybinding(wm_server *server, xkb_keysym_t sym) {
   switch (sym) {
 
   case XKB_KEY_Return: {
@@ -504,7 +504,7 @@ static bool handle_ctrl_keybinding(turbo_server *server, xkb_keysym_t sym) {
 }
 
 static void keyboard_modifiers_notify(wl_listener *listener, void *data) {
-  turbo_keyboard *keyboard = wl_container_of(listener, keyboard, modifiers);
+  wm_keyboard *keyboard = wl_container_of(listener, keyboard, modifiers);
   wlr_seat_set_keyboard(keyboard->server->seat, keyboard->device);
   wlr_seat_keyboard_notify_modifiers(keyboard->server->seat,
     &keyboard->device->keyboard->modifiers);
@@ -512,8 +512,8 @@ static void keyboard_modifiers_notify(wl_listener *listener, void *data) {
 
 static void keyboard_key_notify(wl_listener *listener, void *data) {
   /* This event is raised when a key is pressed or released. */
-  turbo_keyboard *keyboard = wl_container_of(listener, keyboard, key);
-  turbo_server *server = keyboard->server;
+  wm_keyboard *keyboard = wl_container_of(listener, keyboard, key);
+  wm_server *server = keyboard->server;
   auto event = static_cast<struct wlr_event_keyboard_key *>(data);
   wlr_seat *seat = server->seat;
 
@@ -550,8 +550,8 @@ static void keyboard_key_notify(wl_listener *listener, void *data) {
   }
 }
 
-void turbo_server::new_keyboard(wlr_input_device *device) {
-  turbo_keyboard *keyboard = new turbo_keyboard();
+void wm_server::new_keyboard(wlr_input_device *device) {
+  wm_keyboard *keyboard = new wm_keyboard();
   keyboard->server = this;
   keyboard->device = device;
 
@@ -580,7 +580,7 @@ void turbo_server::new_keyboard(wlr_input_device *device) {
   wl_list_insert(&keyboards, &keyboard->link);
 }
 
-void turbo_server::new_pointer(wlr_input_device *device) {
+void wm_server::new_pointer(wlr_input_device *device) {
   bool is_libinput = wlr_input_device_is_libinput(device);
   if (is_libinput) {
     libinput_device *libinput_device = wlr_libinput_get_device_handle(device);
@@ -593,10 +593,10 @@ void turbo_server::new_pointer(wlr_input_device *device) {
 }
 
 
-turbo_view* turbo_server::desktop_view_at(double lx, double ly,
+wm_view* wm_server::desktop_view_at(double lx, double ly,
   wlr_surface **surface, double *sx, double *sy) {
 
-  turbo_view *view;
+  wm_view *view;
   wl_list_for_each(view, &views, link) {
 
     double scaled_lx = 0;
@@ -609,14 +609,14 @@ turbo_view* turbo_server::desktop_view_at(double lx, double ly,
   return NULL;
 }
 
-void turbo_server::process_cursor_move(uint32_t time) {
+void wm_server::process_cursor_move(uint32_t time) {
   grabbed_view->scale_coords(cursor->x, cursor->y, &grabbed_view->x, &grabbed_view->y);
   grabbed_view->x -= grab_x;
   grabbed_view->y -= grab_y;
 }
 
-void turbo_server::process_cursor_resize(uint32_t time) {
-  turbo_view *view = grabbed_view;
+void wm_server::process_cursor_resize(uint32_t time) {
+  wm_view *view = grabbed_view;
   double dx = 0;
   double dy = 0;
   view->scale_coords(cursor->x, cursor->y, &dx, &dy);
@@ -655,12 +655,12 @@ void turbo_server::process_cursor_resize(uint32_t time) {
   view->set_size(width, height);
 }
 
-void turbo_server::process_cursor_motion(uint32_t time) {
+void wm_server::process_cursor_motion(uint32_t time) {
   /* If the mode is non-passthrough, delegate to those functions. */
-  if (cursor_mode == TURBO_CURSOR_MOVE) {
+  if (cursor_mode == wm_CURSOR_MOVE) {
     process_cursor_move(time);
     return;
-  } else if (cursor_mode == TURBO_CURSOR_RESIZE) {
+  } else if (cursor_mode == wm_CURSOR_RESIZE) {
     process_cursor_resize(time);
     return;
   }
@@ -668,7 +668,7 @@ void turbo_server::process_cursor_motion(uint32_t time) {
   /* Otherwise, find the view under the pointer and send the event along. */
   double sx, sy;
   wlr_surface *surface = NULL;
-  turbo_view *view = desktop_view_at(cursor->x, cursor->y, &surface, &sx, &sy);
+  wm_view *view = desktop_view_at(cursor->x, cursor->y, &surface, &sx, &sy);
 
   if (!view) {
     /* If there's no view under the cursor, set the cursor image to a
@@ -702,8 +702,8 @@ void turbo_server::process_cursor_motion(uint32_t time) {
   }
 }
 
-turbo_view* turbo_server::view_from_surface(wlr_surface *surface) {
-  turbo_view *view;
+wm_view* wm_server::view_from_surface(wlr_surface *surface) {
+  wm_view *view;
   wl_list_for_each(view, &views, link) {
     if (view->surface() == surface) {
       return view;
@@ -712,14 +712,14 @@ turbo_view* turbo_server::view_from_surface(wlr_surface *surface) {
   return NULL;
 }
 
-void turbo_server::position_view(turbo_view *view) {
+void wm_server::position_view(wm_view *view) {
   bool is_child = view->is_child();
 
   if (!is_child) {
     return;
   }
 
-  turbo_view *parent_view = view->parent();
+  wm_view *parent_view = view->parent();
 
   wlr_box parent_geometry;
   parent_view->geometry(&parent_geometry);
@@ -734,8 +734,8 @@ void turbo_server::position_view(turbo_view *view) {
   view->y = parent_view->y + inside_y;
 }
 
-void turbo_server::pop_view(turbo_view *old_view) {
-  turbo_view *view;
+void wm_server::pop_view(wm_view *old_view) {
+  wm_view *view;
   wl_list_for_each(view, &views, link) {
     if (view->mapped) {
       view->focus();

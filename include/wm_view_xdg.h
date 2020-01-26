@@ -1,10 +1,10 @@
-#ifndef _TURBO_VIEW_H
-#define _TURBO_VIEW_H
+#ifndef _wm_VIEW_H
+#define _wm_VIEW_H
 
-#include "turbo_view.h"
+#include "wm_view.h"
 
-struct turbo_view_xdg : public turbo_view {
-  turbo_view_xdg();
+struct wm_view_xdg : public wm_view {
+  wm_view_xdg();
 
   const wlr_surface* surface() const;
   void activate();
@@ -15,7 +15,7 @@ struct turbo_view_xdg : public turbo_view {
   void focus();
   void for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const;
   bool is_child() const;
-  turbo_view* parent() const;
+  wm_view* parent() const;
   void geometry(wlr_box *box) const;
   float scale_output(wlr_output *output) const;
   void scale_coords(double inx, double iny, double *outx, double *outy) const;

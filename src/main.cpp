@@ -1,7 +1,7 @@
-#include "turbo_server.h"
+#include "wm_server.h"
 
 int main(int argc, char *argv[]) {
-  turbo_server server;
+  wm_server server;
   server.run();
   server.destroy();
 

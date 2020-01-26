@@ -1,11 +1,11 @@
-#ifndef TURBO_VIEW_H
-#define TURBO_VIEW_H
+#ifndef wm_VIEW_H
+#define wm_VIEW_H
 
 #include <wayland-server-core.h>
 
-#include "turbo_cursor_mode.h"
+#include "wm_cursor_mode.h"
 
-struct turbo_server;
+struct wm_server;
 
 struct wlr_xdg_surface;
 struct wlr_xwayland_surface;
@@ -14,21 +14,21 @@ struct wlr_box;
 struct wlr_output;
 
 enum surface_type {
-  TURBO_SURFACE_TYPE_NONE = 0,
-  TURBO_XDG_SURFACE = 1,
-  TURBO_XWAYLAND_SURFACE = 2
+  wm_SURFACE_TYPE_NONE = 0,
+  wm_XDG_SURFACE = 1,
+  wm_XWAYLAND_SURFACE = 2
 };
 
 typedef void (*wlr_surface_iterator_func_t)(struct wlr_surface *surface,
 	int sx, int sy, void *data);
 
-struct turbo_view {
-  virtual ~turbo_view() {};
-  turbo_view();
+struct wm_view {
+  virtual ~wm_view() {};
+  wm_view();
 
   wl_list link;
 
-  turbo_server *server;
+  wm_server *server;
 
   wl_listener map;
   wl_listener unmap;
@@ -48,7 +48,7 @@ struct turbo_view {
 
   void focus_view(wlr_surface *surface);
 
-  void begin_interactive(enum turbo_cursor_mode mode, uint32_t edges);
+  void begin_interactive(enum wm_cursor_mode mode, uint32_t edges);
 
   virtual void activate() = 0;
 
@@ -66,7 +66,7 @@ struct turbo_view {
 
   virtual void toggle_maximize() = 0;
 
-  virtual turbo_view* parent() const = 0;
+  virtual wm_view* parent() const = 0;
 
   virtual bool is_child() const = 0;
 
