@@ -23,8 +23,6 @@ extern "C" {
   #include <xkbcommon/xkbcommon.h>
 }
 
-#include <iostream>
-
 #include "turbo_view.h"
 #include "turbo_server.h"
 

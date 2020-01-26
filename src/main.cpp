@@ -20,8 +20,6 @@ extern "C" {
   #include <xkbcommon/xkbcommon.h>
 }
 
-#include <iostream>
-
 #include "turbo_server.h"
 #include "turbo_keyboard.h"
 #include "turbo_view.h"
@@ -158,6 +156,8 @@ static void new_output_notify(wl_listener *listener, void *data) {
   turbo_server *server = wl_container_of(listener, server, new_output);
   auto wlr_output = static_cast<struct wlr_output*>(data);
 
+  wlr_log(WLR_ERROR, "%s connected", wlr_output->name);
+
   /* Some backends don't have modes. DRM+KMS does, and we need to set a mode
    * before we can use the output. The mode is a tuple of (width, height,
    * refresh rate), and each monitor supports only a specific set of modes. We
@@ -168,6 +168,7 @@ static void new_output_notify(wl_listener *listener, void *data) {
     wlr_output_set_mode(wlr_output, mode);
     wlr_output_enable(wlr_output, true);
     if (!wlr_output_commit(wlr_output)) {
+      wlr_log(WLR_ERROR, "Failed to commit output");
       return;
     }
   }
@@ -349,7 +350,7 @@ static void new_xdg_surface_notify(wl_listener *listener, void *data) {
 }
 
 int main(int argc, char *argv[]) {
-  // wlr_log_init(WLR_DEBUG, NULL);
+  wlr_log_init(WLR_DEBUG, NULL);
 
   turbo_server server;
   /* The Wayland display is managed by libwayland. It handles accepting

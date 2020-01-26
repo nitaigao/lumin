@@ -30,8 +30,6 @@ struct turbo_view {
 
   turbo_server *server;
 
-  // enum surface_type surface_type;
-
   wl_listener map;
   wl_listener unmap;
   wl_listener destroy;
@@ -53,6 +51,7 @@ struct turbo_view {
   void begin_interactive(enum turbo_cursor_mode mode, uint32_t edges);
 
   virtual void activate() = 0;
+
   virtual void notify_keyboard_enter() = 0;
 
   virtual wlr_surface* surface_at(double sx, double sy, double *sub_x, double *sub_y) = 0;
@@ -76,7 +75,6 @@ struct turbo_view {
   virtual float scale_output(wlr_output *output) const = 0;
 
   virtual void scale_coords(double inx, double iny, double *outx, double *outy) const = 0;
-
 };
 
 #endif

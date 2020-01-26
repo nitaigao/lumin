@@ -60,20 +60,6 @@ static bool handle_ctrl_keybinding(turbo_server *server, xkb_keysym_t sym) {
     break;
   }
 
-  case XKB_KEY_b: {
-    if (fork() == 0) {
-      execl("/bin/sh", "/bin/sh", "-c", "gnome-terminal", (void *)NULL);
-    }
-    break;
-  }
-
-  case XKB_KEY_g: {
-    if (fork() == 0) {
-      execl("/bin/sh", "/bin/sh", "-c", "DISPLAY=:1 GDK_SCALE=3 brave", (void *)NULL);
-    }
-    break;
-  }
-
   default:
     return false;
   }
