@@ -97,11 +97,6 @@ void wm_view_xwayland::activate() {
 
 void wm_view_xwayland::notify_keyboard_enter() {
   wlr_keyboard *keyboard = wlr_seat_get_keyboard(server->seat);
-  /*
-   * Tell the seat to have the keyboard enter this surface. wlroots will keep
-   * track of this and automatically send key events to the appropriate
-   * clients without additional work on your part.
-   */
   wlr_seat_keyboard_notify_enter(server->seat, xwayland_surface->surface,
     keyboard->keycodes, keyboard->num_keycodes, &keyboard->modifiers);
 }
@@ -114,7 +109,6 @@ void wm_view_xwayland::set_size(int width, int height) {
 
 void wm_view_xwayland::geometry(struct wlr_box *box) const {
   wlr_surface_get_extends(xwayland_surface->surface, box);
-	/* The client never set the geometry */
 	if (!xwayland_surface->width) {
 		return;
 	}
