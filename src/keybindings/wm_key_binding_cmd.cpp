@@ -1,4 +1,4 @@
-#include "wm_key_binding_cmd.h"
+#include "keybindings/wm_key_binding_cmd.h"
 
 #include <unistd.h>
 

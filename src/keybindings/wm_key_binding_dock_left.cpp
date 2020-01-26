@@ -1,4 +1,4 @@
-#include "wm_key_binding_dock_left.h"
+#include "keybindings/wm_key_binding_dock_left.h"
 
 #include <iostream>
 

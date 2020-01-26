@@ -32,11 +32,12 @@ extern "C" {
 #include "wm_view_xwayland.h"
 #include "wm_view_xdg.h"
 #include "wm_output.h"
-#include "wm_key_binding_cmd.h"
-#include "wm_key_binding_quit.h"
-#include "wm_key_binding_dock_right.h"
-#include "wm_key_binding_dock_left.h"
-#include "wm_key_binding_maximize.h"
+
+#include "keybindings/wm_key_binding_cmd.h"
+#include "keybindings/wm_key_binding_quit.h"
+#include "keybindings/wm_key_binding_dock_right.h"
+#include "keybindings/wm_key_binding_dock_left.h"
+#include "keybindings/wm_key_binding_maximize.h"
 
 wm_server::wm_server()
   : cursor_mode(WM_CURSOR_NONE) {
@@ -149,6 +150,13 @@ static void output_frame_notify(wl_listener *listener, void *data) {
   output->render();
 }
 
+static void output_destroy_notify(wl_listener *listener, void *data) {
+  wm_output *output = wl_container_of(listener, output, destroy);
+  wlr_output_layout_remove(output->server->output_layout, output->wlr_output);
+  wl_list_remove(&output->link);
+  delete output;
+}
+
 static void new_output_notify(wl_listener *listener, void *data) {
   wm_server *server = wl_container_of(listener, server, new_output);
   auto wlr_output = static_cast<struct wlr_output*>(data);
@@ -190,6 +198,9 @@ static void new_output_notify(wl_listener *listener, void *data) {
 
   output->frame.notify = output_frame_notify;
   wl_signal_add(&wlr_output->events.frame, &output->frame);
+
+  output->destroy.notify = output_destroy_notify;
+  wl_signal_add(&wlr_output->events.destroy, &output->destroy);
 
   wlr_output_layout_add_auto(server->output_layout, wlr_output);
 
