@@ -33,6 +33,7 @@ struct render_data {
   wlr_renderer *renderer;
   wm_view *view;
   timespec *when;
+  wlr_output_layout *layout;
 };
 
 static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
@@ -42,6 +43,7 @@ static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
   /* This function is called for every surface that needs to be rendered. */
   auto rdata = static_cast<struct render_data*>(data);
   wm_view *view = rdata->view;
+  wlr_output_layout *layout = rdata->layout;
   struct wlr_output *output = rdata->output;
 
   /* We first obtain a wlr_texture, which is a GPU resource. wlroots
@@ -61,7 +63,7 @@ static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
   double ox = 0;
   double oy = 0;
 
-  wlr_output_layout_output_coords(view->server->output_layout, output, &ox, &oy);
+  wlr_output_layout_output_coords(layout, output, &ox, &oy);
 
   float scale = view->scale_output(output);
 
@@ -132,7 +134,8 @@ void wm_output::render() const {
       .output = wlr_output,
       .renderer = renderer,
       .view = view,
-      .when = &now
+      .when = &now,
+      .layout = server->output_layout
     };
 
     view->for_each_surface(render_surface, &render_data);

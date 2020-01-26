@@ -25,7 +25,7 @@ extern "C" {
 #include "wm_server.h"
 #include "wm_cursor_mode.h"
 
-wm_view::wm_view()
+wm_view::wm_view(wm_server *server_)
   : mapped(false)
   , x(0)
   , y(0)
@@ -33,7 +33,8 @@ wm_view::wm_view()
   , old_width(0)
   , old_height(0)
   , old_x(0)
-  , old_y(0) { }
+  , old_y(0)
+  , server(server_) { }
 
 void wm_view::focus_view(wlr_surface *surface) {
   wlr_seat *seat = server->seat;
@@ -121,3 +122,15 @@ void wm_view::begin_interactive(enum wm_cursor_mode mode, uint32_t edges) {
   server->grab_height = geo_box.height;
   server->resize_edges = edges;
 }
+
+void wm_view::map_view() {
+  mapped = true;
+  server->position_view(this);
+  focus();
+}
+
+void wm_view::unmap_view() {
+  mapped = false;
+  server->pop_view(this);
+}
+

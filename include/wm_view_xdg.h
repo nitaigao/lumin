@@ -3,8 +3,10 @@
 
 #include "wm_view.h"
 
-struct wm_view_xdg : public wm_view {
-  wm_view_xdg();
+class wm_view_xdg : public wm_view {
+public:
+
+  wm_view_xdg(wm_server* server, wlr_xdg_surface *surface);
 
   const wlr_surface* surface() const;
   void activate();
@@ -23,6 +25,8 @@ struct wm_view_xdg : public wm_view {
   void geometry(wlr_box *box) const;
   float scale_output(wlr_output *output) const;
   void scale_coords(double inx, double iny, double *outx, double *outy) const;
+
+private:
 
   wlr_xdg_surface *xdg_surface;
 };

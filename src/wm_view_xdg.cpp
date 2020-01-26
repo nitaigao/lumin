@@ -25,8 +25,9 @@ extern "C" {
 #include "wm_server.h"
 #include "wm_output.h"
 
-wm_view_xdg::wm_view_xdg()
-  : wm_view() {
+wm_view_xdg::wm_view_xdg(wm_server* server, wlr_xdg_surface *surface)
+  : wm_view(server)
+  , xdg_surface(surface) {
 
   }
 

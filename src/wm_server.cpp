@@ -173,18 +173,12 @@ static void new_output_notify(wl_listener *listener, void *data) {
 
 static void xdg_surface_map_notify(wl_listener *listener, void *data) {
   wm_view *view = wl_container_of(listener, view, map);
-  wm_server *server = view->server;
-  view->mapped = true;
-
-  server->position_view(view);
-  view->focus();
+  view->map_view();
 }
 
 static void xdg_surface_unmap_notify(wl_listener *listener, void *data) {
   wm_view *view = wl_container_of(listener, view, unmap);
-  view->mapped = false;
-  wm_server *server = view->server;
-  server->pop_view(view);
+  view->unmap_view();
 }
 
 static void xdg_surface_destroy_notify(wl_listener *listener, void *data) {
@@ -222,13 +216,7 @@ static void new_xwayland_surface_notify(wl_listener *listener, void *data) {
   wm_server *server = wl_container_of(listener, server, new_xwayland_surface);
   auto xwayland_surface = static_cast<wlr_xwayland_surface*>(data);
 
-  wm_view_xwayland *view = new wm_view_xwayland();
-
-  view->x = 100;
-  view->y = 100;
-  view->server = server;
-  view->xwayland_surface = xwayland_surface;
-  // view->surface_type = wm_XWAYLAND_SURFACE;
+  wm_view_xwayland *view = new wm_view_xwayland(server, xwayland_surface);
 
   view->map.notify = xdg_surface_map_notify;
   wl_signal_add(&xwayland_surface->events.map, &view->map);
@@ -265,11 +253,7 @@ static void new_xdg_surface_notify(wl_listener *listener, void *data) {
   }
 
   /* Allocate a wm_view for this surface */
-  wm_view_xdg *view = new wm_view_xdg();
-  view->x = 0;
-  view->y = 0;
-  view->server = server;
-  view->xdg_surface = xdg_surface;
+  wm_view_xdg *view = new wm_view_xdg(server, xdg_surface);
   // view->surface_type = wm_XDG_SURFACE;
 
   /* Listen to the various events it can emit */

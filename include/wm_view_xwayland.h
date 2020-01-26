@@ -5,8 +5,10 @@
 
 #include "wm_view.h"
 
-struct wm_view_xwayland : public wm_view {
-  wm_view_xwayland();
+class wm_view_xwayland : public wm_view {
+
+public:
+  wm_view_xwayland(wm_server *server, wlr_xwayland_surface *surface);
 
   const wlr_surface* surface() const;
 
@@ -34,6 +36,9 @@ struct wm_view_xwayland : public wm_view {
   void scale_coords(double inx, double iny, double *outx, double *outy) const;
 
   wl_listener request_configure;
+
+private:
+
   wlr_xwayland_surface *xwayland_surface;
 };
 

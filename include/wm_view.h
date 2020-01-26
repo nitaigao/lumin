@@ -22,13 +22,15 @@ enum surface_type {
 typedef void (*wlr_surface_iterator_func_t)(struct wlr_surface *surface,
 	int sx, int sy, void *data);
 
-struct wm_view {
+class wm_view {
+
+public:
+
   virtual ~wm_view() {};
-  wm_view();
+
+  wm_view(wm_server *server);
 
   wl_list link;
-
-  wm_server *server;
 
   wl_listener map;
   wl_listener unmap;
@@ -41,14 +43,15 @@ struct wm_view {
   double x, y;
   bool maximized;
 
-  int old_width, old_height;
-  int old_x, old_y;
-
   bool view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
 
   void focus_view(wlr_surface *surface);
 
   void begin_interactive(enum wm_cursor_mode mode, uint32_t edges);
+
+  void map_view();
+
+  void unmap_view();
 
   virtual void activate() = 0;
 
@@ -81,6 +84,13 @@ struct wm_view {
   virtual float scale_output(wlr_output *output) const = 0;
 
   virtual void scale_coords(double inx, double iny, double *outx, double *outy) const = 0;
+
+  protected:
+
+  int old_width, old_height;
+  int old_x, old_y;
+
+  wm_server *server;
 };
 
 #endif

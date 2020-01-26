@@ -25,8 +25,9 @@ extern "C" {
 #include "wm_server.h"
 #include "wm_output.h"
 
-wm_view_xwayland::wm_view_xwayland()
-  : wm_view() {
+wm_view_xwayland::wm_view_xwayland(wm_server *server, wlr_xwayland_surface *surface)
+  : wm_view(server)
+  , xwayland_surface(surface) {
 
   }
 
