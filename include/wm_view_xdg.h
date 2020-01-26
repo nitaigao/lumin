@@ -10,7 +10,10 @@ struct wm_view_xdg : public wm_view {
   void activate();
   void notify_keyboard_enter();
   wlr_surface* surface_at(double sx, double sy, double *sub_x, double *sub_y);
-  void toggle_maximize();
+
+  void maximize();
+  void unmaximize(bool restore_position);
+
   void set_size(int width, int height);
   void focus();
   void unfocus();

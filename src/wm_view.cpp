@@ -55,6 +55,14 @@ void wm_view::focus_view(wlr_surface *surface) {
   notify_keyboard_enter();
 }
 
+void wm_view::toggle_maximized() {
+  if (maximized) {
+    unmaximize(true);
+  } else {
+    maximize();
+  }
+}
+
 bool wm_view::view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy) {
   if (!mapped) {
     return false;

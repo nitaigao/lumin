@@ -59,29 +59,42 @@ float wm_view_xwayland::scale_output(wlr_output *output) const {
   return 1.0f;
 }
 
-void wm_view_xwayland::toggle_maximize() {
-  if (!maximized) {
-    wlr_output* output = wlr_output_layout_output_at(server->output_layout,
-      server->cursor->x, server->cursor->y);
-    wlr_box *output_box = wlr_output_layout_get_box(server->output_layout, output);
+void wm_view_xwayland::maximize() {
+  if (maximized) {
+    return;
+  }
 
-    old_width = xwayland_surface->width;
-    old_height = xwayland_surface->height;
-    old_x = x;
-    old_y = y;
-    x = output_box->x;
-    y = output_box->y;
-    wlr_xwayland_surface_set_maximized(xwayland_surface, true);
-    wlr_xwayland_surface_configure(xwayland_surface, output_box->x, output_box->y,
-      output_box->width * output->scale, output_box->height * output->scale);
-    maximized = true;
-  } else {
-    wlr_xwayland_surface_set_maximized(xwayland_surface, false);
-    wlr_xwayland_surface_configure(xwayland_surface, old_x, old_y, old_width, old_height);
+  wlr_output* output = wlr_output_layout_output_at(server->output_layout,
+    server->cursor->x, server->cursor->y);
+  wlr_box *output_box = wlr_output_layout_get_box(server->output_layout, output);
+
+  old_width = xwayland_surface->width;
+  old_height = xwayland_surface->height;
+  old_x = x;
+  old_y = y;
+
+  x = output_box->x;
+  y = output_box->y;
+
+  wlr_xwayland_surface_set_maximized(xwayland_surface, true);
+  wlr_xwayland_surface_configure(xwayland_surface, output_box->x, output_box->y,
+    output_box->width * output->scale, output_box->height * output->scale);
+  maximized = true;
+}
+
+void wm_view_xwayland::unmaximize(bool restore_position) {
+  if (!maximized) {
+    return;
+  }
+
+  if (restore_position) {
     x = old_x;
     y = old_y;
-    maximized = false;
   }
+
+  wlr_xwayland_surface_set_maximized(xwayland_surface, false);
+  wlr_xwayland_surface_configure(xwayland_surface, old_x, old_y, old_width, old_height);
+  maximized = false;
 }
 
 wlr_surface* wm_view_xwayland::surface_at(double sx, double sy, double *sub_x, double *sub_y) {

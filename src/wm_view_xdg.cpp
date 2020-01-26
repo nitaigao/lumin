@@ -68,28 +68,39 @@ const wlr_surface* wm_view_xdg::surface() const {
   return xdg_surface->surface;
 }
 
-void wm_view_xdg::toggle_maximize() {
-  if (!maximized) {
-    wlr_output* output = wlr_output_layout_output_at(server->output_layout,
-      server->cursor->x, server->cursor->y);
-    wlr_box *output_box = wlr_output_layout_get_box(server->output_layout, output);
+void wm_view_xdg::maximize() {
+  if (maximized) {
+    return;
+  }
 
-    old_width = xdg_surface->geometry.width;
-    old_height = xdg_surface->geometry.height;
-    old_x = x;
-    old_y = y;
-    x = output_box->x;
-    y = output_box->y;
-    wlr_xdg_toplevel_set_maximized(xdg_surface, true);
-    wlr_xdg_toplevel_set_size(xdg_surface, output_box->width, output_box->height);
-    maximized = true;
-  } else {
+  wlr_output* output = wlr_output_layout_output_at(server->output_layout,
+    server->cursor->x, server->cursor->y);
+  wlr_box *output_box = wlr_output_layout_get_box(server->output_layout, output);
+
+  old_width = xdg_surface->geometry.width;
+  old_height = xdg_surface->geometry.height;
+  old_x = x;
+  old_y = y;
+  x = output_box->x;
+  y = output_box->y;
+  wlr_xdg_toplevel_set_maximized(xdg_surface, true);
+  wlr_xdg_toplevel_set_size(xdg_surface, output_box->width, output_box->height);
+  maximized = true;
+}
+
+void wm_view_xdg::unmaximize(bool restore_position) {
+  if (!maximized) {
+    return;
+  }
+
+  if (restore_position) {
     x = old_x;
     y = old_y;
-    wlr_xdg_toplevel_set_maximized(xdg_surface, false);
-    wlr_xdg_toplevel_set_size(xdg_surface, old_width, old_height);
-    maximized = false;
   }
+
+  wlr_xdg_toplevel_set_maximized(xdg_surface, false);
+  wlr_xdg_toplevel_set_size(xdg_surface, old_width, old_height);
+  maximized = false;
 }
 
 void wm_view_xdg::activate() {

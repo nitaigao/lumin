@@ -113,25 +113,16 @@ static void cursor_axis_notify(wl_listener *listener, void *data) {
 }
 
 static void cursor_frame_notify(wl_listener *listener, void *data) {
-  /* This event is forwarded by the cursor when a pointer emits an frame
-   * event. Frame events are sent after regular pointer events to group
-   * multiple events together. For instance, two axis events may happen at the
-   * same time, in which case a frame event won't be sent in between. */
   wm_server *server = wl_container_of(listener, server, cursor_frame);
-  /* Notify the client with pointer focus of the frame event. */
   wlr_seat_pointer_notify_frame(server->seat);
 }
 
 static void output_frame_notify(wl_listener *listener, void *data) {
-  /* This function is called every time an output is ready to display a frame,
-   * generally at the output's refresh rate (e.g. 60Hz). */
   wm_output *output = wl_container_of(listener, output, frame);
   output->render();
 }
 
 static void new_output_notify(wl_listener *listener, void *data) {
-  /* This event is rasied by the backend when a new output (aka a display or
-   * monitor) becomes available. */
   wm_server *server = wl_container_of(listener, server, new_output);
   auto wlr_output = static_cast<struct wlr_output*>(data);
 
@@ -166,31 +157,21 @@ static void new_output_notify(wl_listener *listener, void *data) {
     wlr_output_set_scale(wlr_output, 1);
   }
 
-  /* Allocates and configures our state for this output */
   wm_output *output = new wm_output();
   output->wlr_output = wlr_output;
   output->server = server;
 
-  /* Sets up a listener for the frame notify event. */
   output->frame.notify = output_frame_notify;
   wl_signal_add(&wlr_output->events.frame, &output->frame);
 
-  /* Adds this to the output layout. The add_auto function arranges outputs
-   * from left-to-right in the order they appear. A more sophisticated
-   * compositor would let the user configure the arrangement of outputs in the
-   * layout. */
   wlr_output_layout_add_auto(server->output_layout, wlr_output);
 
-  /* Creating the global adds a wl_output global to the display, which Wayland
-   * clients can see to find out information about the output (such as
-   * DPI, scale factor, manufacturer, etc). */
   wlr_output_create_global(wlr_output);
 
   wl_list_insert(&server->outputs, &output->link);
 }
 
 static void xdg_surface_map_notify(wl_listener *listener, void *data) {
-  /* Called when the surface is mapped, or ready to display on-screen. */
   wm_view *view = wl_container_of(listener, view, map);
   wm_server *server = view->server;
   view->mapped = true;
@@ -200,7 +181,6 @@ static void xdg_surface_map_notify(wl_listener *listener, void *data) {
 }
 
 static void xdg_surface_unmap_notify(wl_listener *listener, void *data) {
-  /* Called when the surface is unmapped, and should no longer be shown. */
   wm_view *view = wl_container_of(listener, view, unmap);
   view->mapped = false;
   wm_server *server = view->server;
@@ -208,28 +188,18 @@ static void xdg_surface_unmap_notify(wl_listener *listener, void *data) {
 }
 
 static void xdg_surface_destroy_notify(wl_listener *listener, void *data) {
-  /* Called when the surface is destroyed and should never be shown again. */
   wm_view *view = wl_container_of(listener, view, destroy);
   wl_list_remove(&view->link);
   delete view;
 }
 
 static void xdg_toplevel_request_move_notify(wl_listener *listener, void *data) {
-  /* This event is raised when a client would like to begin an interactive
-   * move, typically because the user clicked on their client-side
-   * decorations. Note that a more sophisticated compositor should check the
-   * provied serial against a list of button press serials sent to this
-   * client, to prevent the client from requesting this whenever they want. */
   wm_view *view = wl_container_of(listener, view, request_move);
+  view->unmaximize(false);
   view->begin_interactive(wm_CURSOR_MOVE, 0);
 }
 
 static void xdg_toplevel_request_resize_notify(wl_listener *listener, void *data) {
-  /* This event is raised when a client would like to begin an interactive
-   * resize, typically because the user clicked on their client-side
-   * decorations. Note that a more sophisticated compositor should check the
-   * provied serial against a list of button press serials sent to this
-   * client, to prevent the client from requesting this whenever they want. */
   auto event = static_cast<wlr_xdg_toplevel_resize_event*>(data);
   wm_view *view = wl_container_of(listener, view, request_resize);
   view->begin_interactive(wm_CURSOR_RESIZE, event->edges);
@@ -237,7 +207,7 @@ static void xdg_toplevel_request_resize_notify(wl_listener *listener, void *data
 
 static void xdg_toplevel_request_maximize_notify(wl_listener *listener, void *data) {
   wm_view *view = wl_container_of(listener, view, request_maximize);
-  view->toggle_maximize();
+  view->toggle_maximized();
 }
 
 static void xwayland_surface_request_configure_notify(wl_listener *listener, void *data) {
@@ -685,7 +655,18 @@ wm_view* wm_server::view_from_surface(wlr_surface *surface) {
 void wm_server::position_view(wm_view *view) {
   bool is_child = view->is_child();
 
+  wlr_box geometry;
+  view->geometry(&geometry);
+
   if (!is_child) {
+    wlr_output* output = wlr_output_layout_output_at(output_layout, cursor->x, cursor->y);
+    std::clog << output->width << " " << geometry.width << std::endl;
+    std::clog << output->height << " " << geometry.height << std::endl;
+    int inside_x = ((output->width  / output->scale) - geometry.width) / 2.0;
+    int inside_y = ((output->height / output->scale) - geometry.height) / 2.0;
+
+    view->x = inside_x;
+    view->y = inside_y;
     return;
   }
 
@@ -693,9 +674,6 @@ void wm_server::position_view(wm_view *view) {
 
   wlr_box parent_geometry;
   parent_view->geometry(&parent_geometry);
-
-  wlr_box geometry;
-  view->geometry(&geometry);
 
   int inside_x = (parent_geometry.width - geometry.width) / 2.0;
   int inside_y = (parent_geometry.height - geometry.height) / 2.0;

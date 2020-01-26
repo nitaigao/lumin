@@ -15,7 +15,9 @@ struct wm_view_xwayland : public wm_view {
 
   wlr_surface* surface_at(double sx, double sy, double *sub_x, double *sub_y);
 
-  void toggle_maximize();
+  void maximize();
+  void unmaximize(bool restore_position);
+
   void set_size(int width, int height);
 
   void focus();
