@@ -10,6 +10,11 @@ struct wlr_seat;
 struct wlr_input_device;
 struct wlr_surface;
 struct wlr_xwayland;
+struct wlr_backend;
+struct wlr_xdg_shell;
+struct wlr_cursor;
+struct wlr_xcursor_manager;
+struct wlr_output_layout;
 struct turbo_view;
 
 struct turbo_server {
@@ -64,6 +69,9 @@ struct turbo_server {
   void position_view(turbo_view* view);
 
   void pop_view(turbo_view* view);
+
+  void run();
+  void destroy();
 };
 
 #endif
