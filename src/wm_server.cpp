@@ -479,9 +479,6 @@ void wm_server::destroy() {
 
   wlr_xcursor_manager_destroy(cursor_mgr);
 
-  // wlr_xwayland_destroy(xwayland);
-  // wlr_seat_destroy(seat);
-  // wlr_xcursor_manager_destroy(cursor_mgr);
   wlr_cursor_destroy(cursor);
   wlr_output_layout_destroy(output_layout);
 
@@ -493,7 +490,6 @@ void wm_server::destroy() {
   /* Once wl_display_run returns, we shut down the  */
   wl_display_destroy_clients(wl_display);
 
-  // wlr_renderer_destroy(renderer);
   wlr_backend_destroy(backend);
 
   wl_display_destroy(wl_display);
@@ -603,17 +599,13 @@ void wm_server::process_cursor_resize(uint32_t time) {
 
   double x = view->x;
   double y = view->y;
+
   int width = grab_width;
   int height = grab_height;
 
   if (resize_edges & WLR_EDGE_TOP) {
     y = grab_y + dy;
     height = grab_height - dy;
-
-    // if (height <= 10) {
-    //   y += height;
-    // }
-
   } else if (resize_edges & WLR_EDGE_BOTTOM) {
     height += dy;
   }
@@ -621,9 +613,6 @@ void wm_server::process_cursor_resize(uint32_t time) {
   if (resize_edges & WLR_EDGE_LEFT) {
     x = grab_x + dx;
     width -= dx;
-    // if (width < 1) {
-    //   x += width;
-    // }
   } else if (resize_edges & WLR_EDGE_RIGHT) {
     width += dx;
   }
