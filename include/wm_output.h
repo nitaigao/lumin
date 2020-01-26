@@ -1,13 +1,13 @@
-#ifndef TURBO_OUTPUT_H
-#define TURBO_OUTPUT_H
+#ifndef wm_OUTPUT_H
+#define wm_OUTPUT_H
 
 #include <wayland-server-core.h>
 
-struct turbo_server;
+struct wm_server;
 
-struct turbo_output {
+struct wm_output {
   wl_list link;
-  turbo_server *server;
+  wm_server *server;
   struct wlr_output *wlr_output;
   wl_listener frame;
 

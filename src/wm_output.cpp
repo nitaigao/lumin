@@ -1,4 +1,4 @@
-#include "turbo_output.h"
+#include "wm_output.h"
 
 extern "C" {
   #include <unistd.h>
@@ -23,17 +23,15 @@ extern "C" {
   #include <xkbcommon/xkbcommon.h>
 }
 
-#include <iostream>
-
-#include "turbo_view.h"
-#include "turbo_server.h"
+#include "wm_view.h"
+#include "wm_server.h"
 
 /* Used to move all of the data necessary to render a surface from the top-level
  * frame handler to the per-surface render function. */
 struct render_data {
   wlr_output *output;
   wlr_renderer *renderer;
-  turbo_view *view;
+  wm_view *view;
   timespec *when;
 };
 
@@ -43,7 +41,7 @@ static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
   }
   /* This function is called for every surface that needs to be rendered. */
   auto rdata = static_cast<struct render_data*>(data);
-  turbo_view *view = rdata->view;
+  wm_view *view = rdata->view;
   struct wlr_output *output = rdata->output;
 
   /* We first obtain a wlr_texture, which is a GPU resource. wlroots
@@ -103,7 +101,7 @@ static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
   wlr_surface_send_frame_done(surface, rdata->when);
 }
 
-void turbo_output::render() const {
+void wm_output::render() const {
   wlr_renderer *renderer = server->renderer;
 
   struct timespec now;
@@ -124,7 +122,7 @@ void turbo_output::render() const {
   float color[4] = {0.0, 0.0, 0.0, 1.0};
   wlr_renderer_clear(renderer, color);
 
-  turbo_view *view;
+  wm_view *view;
   wl_list_for_each_reverse(view, &server->views, link) {
     if (!view->mapped) {
       continue;

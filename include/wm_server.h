@@ -1,19 +1,24 @@
-#ifndef _TURBO_SERVER_H
-#define _TURBO_SERVER_H
+#ifndef _WM_SERVER_H
+#define _WM_SERVER_H
 
 #include <wayland-server-core.h>
 
-#include "turbo_cursor_mode.h"
+#include "wm_cursor_mode.h"
 
 struct wlr_renderer;
 struct wlr_seat;
 struct wlr_input_device;
 struct wlr_surface;
 struct wlr_xwayland;
-struct turbo_view;
+struct wlr_backend;
+struct wlr_xdg_shell;
+struct wlr_cursor;
+struct wlr_xcursor_manager;
+struct wlr_output_layout;
+struct wm_view;
 
-struct turbo_server {
-  turbo_server();
+struct wm_server {
+  wm_server();
 
   struct wl_display *wl_display;
   wlr_backend *backend;
@@ -39,8 +44,8 @@ struct turbo_server {
 
   wlr_seat *seat;
   wl_list keyboards;
-  enum turbo_cursor_mode cursor_mode;
-  turbo_view *grabbed_view;
+  enum wm_cursor_mode cursor_mode;
+  wm_view *grabbed_view;
 
   double grab_x, grab_y;
   int grab_width, grab_height;
@@ -50,7 +55,7 @@ struct turbo_server {
   wl_list outputs;
   wl_listener new_output;
 
-  turbo_view* desktop_view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
+  wm_view* desktop_view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
 
   void new_keyboard(wlr_input_device *device);
   void new_pointer(wlr_input_device *device);
@@ -59,11 +64,14 @@ struct turbo_server {
   void process_cursor_resize(uint32_t time);
   void process_cursor_motion(uint32_t time);
 
-  turbo_view* view_from_surface(wlr_surface *surface);
+  wm_view* view_from_surface(wlr_surface *surface);
 
-  void position_view(turbo_view* view);
+  void position_view(wm_view* view);
 
-  void pop_view(turbo_view* view);
+  void pop_view(wm_view* view);
+
+  void run();
+  void destroy();
 };
 
 #endif

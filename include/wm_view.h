@@ -1,5 +1,5 @@
-#ifndef WM_VIEW_H
-#define WM_VIEW_H
+#ifndef wm_VIEW_H
+#define wm_VIEW_H
 
 #include <wayland-server-core.h>
 
@@ -14,9 +14,9 @@ struct wlr_box;
 struct wlr_output;
 
 enum surface_type {
-  WM_SURFACE_TYPE_NONE = 0,
-  WM_XDG_SURFACE = 1,
-  WM_XWAYLAND_SURFACE = 2
+  wm_SURFACE_TYPE_NONE = 0,
+  wm_XDG_SURFACE = 1,
+  wm_XWAYLAND_SURFACE = 2
 };
 
 typedef void (*wlr_surface_iterator_func_t)(struct wlr_surface *surface,
@@ -29,8 +29,6 @@ struct wm_view {
   wl_list link;
 
   wm_server *server;
-
-  // enum surface_type surface_type;
 
   wl_listener map;
   wl_listener unmap;
@@ -53,6 +51,7 @@ struct wm_view {
   void begin_interactive(enum wm_cursor_mode mode, uint32_t edges);
 
   virtual void activate() = 0;
+
   virtual void notify_keyboard_enter() = 0;
 
   virtual wlr_surface* surface_at(double sx, double sy, double *sub_x, double *sub_y) = 0;
@@ -65,7 +64,13 @@ struct wm_view {
 
   virtual void focus() = 0;
 
-  virtual void toggle_maximize() = 0;
+  virtual void unfocus() = 0;
+
+  void toggle_maximized();
+
+  virtual void maximize() = 0;
+
+  virtual void unmaximize(bool restore_position) = 0;
 
   virtual wm_view* parent() const = 0;
 
@@ -76,7 +81,6 @@ struct wm_view {
   virtual float scale_output(wlr_output *output) const = 0;
 
   virtual void scale_coords(double inx, double iny, double *outx, double *outy) const = 0;
-
 };
 
 #endif

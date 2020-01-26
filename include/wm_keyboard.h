@@ -1,13 +1,13 @@
-#ifndef _TURBO_KEYBOARD_H
-#define _TURBO_KEYBOARD_H
+#ifndef _WM_KEYBOARD_H
+#define _WM_KEYBOARD_H
 
 #include <wayland-server-core.h>
 
-struct turbo_server;
+struct wm_server;
 
-struct turbo_keyboard {
+struct wm_keyboard {
   wl_list link;
-  turbo_server *server;
+  wm_server *server;
   wlr_input_device *device;
 
   wl_listener modifiers;
