@@ -10,6 +10,7 @@ struct wm_output {
   wm_server *server;
   struct wlr_output *wlr_output;
   wl_listener frame;
+  wl_listener destroy;
 
   void render() const;
 };

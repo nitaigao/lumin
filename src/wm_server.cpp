@@ -24,6 +24,8 @@ extern "C" {
 }
 
 #include <iostream>
+#include <vector>
+#include <memory>
 
 #include "wm_keyboard.h"
 #include "wm_view.h"
@@ -31,9 +33,35 @@ extern "C" {
 #include "wm_view_xdg.h"
 #include "wm_output.h"
 
-wm_server::wm_server()
-  : cursor_mode(wm_CURSOR_NONE) {
+#include "keybindings/wm_key_binding_cmd.h"
+#include "keybindings/wm_key_binding_quit.h"
+#include "keybindings/wm_key_binding_dock_right.h"
+#include "keybindings/wm_key_binding_dock_left.h"
+#include "keybindings/wm_key_binding_maximize.h"
 
+wm_server::wm_server()
+  : cursor_mode(WM_CURSOR_NONE) {
+
+}
+
+void wm_server::quit() {
+  wl_display_terminate(wl_display);
+}
+
+bool wm_server::handle_key(uint32_t keycode, const xkb_keysym_t *syms, int nsyms, uint32_t modifiers, int state) {
+  bool handled = false;
+
+  for (int i = 0; i < nsyms; i++) {
+    for (auto &key_binding : key_bindings) {
+      bool matched = key_binding->matches(modifiers, syms[i], (wlr_key_state)state);
+      if (matched) {
+        key_binding->run();
+        handled = true;
+      }
+    }
+  }
+
+  return handled;
 }
 
 static void new_input_notify(wl_listener *listener, void *data) {
@@ -96,7 +124,7 @@ static void cursor_button_notify(wl_listener *listener, void *data) {
   wm_view *view = server->desktop_view_at(server->cursor->x, server->cursor->y, &surface, &sx, &sy);
 
   if (event->state == WLR_BUTTON_RELEASED) {
-    server->cursor_mode = wm_CURSOR_PASSTHROUGH;
+    server->cursor_mode = WM_CURSOR_PASSTHROUGH;
   } else {
     if (view != NULL) {
       view->focus_view(surface);
@@ -120,6 +148,13 @@ static void cursor_frame_notify(wl_listener *listener, void *data) {
 static void output_frame_notify(wl_listener *listener, void *data) {
   wm_output *output = wl_container_of(listener, output, frame);
   output->render();
+}
+
+static void output_destroy_notify(wl_listener *listener, void *data) {
+  wm_output *output = wl_container_of(listener, output, destroy);
+  wlr_output_layout_remove(output->server->output_layout, output->wlr_output);
+  wl_list_remove(&output->link);
+  delete output;
 }
 
 static void new_output_notify(wl_listener *listener, void *data) {
@@ -154,7 +189,7 @@ static void new_output_notify(wl_listener *listener, void *data) {
   if (strcmp(wlr_output->name, "DP-0") == 0
    || strcmp(wlr_output->name, "DP-1") == 0
    || strcmp(wlr_output->name, "DP-2") == 0) {
-    wlr_output_set_scale(wlr_output, 1);
+    wlr_output_set_scale(wlr_output, 2);
   }
 
   wm_output *output = new wm_output();
@@ -163,6 +198,9 @@ static void new_output_notify(wl_listener *listener, void *data) {
 
   output->frame.notify = output_frame_notify;
   wl_signal_add(&wlr_output->events.frame, &output->frame);
+
+  output->destroy.notify = output_destroy_notify;
+  wl_signal_add(&wlr_output->events.destroy, &output->destroy);
 
   wlr_output_layout_add_auto(server->output_layout, wlr_output);
 
@@ -190,13 +228,13 @@ static void xdg_surface_destroy_notify(wl_listener *listener, void *data) {
 static void xdg_toplevel_request_move_notify(wl_listener *listener, void *data) {
   wm_view *view = wl_container_of(listener, view, request_move);
   view->unmaximize(false);
-  view->begin_interactive(wm_CURSOR_MOVE, 0);
+  view->begin_interactive(WM_CURSOR_MOVE, 0);
 }
 
 static void xdg_toplevel_request_resize_notify(wl_listener *listener, void *data) {
   auto event = static_cast<wlr_xdg_toplevel_resize_event*>(data);
   wm_view *view = wl_container_of(listener, view, request_resize);
-  view->begin_interactive(wm_CURSOR_RESIZE, event->edges);
+  view->begin_interactive(WM_CURSOR_RESIZE, event->edges);
 }
 
 static void xdg_toplevel_request_maximize_notify(wl_listener *listener, void *data) {
@@ -282,8 +320,77 @@ static void new_xdg_surface_notify(wl_listener *listener, void *data) {
   wl_list_insert(&server->views, &view->link);
 }
 
+void wm_server::maximize() {
+  int view_count = wl_list_length(&views);
+  if (view_count > 0) {
+    wm_view *view;
+    wl_list_for_each(view, &views, link) {
+      break;
+    }
+    view->maximize();
+  }
+}
+
+void wm_server::dock_left() {
+  int view_count = wl_list_length(&views);
+  if (view_count > 0) {
+    wm_view *view;
+    wl_list_for_each(view, &views, link) {
+      break;
+    }
+    view->dock_left();
+  }
+}
+
+void wm_server::dock_right() {
+  int view_count = wl_list_length(&views);
+  if (view_count > 0) {
+    wm_view *view;
+    wl_list_for_each(view, &views, link) {
+      break;
+    }
+    view->dock_right();
+  }
+}
+
+void wm_server::init_keybindings() {
+  auto terminal = std::make_shared<wm_key_binding_cmd>();
+  terminal->ctrl = true;
+  terminal->key = XKB_KEY_Return;
+  terminal->cmd = "tilix";
+  terminal->state = WLR_KEY_PRESSED;
+  key_bindings.push_back(terminal);
+
+  auto quit = std::make_shared<wm_key_binding_quit>(this);
+  quit->alt = true;
+  quit->ctrl = true;
+  quit->key = XKB_KEY_BackSpace;
+  quit->state = WLR_KEY_PRESSED;
+  key_bindings.push_back(quit);
+
+  auto dock_left = std::make_shared<wm_key_binding_dock_left>(this);
+  dock_left->super = true;
+  dock_left->key = XKB_KEY_Left;
+  dock_left->state = WLR_KEY_PRESSED;
+  key_bindings.push_back(dock_left);
+
+  auto dock_right = std::make_shared<wm_key_binding_dock_right>(this);
+  dock_right->super = true;
+  dock_right->key = XKB_KEY_Right;
+  dock_right->state = WLR_KEY_PRESSED;
+  key_bindings.push_back(dock_right);
+
+  auto maximize = std::make_shared<wm_key_binding_maximize>(this);
+  maximize->super = true;
+  maximize->key = XKB_KEY_Up;
+  maximize->state = WLR_KEY_PRESSED;
+  key_bindings.push_back(maximize);
+}
+
 void wm_server::run() {
   wlr_log_init(WLR_DEBUG, NULL);
+
+  init_keybindings();
 
   wl_display = wl_display_create();
 
@@ -372,9 +479,6 @@ void wm_server::destroy() {
 
   wlr_xcursor_manager_destroy(cursor_mgr);
 
-  // wlr_xwayland_destroy(xwayland);
-  // wlr_seat_destroy(seat);
-  // wlr_xcursor_manager_destroy(cursor_mgr);
   wlr_cursor_destroy(cursor);
   wlr_output_layout_destroy(output_layout);
 
@@ -386,45 +490,9 @@ void wm_server::destroy() {
   /* Once wl_display_run returns, we shut down the  */
   wl_display_destroy_clients(wl_display);
 
-  // wlr_renderer_destroy(renderer);
   wlr_backend_destroy(backend);
 
   wl_display_destroy(wl_display);
-}
-
-static bool handle_alt_keybinding(wm_server *server, xkb_keysym_t sym) {
-  /*
-   * Here we handle compositor keybindings. This is when the compositor is
-   * processing keys, rather than passing them on to the client for its own
-   * processing.
-   *
-   * This function assumes Alt is held down.
-   */
-  switch (sym) {
-  case XKB_KEY_Escape:
-    wl_display_terminate(server->wl_display);
-    break;
-  default:
-    return false;
-  }
-  return true;
-}
-
-static bool handle_ctrl_keybinding(wm_server *server, xkb_keysym_t sym) {
-  switch (sym) {
-
-  case XKB_KEY_Return: {
-    if (fork() == 0) {
-      execl("/bin/sh", "/bin/sh", "-c", "tilix", (void *)NULL);
-    }
-    break;
-  }
-
-  default:
-    return false;
-  }
-
-  return true;
 }
 
 static void keyboard_modifiers_notify(wl_listener *listener, void *data) {
@@ -444,29 +512,9 @@ static void keyboard_key_notify(wl_listener *listener, void *data) {
   uint32_t keycode = event->keycode + 8;
   const xkb_keysym_t *syms;
   int nsyms = xkb_state_key_get_syms(keyboard->device->keyboard->xkb_state, keycode, &syms);
-
-  bool handled = false;
   uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->device->keyboard);
-  if ((modifiers & WLR_MODIFIER_ALT) && event->state == WLR_KEY_PRESSED) {
-    for (int i = 0; i < nsyms; i++) {
-      handled = handle_alt_keybinding(server, syms[i]);
-    }
-  }
 
-  if ((modifiers & WLR_MODIFIER_CTRL) && event->state == WLR_KEY_PRESSED) {
-    for (int i = 0; i < nsyms; i++) {
-      handled = handle_ctrl_keybinding(server, syms[i]);
-    }
-  }
-
-  for (int i = 0; i < nsyms; i++) {
-    switch (syms[i]) {
-    case XKB_KEY_F12:
-      wl_display_terminate(server->wl_display);
-      handled = true;
-      break;
-    }
-  }
+  bool handled = server->handle_key(keycode, syms, nsyms, modifiers, event->state);
 
   if (!handled) {
     wlr_seat_set_keyboard(seat, keyboard->device);
@@ -516,7 +564,6 @@ void wm_server::new_pointer(wlr_input_device *device) {
   wlr_cursor_attach_input_device(cursor, device);
 }
 
-
 wm_view* wm_server::desktop_view_at(double lx, double ly,
   wlr_surface **surface, double *sx, double *sy) {
 
@@ -541,24 +588,24 @@ void wm_server::process_cursor_move(uint32_t time) {
 
 void wm_server::process_cursor_resize(uint32_t time) {
   wm_view *view = grabbed_view;
+
   double dx = 0;
   double dy = 0;
+
   view->scale_coords(cursor->x, cursor->y, &dx, &dy);
 
-  dx -= grab_x;
-  dy -= grab_y;
+  dx -= grab_cursor_x;
+  dy -= grab_cursor_y;
 
   double x = view->x;
   double y = view->y;
+
   int width = grab_width;
   int height = grab_height;
 
   if (resize_edges & WLR_EDGE_TOP) {
     y = grab_y + dy;
-    height -= dy;
-    if (height < 1) {
-      y += height;
-    }
+    height = grab_height - dy;
   } else if (resize_edges & WLR_EDGE_BOTTOM) {
     height += dy;
   }
@@ -566,9 +613,6 @@ void wm_server::process_cursor_resize(uint32_t time) {
   if (resize_edges & WLR_EDGE_LEFT) {
     x = grab_x + dx;
     width -= dx;
-    if (width < 1) {
-      x += width;
-    }
   } else if (resize_edges & WLR_EDGE_RIGHT) {
     width += dx;
   }
@@ -581,10 +625,10 @@ void wm_server::process_cursor_resize(uint32_t time) {
 
 void wm_server::process_cursor_motion(uint32_t time) {
   /* If the mode is non-passthrough, delegate to those functions. */
-  if (cursor_mode == wm_CURSOR_MOVE) {
+  if (cursor_mode == WM_CURSOR_MOVE) {
     process_cursor_move(time);
     return;
-  } else if (cursor_mode == wm_CURSOR_RESIZE) {
+  } else if (cursor_mode == WM_CURSOR_RESIZE) {
     process_cursor_resize(time);
     return;
   }

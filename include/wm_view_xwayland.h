@@ -35,6 +35,8 @@ public:
   float scale_output(wlr_output *output) const;
   void scale_coords(double inx, double iny, double *outx, double *outy) const;
 
+  void extends(wlr_box *box);
+
   wl_listener request_configure;
 
 private:

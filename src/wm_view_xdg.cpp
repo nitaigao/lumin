@@ -80,12 +80,16 @@ void wm_view_xdg::maximize() {
 
   old_width = xdg_surface->geometry.width;
   old_height = xdg_surface->geometry.height;
+
   old_x = x;
   old_y = y;
+
   x = output_box->x;
   y = output_box->y;
+
   wlr_xdg_toplevel_set_maximized(xdg_surface, true);
-  wlr_xdg_toplevel_set_size(xdg_surface, output_box->width, output_box->height);
+  set_size(output_box->width, output_box->height);
+
   maximized = true;
 }
 
@@ -101,7 +105,12 @@ void wm_view_xdg::unmaximize(bool restore_position) {
 
   wlr_xdg_toplevel_set_maximized(xdg_surface, false);
   wlr_xdg_toplevel_set_size(xdg_surface, old_width, old_height);
+
   maximized = false;
+}
+
+void wm_view_xdg::extends(wlr_box *box) {
+  wlr_xdg_surface_get_geometry(xdg_surface, box);
 }
 
 void wm_view_xdg::activate() {
