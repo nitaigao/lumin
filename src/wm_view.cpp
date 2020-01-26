@@ -112,7 +112,10 @@ void wm_view::dock_left() {
   x -= box.x;
   y -= box.y;
 
-  set_size((output->width / 2.0f) / output->scale, output->height / output->scale);
+  int width = (output->width / 2.0f) / output->scale;
+  int height = output->height / output->scale;
+
+  set_size(width, height);
 }
 
 void wm_view::dock_right() {
@@ -133,10 +136,14 @@ void wm_view::dock_right() {
   // middle of the screen
   x += (output->width / 2.0f) / output->scale;
 
-  set_size((output->width / 2.0f) / output->scale, output->height / output->scale);
+  int width = (output->width / 2.0f) / output->scale;
+  int height = output->height / output->scale;
+
+  set_size(width, height);
 }
 
 void wm_view::begin_interactive(enum wm_cursor_mode mode, uint32_t edges) {
+  std::clog << "begin_interactive" << std::endl;
   /* This function sets up an interactive move or resize operation, where the
    * compositor stops propegating pointer events to clients and instead
    * consumes them itself, to move or resize windows. */
@@ -147,24 +154,30 @@ void wm_view::begin_interactive(enum wm_cursor_mode mode, uint32_t edges) {
     return;
   }
 
+  server->grab_x = 0;
+  server->grab_y = 0;
+
   server->grabbed_view = this;
   server->cursor_mode = mode;
 
   wlr_box geo_box;
-  geometry(&geo_box);
+  extends(&geo_box);
 
-  scale_coords(server->cursor->x, server->cursor->y, &server->grab_x, &server->grab_y);
+  // scale_coords(server->cursor->x, server->cursor->y, &server->grab_x, &server->grab_y);
 
   if (mode == WM_CURSOR_MOVE) {
-    server->grab_x -= x;
-    server->grab_y -= y;
+    server->grab_x = server->cursor->x - x;
+    server->grab_y = server->cursor->y - y;
   } else {
-    server->grab_x += geo_box.x;
-    server->grab_y += geo_box.y;
+    server->grab_x = x;
+    server->grab_y = y;
+    server->grab_cursor_x = server->cursor->x;
+    server->grab_cursor_y = server->cursor->y;
   }
 
   server->grab_width = geo_box.width;
   server->grab_height = geo_box.height;
+
   server->resize_edges = edges;
 }
 

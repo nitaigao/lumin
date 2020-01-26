@@ -581,12 +581,14 @@ void wm_server::process_cursor_move(uint32_t time) {
 
 void wm_server::process_cursor_resize(uint32_t time) {
   wm_view *view = grabbed_view;
+
   double dx = 0;
   double dy = 0;
+
   view->scale_coords(cursor->x, cursor->y, &dx, &dy);
 
-  dx -= grab_x;
-  dy -= grab_y;
+  dx -= grab_cursor_x;
+  dy -= grab_cursor_y;
 
   double x = view->x;
   double y = view->y;
@@ -595,10 +597,12 @@ void wm_server::process_cursor_resize(uint32_t time) {
 
   if (resize_edges & WLR_EDGE_TOP) {
     y = grab_y + dy;
-    height -= dy;
-    if (height < 1) {
-      y += height;
-    }
+    height = grab_height - dy;
+
+    // if (height <= 10) {
+    //   y += height;
+    // }
+
   } else if (resize_edges & WLR_EDGE_BOTTOM) {
     height += dy;
   }
@@ -606,9 +610,9 @@ void wm_server::process_cursor_resize(uint32_t time) {
   if (resize_edges & WLR_EDGE_LEFT) {
     x = grab_x + dx;
     width -= dx;
-    if (width < 1) {
-      x += width;
-    }
+    // if (width < 1) {
+    //   x += width;
+    // }
   } else if (resize_edges & WLR_EDGE_RIGHT) {
     width += dx;
   }
