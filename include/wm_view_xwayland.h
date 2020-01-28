@@ -1,13 +1,12 @@
-#ifndef _WM_VIEW_XWAYLAND_H
-#define _WM_VIEW_XWAYLAND_H
+#ifndef WM_VIEW_XWAYLAND_H_
+#define WM_VIEW_XWAYLAND_H_
 
 #include <wayland-server-core.h>
 
 #include "wm_view.h"
 
 class wm_view_xwayland : public wm_view {
-
-public:
+ public:
   wm_view_xwayland(wm_server *server, wlr_xwayland_surface *surface);
 
   const wlr_surface* surface() const;
@@ -39,9 +38,8 @@ public:
 
   wl_listener request_configure;
 
-private:
-
+ private:
   wlr_xwayland_surface *xwayland_surface;
 };
 
-#endif
+#endif  // WM_VIEW_XWAYLAND_H_

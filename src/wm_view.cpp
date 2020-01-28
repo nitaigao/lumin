@@ -1,6 +1,5 @@
 #include "wm_view.h"
 
-#include <iostream>
 
 extern "C" {
   #include <unistd.h>
@@ -23,6 +22,8 @@ extern "C" {
   #include <wlr/util/log.h>
   #include <xkbcommon/xkbcommon.h>
 }
+
+#include <iostream>
 
 #include "wm_server.h"
 #include "wm_cursor_mode.h"

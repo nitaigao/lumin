@@ -28,7 +28,6 @@ extern "C" {
 wm_view_xdg::wm_view_xdg(wm_server* server, wlr_xdg_surface *surface)
   : wm_view(server)
   , xdg_surface(surface) {
-
   }
 
 void wm_view_xdg::scale_coords(double inx, double iny, double *outx, double *outy) const {
@@ -57,12 +56,12 @@ void wm_view_xdg::unfocus() {
 
 void wm_view_xdg::geometry(struct wlr_box *box) const {
   wlr_surface_get_extends(xdg_surface->surface, box);
-	/* The client never set the geometry */
-	if (!xdg_surface->geometry.width) {
-		return;
-	}
 
-	wlr_box_intersection(&xdg_surface->geometry, box, box);
+  if (!xdg_surface->geometry.width) {
+    return;
+  }
+
+  wlr_box_intersection(&xdg_surface->geometry, box, box);
 }
 
 const wlr_surface* wm_view_xdg::surface() const {

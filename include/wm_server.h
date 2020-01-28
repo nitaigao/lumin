@@ -1,10 +1,10 @@
-#ifndef _WM_SERVER_H
-#define _WM_SERVER_H
+#ifndef WM_SERVER_H_
+#define WM_SERVER_H_
 
+#include <xkbcommon/xkbcommon.h>
 #include <wayland-server-core.h>
 #include <vector>
 #include <memory>
-#include <xkbcommon/xkbcommon.h>
 
 #include "wm_cursor_mode.h"
 
@@ -80,16 +80,16 @@ struct wm_server {
   void run();
   void destroy();
 
-  bool handle_key(uint32_t keycode, const xkb_keysym_t *syms, int nsyms, uint32_t modifiers, int state);
+  bool handle_key(uint32_t keycode, const xkb_keysym_t *syms, int nsyms,
+    uint32_t modifiers, int state);
 
   void dock_right();
   void dock_left();
   void maximize();
 
-  private:
-
+ private:
   void init_keybindings();
   std::vector<std::shared_ptr<wm_key_binding>> key_bindings;
 };
 
-#endif
+#endif  // WM_SERVER_H_

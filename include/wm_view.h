@@ -1,5 +1,5 @@
-#ifndef wm_VIEW_H
-#define wm_VIEW_H
+#ifndef WM_VIEW_H_
+#define WM_VIEW_H_
 
 #include <wayland-server-core.h>
 
@@ -20,15 +20,13 @@ enum surface_type {
 };
 
 typedef void (*wlr_surface_iterator_func_t)(struct wlr_surface *surface,
-	int sx, int sy, void *data);
+  int sx, int sy, void *data);
 
 class wm_view {
+ public:
+  virtual ~wm_view() { }
 
-public:
-
-  virtual ~wm_view() {};
-
-  wm_view(wm_server *server);
+  explicit wm_view(wm_server *server);
 
   wl_list link;
 
@@ -91,12 +89,11 @@ public:
 
   virtual void scale_coords(double inx, double iny, double *outx, double *outy) const = 0;
 
-  protected:
-
+ protected:
   int old_width, old_height;
   int old_x, old_y;
 
   wm_server *server;
 };
 
-#endif
+#endif  // WM_VIEW_H_
