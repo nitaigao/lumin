@@ -1,5 +1,5 @@
-#ifndef _WM_KEYBOARD_H
-#define _WM_KEYBOARD_H
+#ifndef WM_KEYBOARD_H_
+#define WM_KEYBOARD_H_
 
 #include <wayland-server-core.h>
 
@@ -14,4 +14,4 @@ struct wm_keyboard {
   wl_listener key;
 };
 
-#endif
+#endif  // WM_KEYBOARD_H_

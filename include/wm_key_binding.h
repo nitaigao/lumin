@@ -1,5 +1,5 @@
-#ifndef _KEY_BINDING_H
-#define _KEY_BINDING_H
+#ifndef WM_KEY_BINDING_H_
+#define WM_KEY_BINDING_H_
 
 #include <wlr/types/wlr_keyboard.h>
 
@@ -22,4 +22,4 @@ struct wm_key_binding {
 };
 
 
-#endif
+#endif  // WM_KEY_BINDING_H_

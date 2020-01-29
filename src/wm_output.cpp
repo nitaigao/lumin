@@ -73,10 +73,10 @@ static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
   /* We also have to apply the scale factor for HiDPI outputs. This is only
    * part of the puzzle, TinyWL does not fully support HiDPI. */
   struct wlr_box box = {
-    .x = (int)ox * (int)scale,
-    .y = (int)oy * (int)scale,
-    .width = surface->current.width * (int)scale,
-    .height = surface->current.height * (int)scale,
+    .x = static_cast<int>(ox) * static_cast<int>(scale),
+    .y = static_cast<int>(oy) * static_cast<int>(scale),
+    .width = surface->current.width * static_cast<int>(scale),
+    .height = surface->current.height * static_cast<int>(scale),
   };
 
   /*

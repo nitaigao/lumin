@@ -1,5 +1,5 @@
-#ifndef wm_OUTPUT_H
-#define wm_OUTPUT_H
+#ifndef WM_OUTPUT_H_
+#define WM_OUTPUT_H_
 
 #include <wayland-server-core.h>
 
@@ -15,4 +15,4 @@ struct wm_output {
   void render() const;
 };
 
-#endif
+#endif  // WM_OUTPUT_H_

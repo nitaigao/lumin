@@ -1,11 +1,10 @@
-#ifndef _WM_VIEW_H
-#define _WM_VIEW_H
+#ifndef WM_VIEW_XDG_H_
+#define WM_VIEW_XDG_H_
 
 #include "wm_view.h"
 
 class wm_view_xdg : public wm_view {
-public:
-
+ public:
   wm_view_xdg(wm_server* server, wlr_xdg_surface *surface);
 
   const wlr_surface* surface() const;
@@ -27,9 +26,8 @@ public:
   void scale_coords(double inx, double iny, double *outx, double *outy) const;
   void extends(wlr_box *box);
 
-private:
-
+ private:
   wlr_xdg_surface *xdg_surface;
 };
 
-#endif
+#endif  // WM_VIEW_XDG_H_

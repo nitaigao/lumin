@@ -1,5 +1,5 @@
-#ifndef _KEY_BINDING_CMD_H
-#define _KEY_BINDING_CMD_H
+#ifndef KEYBINDINGS_WM_KEY_BINDING_CMD_H_
+#define KEYBINDINGS_WM_KEY_BINDING_CMD_H_
 
 #include <string>
 
@@ -11,4 +11,4 @@ struct wm_key_binding_cmd : wm_key_binding {
   void run();
 };
 
-#endif
+#endif  // KEYBINDINGS_WM_KEY_BINDING_CMD_H_

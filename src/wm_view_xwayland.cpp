@@ -27,9 +27,8 @@ extern "C" {
 
 wm_view_xwayland::wm_view_xwayland(wm_server *server, wlr_xwayland_surface *surface)
   : wm_view(server)
-  , xwayland_surface(surface) {
-
-  }
+  , xwayland_surface(surface)
+  { }
 
 void wm_view_xwayland::scale_coords(double inx, double iny, double *outx, double *outy) const {
   wlr_output* output = wlr_output_layout_output_at(server->output_layout, inx, iny);
@@ -61,7 +60,6 @@ float wm_view_xwayland::scale_output(wlr_output *output) const {
 }
 
 void wm_view_xwayland::extends(wlr_box *box) {
-
 }
 
 void wm_view_xwayland::maximize() {
@@ -128,16 +126,18 @@ void wm_view_xwayland::set_size(int width, int height) {
 
 void wm_view_xwayland::geometry(struct wlr_box *box) const {
   wlr_surface_get_extends(xwayland_surface->surface, box);
-	if (!xwayland_surface->width) {
-		return;
-	}
+
+  if (!xwayland_surface->width) {
+    return;
+  }
 
   wlr_box geometry;
   geometry.x = xwayland_surface->x;
   geometry.y = xwayland_surface->y;
   geometry.width = xwayland_surface->width;
   geometry.height = xwayland_surface->height;
-	wlr_box_intersection(&geometry, box, box);
+
+  wlr_box_intersection(&geometry, box, box);
 }
 
 wm_view* wm_view_xwayland::parent() const {

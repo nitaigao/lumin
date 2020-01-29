@@ -41,14 +41,14 @@ extern "C" {
 
 wm_server::wm_server()
   : cursor_mode(WM_CURSOR_NONE) {
-
 }
 
 void wm_server::quit() {
   wl_display_terminate(wl_display);
 }
 
-bool wm_server::handle_key(uint32_t keycode, const xkb_keysym_t *syms, int nsyms, uint32_t modifiers, int state) {
+bool wm_server::handle_key(uint32_t keycode, const xkb_keysym_t *syms,
+  int nsyms, uint32_t modifiers, int state) {
   bool handled = false;
 
   for (int i = 0; i < nsyms; i++) {
@@ -186,9 +186,9 @@ static void new_output_notify(wl_listener *listener, void *data) {
     wlr_output_set_scale(wlr_output, 3);
   }
 
-  if (strcmp(wlr_output->name, "DP-0") == 0
-   || strcmp(wlr_output->name, "DP-1") == 0
-   || strcmp(wlr_output->name, "DP-2") == 0) {
+  if (strcmp(wlr_output->name, "DP-0") == 0 ||
+      strcmp(wlr_output->name, "DP-1") == 0 ||
+      strcmp(wlr_output->name, "DP-2") == 0) {
     wlr_output_set_scale(wlr_output, 2);
   }
 
@@ -277,7 +277,6 @@ static void new_xwayland_surface_notify(wl_listener *listener, void *data) {
   view->request_maximize.notify = xdg_toplevel_request_maximize_notify;
   wl_signal_add(&xwayland_surface->events.request_maximize, &view->request_maximize);
 
-   /* Add it to the list of views. */
   wl_list_insert(&server->views, &view->link);
 }
 
@@ -566,10 +565,8 @@ void wm_server::new_pointer(wlr_input_device *device) {
 
 wm_view* wm_server::desktop_view_at(double lx, double ly,
   wlr_surface **surface, double *sx, double *sy) {
-
   wm_view *view;
   wl_list_for_each(view, &views, link) {
-
     double scaled_lx = 0;
     double scaled_ly = 0;
     view->scale_coords(lx, ly, &scaled_lx, &scaled_ly);

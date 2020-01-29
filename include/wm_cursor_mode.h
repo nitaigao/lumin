@@ -1,5 +1,5 @@
-#ifndef wm_CURSOR_MODE_H
-#define wm_CURSOR_MODE_H
+#ifndef WM_CURSOR_MODE_H_
+#define WM_CURSOR_MODE_H_
 
 enum wm_cursor_mode {
   WM_CURSOR_NONE,
@@ -8,4 +8,4 @@ enum wm_cursor_mode {
   WM_CURSOR_RESIZE,
 };
 
-#endif
+#endif  // WM_CURSOR_MODE_H_
