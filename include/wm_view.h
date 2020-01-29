@@ -13,10 +13,10 @@ struct wlr_output;
 
 struct wm_server;
 
-enum view_state {
-  WM_VIEW_STATE_NONE = 0,
-  WM_VIEW_STATE_TILED = 1,
-  WM_VIEW_STATE_MAXIMIZED = 2
+enum window_state {
+  WM_WINDOW_STATE_WINDOW = 0,
+  WM_WINDOW_STATE_TILED = 1,
+  WM_WINDOW_STATE_MAXIMIZED = 2
 };
 
 typedef void (*wlr_surface_iterator_func_t)(struct wlr_surface *surface,
@@ -39,7 +39,7 @@ class wm_view {
 
   bool mapped;
   double x, y;
-  view_state state;
+  window_state state;
 
   bool view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
 

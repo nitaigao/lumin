@@ -30,7 +30,7 @@ wm_view::wm_view(wm_server *server_)
   : mapped(false)
   , x(0)
   , y(0)
-  , state(WM_VIEW_STATE_NONE)
+  , state(WM_WINDOW_STATE_WINDOW)
   , old_width(0)
   , old_height(0)
   , old_x(0)
@@ -58,7 +58,7 @@ void wm_view::focus_view(wlr_surface *surface) {
 }
 
 void wm_view::toggle_maximized() {
-  if (state != WM_VIEW_STATE_NONE) {
+  if (state != WM_WINDOW_STATE_WINDOW) {
     windowify(true);
   } else {
     maximize();

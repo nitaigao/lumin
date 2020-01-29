@@ -66,7 +66,7 @@ void wm_view_xwayland::extends(wlr_box *box) {
 }
 
 void wm_view_xwayland::maximize() {
-  if (state == WM_VIEW_STATE_MAXIMIZED) {
+  if (state == WM_WINDOW_STATE_MAXIMIZED) {
     return;
   }
 
@@ -86,11 +86,11 @@ void wm_view_xwayland::maximize() {
   wlr_xwayland_surface_set_maximized(xwayland_surface, true);
   set_size(output_box->width * output->scale, output_box->height * output->scale);
 
-  state = WM_VIEW_STATE_MAXIMIZED;
+  state = WM_WINDOW_STATE_MAXIMIZED;
 }
 
 void wm_view_xwayland::windowify(bool restore_position) {
-  if (state == WM_VIEW_STATE_NONE) {
+  if (state == WM_WINDOW_STATE_WINDOW) {
     return;
   }
 
@@ -102,7 +102,7 @@ void wm_view_xwayland::windowify(bool restore_position) {
   wlr_xwayland_surface_set_maximized(xwayland_surface, false);
   wlr_xwayland_surface_configure(xwayland_surface, old_x, old_y, old_width, old_height);
 
-  state = WM_VIEW_STATE_NONE;
+  state = WM_WINDOW_STATE_WINDOW;
 }
 
 wlr_surface* wm_view_xwayland::surface_at(double sx, double sy, double *sub_x, double *sub_y) {

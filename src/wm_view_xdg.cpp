@@ -28,7 +28,7 @@ extern "C" {
 void wm_view_xdg::tile(int edges) {
   save_geometry();
   wlr_xdg_toplevel_set_tiled(xdg_surface, edges);
-  state = WM_VIEW_STATE_TILED;
+  state = WM_WINDOW_STATE_TILED;
 }
 
 wm_view_xdg::wm_view_xdg(wm_server* server, wlr_xdg_surface *surface)
@@ -75,7 +75,7 @@ const wlr_surface* wm_view_xdg::surface() const {
 }
 
 void wm_view_xdg::save_geometry() {
-  if (state == WM_VIEW_STATE_NONE) {
+  if (state == WM_WINDOW_STATE_WINDOW) {
     old_width = xdg_surface->geometry.width;
     old_height = xdg_surface->geometry.height;
 
@@ -85,7 +85,7 @@ void wm_view_xdg::save_geometry() {
 }
 
 void wm_view_xdg::maximize() {
-  if (state == WM_VIEW_STATE_MAXIMIZED) {
+  if (state == WM_WINDOW_STATE_MAXIMIZED) {
     return;
   }
 
@@ -101,13 +101,13 @@ void wm_view_xdg::maximize() {
   wlr_xdg_toplevel_set_maximized(xdg_surface, true);
   set_size(output_box->width, output_box->height);
 
-  state = WM_VIEW_STATE_MAXIMIZED;
+  state = WM_WINDOW_STATE_MAXIMIZED;
 }
 
 void wm_view_xdg::windowify(bool restore_position) {
   wlr_xdg_toplevel_set_size(xdg_surface, old_width, old_height);
 
-  if (state == WM_VIEW_STATE_NONE) {
+  if (state == WM_WINDOW_STATE_WINDOW) {
     return;
   }
 
@@ -118,7 +118,7 @@ void wm_view_xdg::windowify(bool restore_position) {
 
   wlr_xdg_toplevel_set_maximized(xdg_surface, false);
 
-  state = WM_VIEW_STATE_NONE;
+  state = WM_WINDOW_STATE_WINDOW;
 }
 
 void wm_view_xdg::extends(wlr_box *box) {
