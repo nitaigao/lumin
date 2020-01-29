@@ -26,6 +26,9 @@ extern "C" {
 #include "wm_output.h"
 
 void wm_view_xwayland::tile(int edges) {
+  save_geometry();
+  wlr_xwayland_surface_set_maximized(xwayland_surface, true);
+  state = WM_WINDOW_STATE_TILED;
 }
 
 wm_view_xwayland::wm_view_xwayland(wm_server *server, wlr_xwayland_surface *surface)
