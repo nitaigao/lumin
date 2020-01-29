@@ -13,7 +13,7 @@ class wm_view_xdg : public wm_view {
   wlr_surface* surface_at(double sx, double sy, double *sub_x, double *sub_y);
 
   void maximize();
-  void unmaximize(bool restore_position);
+  void windowify(bool restore_position);
 
   void set_size(int width, int height);
   void focus();
@@ -25,6 +25,8 @@ class wm_view_xdg : public wm_view {
   float scale_output(wlr_output *output) const;
   void scale_coords(double inx, double iny, double *outx, double *outy) const;
   void extends(wlr_box *box);
+  void tile(int edges);
+  void save_geometry();
 
  private:
   wlr_xdg_surface *xdg_surface;

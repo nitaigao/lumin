@@ -25,6 +25,9 @@ extern "C" {
 #include "wm_server.h"
 #include "wm_output.h"
 
+void wm_view_xwayland::tile(int edges) {
+}
+
 wm_view_xwayland::wm_view_xwayland(wm_server *server, wlr_xwayland_surface *surface)
   : wm_view(server)
   , xwayland_surface(surface)
@@ -63,7 +66,7 @@ void wm_view_xwayland::extends(wlr_box *box) {
 }
 
 void wm_view_xwayland::maximize() {
-  if (maximized) {
+  if (state == WM_VIEW_STATE_MAXIMIZED) {
     return;
   }
 
@@ -83,11 +86,11 @@ void wm_view_xwayland::maximize() {
   wlr_xwayland_surface_set_maximized(xwayland_surface, true);
   set_size(output_box->width * output->scale, output_box->height * output->scale);
 
-  maximized = true;
+  state = WM_VIEW_STATE_MAXIMIZED;
 }
 
-void wm_view_xwayland::unmaximize(bool restore_position) {
-  if (!maximized) {
+void wm_view_xwayland::windowify(bool restore_position) {
+  if (state == WM_VIEW_STATE_NONE) {
     return;
   }
 
@@ -98,7 +101,8 @@ void wm_view_xwayland::unmaximize(bool restore_position) {
 
   wlr_xwayland_surface_set_maximized(xwayland_surface, false);
   wlr_xwayland_surface_configure(xwayland_surface, old_x, old_y, old_width, old_height);
-  maximized = false;
+
+  state = WM_VIEW_STATE_NONE;
 }
 
 wlr_surface* wm_view_xwayland::surface_at(double sx, double sy, double *sub_x, double *sub_y) {
