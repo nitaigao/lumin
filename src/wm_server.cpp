@@ -23,7 +23,6 @@ extern "C" {
   #include <xkbcommon/xkbcommon.h>
 }
 
-#include <iostream>
 #include <vector>
 #include <memory>
 
@@ -227,7 +226,7 @@ static void xdg_surface_destroy_notify(wl_listener *listener, void *data) {
 
 static void xdg_toplevel_request_move_notify(wl_listener *listener, void *data) {
   wm_view *view = wl_container_of(listener, view, request_move);
-  view->unmaximize(false);
+  view->windowify(false);
   view->begin_interactive(WM_CURSOR_MOVE, 0);
 }
 
@@ -291,7 +290,6 @@ static void new_xdg_surface_notify(wl_listener *listener, void *data) {
 
   /* Allocate a wm_view for this surface */
   wm_view_xdg *view = new wm_view_xdg(server, xdg_surface);
-  // view->surface_type = wm_XDG_SURFACE;
 
   /* Listen to the various events it can emit */
   view->map.notify = xdg_surface_map_notify;
@@ -337,7 +335,7 @@ void wm_server::dock_left() {
     wl_list_for_each(view, &views, link) {
       break;
     }
-    view->dock_left();
+    view->tile_left();
   }
 }
 
@@ -348,7 +346,7 @@ void wm_server::dock_right() {
     wl_list_for_each(view, &views, link) {
       break;
     }
-    view->dock_right();
+    view->tile_right();
   }
 }
 
@@ -685,8 +683,6 @@ void wm_server::position_view(wm_view *view) {
 
   if (!is_child) {
     wlr_output* output = wlr_output_layout_output_at(output_layout, cursor->x, cursor->y);
-    std::clog << output->width << " " << geometry.width << std::endl;
-    std::clog << output->height << " " << geometry.height << std::endl;
     int inside_x = ((output->width  / output->scale) - geometry.width) / 2.0;
     int inside_y = ((output->height / output->scale) - geometry.height) / 2.0;
 

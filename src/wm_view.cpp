@@ -23,8 +23,6 @@ extern "C" {
   #include <xkbcommon/xkbcommon.h>
 }
 
-#include <iostream>
-
 #include "wm_server.h"
 #include "wm_cursor_mode.h"
 
@@ -32,7 +30,7 @@ wm_view::wm_view(wm_server *server_)
   : mapped(false)
   , x(0)
   , y(0)
-  , maximized(false)
+  , state(WM_WINDOW_STATE_WINDOW)
   , old_width(0)
   , old_height(0)
   , old_x(0)
@@ -60,8 +58,8 @@ void wm_view::focus_view(wlr_surface *surface) {
 }
 
 void wm_view::toggle_maximized() {
-  if (maximized) {
-    unmaximize(true);
+  if (state != WM_WINDOW_STATE_WINDOW) {
+    windowify(true);
   } else {
     maximize();
   }
@@ -94,45 +92,38 @@ bool wm_view::view_at(double lx, double ly, wlr_surface **surface, double *sx, d
   return false;
 }
 
-void wm_view::dock_left() {
-  unmaximize(false);
-
+void wm_view::tile_left() {
   wlr_box box;
   extends(&box);
 
-  int corner_x = x + box.x;
-  int corner_y = y + box.y;
-
+  int corner_x = x + box.x + (box.width / 2.0f);
+  int corner_y = y + box.y + (box.height / 2.0f);
   wlr_output* output = wlr_output_layout_output_at(server->output_layout, corner_x, corner_y);
-
-  x = 0;
-  y = 0;
-
-  wlr_output_layout_output_coords(server->output_layout, output, &x, &y);
-
-  x -= box.x;
-  y -= box.y;
 
   int width = (output->width / 2.0f) / output->scale;
   int height = output->height / output->scale;
-
   set_size(width, height);
+
+  x = 0;
+  y = 0;
+
+  wlr_output_layout_output_coords(server->output_layout, output, &x, &y);
+
+  tile(WLR_EDGE_LEFT);
 }
 
-void wm_view::dock_right() {
-  unmaximize(false);
-
+void wm_view::tile_right() {
   wlr_box box;
   extends(&box);
-  int corner_x = x + box.x;
-  int corner_y = y + box.y;
+
+  int corner_x = x + box.x + (box.width / 2.0f);
+  int corner_y = y + box.y + (box.height / 2.0f);
   wlr_output* output = wlr_output_layout_output_at(server->output_layout, corner_x, corner_y);
 
   y = 0;
   x = 0;
+
   wlr_output_layout_output_coords(server->output_layout, output, &x, &y);
-  x -= box.x;
-  y -= box.y;
 
   // middle of the screen
   x += (output->width / 2.0f) / output->scale;
@@ -141,10 +132,10 @@ void wm_view::dock_right() {
   int height = output->height / output->scale;
 
   set_size(width, height);
+  tile(WLR_EDGE_RIGHT);
 }
 
 void wm_view::begin_interactive(enum wm_cursor_mode mode, uint32_t edges) {
-  std::clog << "begin_interactive" << std::endl;
   /* This function sets up an interactive move or resize operation, where the
    * compositor stops propegating pointer events to clients and instead
    * consumes them itself, to move or resize windows. */

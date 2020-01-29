@@ -25,10 +25,16 @@ extern "C" {
 #include "wm_server.h"
 #include "wm_output.h"
 
+void wm_view_xdg::tile(int edges) {
+  save_geometry();
+  wlr_xdg_toplevel_set_tiled(xdg_surface, edges);
+  state = WM_WINDOW_STATE_TILED;
+}
+
 wm_view_xdg::wm_view_xdg(wm_server* server, wlr_xdg_surface *surface)
   : wm_view(server)
-  , xdg_surface(surface) {
-  }
+  , xdg_surface(surface)
+  {}
 
 void wm_view_xdg::scale_coords(double inx, double iny, double *outx, double *outy) const {
   *outx = inx;
@@ -68,8 +74,18 @@ const wlr_surface* wm_view_xdg::surface() const {
   return xdg_surface->surface;
 }
 
+void wm_view_xdg::save_geometry() {
+  if (state == WM_WINDOW_STATE_WINDOW) {
+    old_width = xdg_surface->geometry.width;
+    old_height = xdg_surface->geometry.height;
+
+    old_x = x;
+    old_y = y;
+  }
+}
+
 void wm_view_xdg::maximize() {
-  if (maximized) {
+  if (state == WM_WINDOW_STATE_MAXIMIZED) {
     return;
   }
 
@@ -77,11 +93,7 @@ void wm_view_xdg::maximize() {
     server->cursor->x, server->cursor->y);
   wlr_box *output_box = wlr_output_layout_get_box(server->output_layout, output);
 
-  old_width = xdg_surface->geometry.width;
-  old_height = xdg_surface->geometry.height;
-
-  old_x = x;
-  old_y = y;
+  save_geometry();
 
   x = output_box->x;
   y = output_box->y;
@@ -89,11 +101,13 @@ void wm_view_xdg::maximize() {
   wlr_xdg_toplevel_set_maximized(xdg_surface, true);
   set_size(output_box->width, output_box->height);
 
-  maximized = true;
+  state = WM_WINDOW_STATE_MAXIMIZED;
 }
 
-void wm_view_xdg::unmaximize(bool restore_position) {
-  if (!maximized) {
+void wm_view_xdg::windowify(bool restore_position) {
+  wlr_xdg_toplevel_set_size(xdg_surface, old_width, old_height);
+
+  if (state == WM_WINDOW_STATE_WINDOW) {
     return;
   }
 
@@ -103,9 +117,8 @@ void wm_view_xdg::unmaximize(bool restore_position) {
   }
 
   wlr_xdg_toplevel_set_maximized(xdg_surface, false);
-  wlr_xdg_toplevel_set_size(xdg_surface, old_width, old_height);
 
-  maximized = false;
+  state = WM_WINDOW_STATE_WINDOW;
 }
 
 void wm_view_xdg::extends(wlr_box *box) {

@@ -5,18 +5,18 @@
 
 #include "wm_cursor_mode.h"
 
-struct wm_server;
-
 struct wlr_xdg_surface;
 struct wlr_xwayland_surface;
 struct wlr_surface;
 struct wlr_box;
 struct wlr_output;
 
-enum surface_type {
-  wm_SURFACE_TYPE_NONE = 0,
-  wm_XDG_SURFACE = 1,
-  wm_XWAYLAND_SURFACE = 2
+struct wm_server;
+
+enum window_state {
+  WM_WINDOW_STATE_WINDOW = 0,
+  WM_WINDOW_STATE_TILED = 1,
+  WM_WINDOW_STATE_MAXIMIZED = 2
 };
 
 typedef void (*wlr_surface_iterator_func_t)(struct wlr_surface *surface,
@@ -39,7 +39,7 @@ class wm_view {
 
   bool mapped;
   double x, y;
-  bool maximized;
+  window_state state;
 
   bool view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
 
@@ -51,9 +51,9 @@ class wm_view {
 
   void unmap_view();
 
-  void dock_right();
+  void tile_right();
 
-  void dock_left();
+  void tile_left();
 
   virtual void set_size(int width, int height) = 0;
 
@@ -77,7 +77,7 @@ class wm_view {
 
   virtual void maximize() = 0;
 
-  virtual void unmaximize(bool restore_position) = 0;
+  virtual void windowify(bool restore_position) = 0;
 
   virtual wm_view* parent() const = 0;
 
@@ -88,6 +88,10 @@ class wm_view {
   virtual float scale_output(wlr_output *output) const = 0;
 
   virtual void scale_coords(double inx, double iny, double *outx, double *outy) const = 0;
+
+  virtual void tile(int edges) = 0;
+
+  void save_geometry();
 
  protected:
   int old_width, old_height;
