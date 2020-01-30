@@ -26,6 +26,7 @@ class wm_view_xdg : public wm_view {
   void scale_coords(double inx, double iny, double *outx, double *outy) const;
   void extends(wlr_box *box);
   void tile(int edges);
+  void committed();
   void save_geometry();
 
  private:

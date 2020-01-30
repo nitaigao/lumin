@@ -17,6 +17,7 @@ extern "C" {
   #include <wlr/types/wlr_output_layout.h>
   #include <wlr/types/wlr_pointer.h>
   #include <wlr/types/wlr_seat.h>
+  #include <wlr/types/wlr_output_damage.h>
   #include <wlr/types/wlr_xcursor_manager.h>
   #include <wlr/types/wlr_xdg_shell.h>
   #include <wlr/util/log.h>
@@ -24,6 +25,7 @@ extern "C" {
 }
 
 #include "wm_server.h"
+#include "wm_output.h"
 #include "wm_cursor_mode.h"
 
 wm_view::wm_view(wm_server *server_)
@@ -155,8 +157,6 @@ void wm_view::begin_interactive(enum wm_cursor_mode mode, uint32_t edges) {
   wlr_box geo_box;
   extends(&geo_box);
 
-  // scale_coords(server->cursor->x, server->cursor->y, &server->grab_x, &server->grab_y);
-
   if (mode == WM_CURSOR_MOVE) {
     server->grab_x = server->cursor->x - x;
     server->grab_y = server->cursor->y - y;
@@ -177,10 +177,12 @@ void wm_view::map_view() {
   mapped = true;
   server->position_view(this);
   focus();
+  server->damage_outputs();
 }
 
 void wm_view::unmap_view() {
   mapped = false;
   server->pop_view(this);
+  server->damage_outputs();
 }
 

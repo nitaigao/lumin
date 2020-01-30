@@ -87,6 +87,9 @@ struct wm_server {
   void dock_left();
   void maximize();
 
+  void damage_outputs();
+  void damage_output(const wm_view *view);
+
  private:
   void init_keybindings();
   std::vector<std::shared_ptr<wm_key_binding>> key_bindings;

@@ -28,18 +28,7 @@ class wm_view {
 
   explicit wm_view(wm_server *server);
 
-  wl_list link;
-
-  wl_listener map;
-  wl_listener unmap;
-  wl_listener destroy;
-  wl_listener request_move;
-  wl_listener request_resize;
-  wl_listener request_maximize;
-
-  bool mapped;
-  double x, y;
-  window_state state;
+ public:
 
   bool view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
 
@@ -54,6 +43,8 @@ class wm_view {
   void tile_right();
 
   void tile_left();
+
+ public:
 
   virtual void set_size(int width, int height) = 0;
 
@@ -91,7 +82,27 @@ class wm_view {
 
   virtual void tile(int edges) = 0;
 
+  virtual void committed() = 0;
+
   void save_geometry();
+
+ public:
+  wl_listener map;
+  wl_listener unmap;
+  wl_listener commit;
+  wl_listener destroy;
+  wl_listener request_move;
+  wl_listener request_resize;
+  wl_listener request_maximize;
+  wl_listener new_subsurface;
+  wl_listener new_popup;
+
+ public:
+  wl_list link;
+
+  bool mapped;
+  double x, y;
+  window_state state;
 
  protected:
   int old_width, old_height;

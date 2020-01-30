@@ -18,9 +18,13 @@ extern "C" {
   #include <wlr/types/wlr_seat.h>
   #include <wlr/types/wlr_xcursor_manager.h>
   #include <wlr/types/wlr_xdg_shell.h>
+  #include <wlr/types/wlr_output_damage.h>
+  #include <wlr/util/region.h>
   #include <wlr/util/log.h>
   #include <xkbcommon/xkbcommon.h>
 }
+
+#include <iostream>
 
 #include "wm_server.h"
 #include "wm_output.h"
@@ -29,6 +33,10 @@ void wm_view_xdg::tile(int edges) {
   save_geometry();
   wlr_xdg_toplevel_set_tiled(xdg_surface, edges);
   state = WM_WINDOW_STATE_TILED;
+}
+
+void wm_view_xdg::committed() {
+  server->damage_output(this);
 }
 
 wm_view_xdg::wm_view_xdg(wm_server* server, wlr_xdg_surface *surface)
@@ -105,6 +113,8 @@ void wm_view_xdg::maximize() {
 }
 
 void wm_view_xdg::windowify(bool restore_position) {
+  server->damage_outputs();
+
   wlr_xdg_toplevel_set_size(xdg_surface, old_width, old_height);
 
   if (state == WM_WINDOW_STATE_WINDOW) {

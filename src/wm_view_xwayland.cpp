@@ -25,6 +25,20 @@ extern "C" {
 #include "wm_server.h"
 #include "wm_output.h"
 
+void wm_view_xwayland::save_geometry() {
+  if (state == WM_WINDOW_STATE_WINDOW) {
+    old_width = xwayland_surface->width;
+    old_height = xwayland_surface->height;
+
+    old_x = x;
+    old_y = y;
+  }
+}
+
+void wm_view_xwayland::committed() {
+
+}
+
 void wm_view_xwayland::tile(int edges) {
   save_geometry();
   wlr_xwayland_surface_set_maximized(xwayland_surface, true);

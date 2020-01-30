@@ -37,6 +37,8 @@ class wm_view_xwayland : public wm_view {
   void extends(wlr_box *box);
 
   void tile(int edges);
+  void committed();
+  void save_geometry();
 
   wl_listener request_configure;
 

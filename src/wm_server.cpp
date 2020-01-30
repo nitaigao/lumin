@@ -17,6 +17,7 @@ extern "C" {
   #include <wlr/types/wlr_seat.h>
   #include <wlr/types/wlr_xcursor_manager.h>
   #include <wlr/types/wlr_xdg_shell.h>
+  #include <wlr/types/wlr_output_damage.h>
   #include <wlr/xwayland.h>
   #include <wlr/util/log.h>
   #include <wlr/backend/libinput.h>
@@ -25,6 +26,7 @@ extern "C" {
 
 #include <vector>
 #include <memory>
+#include <iostream>
 
 #include "wm_keyboard.h"
 #include "wm_view.h"
@@ -44,6 +46,20 @@ wm_server::wm_server()
 
 void wm_server::quit() {
   wl_display_terminate(wl_display);
+}
+
+void wm_server::damage_outputs() {
+  wm_output *output;
+  wl_list_for_each(output, &outputs, link) {
+    wlr_output_damage_add_whole(output->damage);
+  }
+}
+
+void wm_server::damage_output(const wm_view *view) {
+  wm_output *output;
+  wl_list_for_each(output, &outputs, link) {
+    output->take_damage(view);
+  }
 }
 
 bool wm_server::handle_key(uint32_t keycode, const xkb_keysym_t *syms,
@@ -110,6 +126,7 @@ static void cursor_motion_absolute_notify(wl_listener *listener, void *data) {
   wm_server *server = wl_container_of(listener, server, cursor_motion_absolute);
   auto event = static_cast<struct wlr_event_pointer_motion_absolute*>(data);
   wlr_cursor_warp_absolute(server->cursor, event->device, event->x, event->y);
+
   server->process_cursor_motion(event->time_msec);
 }
 
@@ -194,9 +211,10 @@ static void new_output_notify(wl_listener *listener, void *data) {
   wm_output *output = new wm_output();
   output->wlr_output = wlr_output;
   output->server = server;
+  output->damage = wlr_output_damage_create(wlr_output);
 
   output->frame.notify = output_frame_notify;
-  wl_signal_add(&wlr_output->events.frame, &output->frame);
+  wl_signal_add(&output->damage->events.frame, &output->frame);
 
   output->destroy.notify = output_destroy_notify;
   wl_signal_add(&wlr_output->events.destroy, &output->destroy);
@@ -222,6 +240,11 @@ static void xdg_surface_destroy_notify(wl_listener *listener, void *data) {
   wm_view *view = wl_container_of(listener, view, destroy);
   wl_list_remove(&view->link);
   delete view;
+}
+
+static void xdg_surface_commit_notify(wl_listener *listener, void *data) {
+  wm_view *view = wl_container_of(listener, view, commit);
+  view->committed();
 }
 
 static void xdg_toplevel_request_move_notify(wl_listener *listener, void *data) {
@@ -279,6 +302,18 @@ static void new_xwayland_surface_notify(wl_listener *listener, void *data) {
   wl_list_insert(&server->views, &view->link);
 }
 
+static void new_subsurface_notify(wl_listener *listener, void *data) {
+  auto *subsurface = static_cast<wlr_subsurface*>(data);
+  wm_view *view = wl_container_of(listener, view, new_subsurface);
+  wl_signal_add(&subsurface->surface->events.commit, &view->commit);
+}
+
+static void new_popup_notify(wl_listener *listener, void *data) {
+  auto *popup = static_cast<wlr_xdg_popup*>(data);
+  wm_view *view = wl_container_of(listener, view, new_popup);
+  wl_signal_add(&popup->base->surface->events.commit, &view->commit);
+}
+
 static void new_xdg_surface_notify(wl_listener *listener, void *data) {
   /* This event is raised when wlr_xdg_shell receives a new xdg surface from a
    * client, either a toplevel (application window) or popup. */
@@ -289,7 +324,7 @@ static void new_xdg_surface_notify(wl_listener *listener, void *data) {
   }
 
   /* Allocate a wm_view for this surface */
-  wm_view_xdg *view = new wm_view_xdg(server, xdg_surface);
+  auto view = new wm_view_xdg(server, xdg_surface);
 
   /* Listen to the various events it can emit */
   view->map.notify = xdg_surface_map_notify;
@@ -301,7 +336,15 @@ static void new_xdg_surface_notify(wl_listener *listener, void *data) {
   view->destroy.notify = xdg_surface_destroy_notify;
   wl_signal_add(&xdg_surface->events.destroy, &view->destroy);
 
-  /* cotd */
+  view->commit.notify = xdg_surface_commit_notify;
+  wl_signal_add(&xdg_surface->surface->events.commit, &view->commit);
+
+  view->new_subsurface.notify = new_subsurface_notify;
+  wl_signal_add(&xdg_surface->surface->events.new_subsurface, &view->new_subsurface);
+
+  view->new_popup.notify = new_popup_notify;
+  wl_signal_add(&xdg_surface->events.new_popup, &view->new_popup);
+
   struct wlr_xdg_toplevel *toplevel = xdg_surface->toplevel;
 
   view->request_move.notify = xdg_toplevel_request_move_notify;
@@ -336,6 +379,7 @@ void wm_server::dock_left() {
       break;
     }
     view->tile_left();
+    damage_outputs();
   }
 }
 
@@ -347,6 +391,7 @@ void wm_server::dock_right() {
       break;
     }
     view->tile_right();
+    damage_outputs();
   }
 }
 
@@ -622,6 +667,7 @@ void wm_server::process_cursor_motion(uint32_t time) {
   /* If the mode is non-passthrough, delegate to those functions. */
   if (cursor_mode == WM_CURSOR_MOVE) {
     process_cursor_move(time);
+    damage_outputs();
     return;
   } else if (cursor_mode == WM_CURSOR_RESIZE) {
     process_cursor_resize(time);
