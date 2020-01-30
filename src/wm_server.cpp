@@ -244,7 +244,9 @@ static void xdg_surface_destroy_notify(wl_listener *listener, void *data) {
 
 static void xdg_surface_commit_notify(wl_listener *listener, void *data) {
   wm_view *view = wl_container_of(listener, view, commit);
-  view->committed();
+  if (view->mapped) {
+    view->committed();
+  }
 }
 
 static void xdg_toplevel_request_move_notify(wl_listener *listener, void *data) {
