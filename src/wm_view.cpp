@@ -28,6 +28,18 @@ extern "C" {
 #include "wm_output.h"
 #include "wm_cursor_mode.h"
 
+wm_view::~wm_view() {
+  wl_list_remove(&map.link);
+  wl_list_remove(&unmap.link);
+  wl_list_remove(&commit.link);
+  wl_list_remove(&destroy.link);
+  wl_list_remove(&request_move.link);
+  wl_list_remove(&request_resize.link);
+  wl_list_remove(&request_maximize.link);
+  wl_list_remove(&new_subsurface.link);
+  wl_list_remove(&new_popup.link);
+}
+
 wm_view::wm_view(wm_server *server_)
   : mapped(false)
   , x(0)
@@ -96,7 +108,7 @@ bool wm_view::view_at(double lx, double ly, wlr_surface **surface, double *sx, d
 
 void wm_view::tile_left() {
   wlr_box box;
-  extends(&box);
+  extents(&box);
 
   int corner_x = x + box.x + (box.width / 2.0f);
   int corner_y = y + box.y + (box.height / 2.0f);
@@ -104,7 +116,7 @@ void wm_view::tile_left() {
 
   int width = (output->width / 2.0f) / output->scale;
   int height = output->height / output->scale;
-  set_size(width, height);
+  resize(width, height);
 
   x = 0;
   y = 0;
@@ -116,7 +128,7 @@ void wm_view::tile_left() {
 
 void wm_view::tile_right() {
   wlr_box box;
-  extends(&box);
+  extents(&box);
 
   int corner_x = x + box.x + (box.width / 2.0f);
   int corner_y = y + box.y + (box.height / 2.0f);
@@ -133,7 +145,7 @@ void wm_view::tile_right() {
   int width = (output->width / 2.0f) / output->scale;
   int height = output->height / output->scale;
 
-  set_size(width, height);
+  resize(width, height);
   tile(WLR_EDGE_RIGHT);
 }
 
@@ -155,7 +167,7 @@ void wm_view::begin_interactive(enum wm_cursor_mode mode, uint32_t edges) {
   server->cursor_mode = mode;
 
   wlr_box geo_box;
-  extends(&geo_box);
+  extents(&geo_box);
 
   if (mode == WM_CURSOR_MOVE) {
     server->grab_x = server->cursor->x - x;

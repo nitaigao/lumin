@@ -24,8 +24,6 @@ extern "C" {
   #include <xkbcommon/xkbcommon.h>
 }
 
-#include <iostream>
-
 #include "wm_server.h"
 #include "wm_output.h"
 
@@ -107,7 +105,7 @@ void wm_view_xdg::maximize() {
   y = output_box->y;
 
   wlr_xdg_toplevel_set_maximized(xdg_surface, true);
-  set_size(output_box->width, output_box->height);
+  resize(output_box->width, output_box->height);
 
   state = WM_WINDOW_STATE_MAXIMIZED;
 }
@@ -131,7 +129,7 @@ void wm_view_xdg::windowify(bool restore_position) {
   state = WM_WINDOW_STATE_WINDOW;
 }
 
-void wm_view_xdg::extends(wlr_box *box) {
+void wm_view_xdg::extents(wlr_box *box) {
   wlr_xdg_surface_get_geometry(xdg_surface, box);
 }
 
@@ -145,7 +143,7 @@ void wm_view_xdg::notify_keyboard_enter() {
     keyboard->keycodes, keyboard->num_keycodes, &keyboard->modifiers);
 }
 
-void wm_view_xdg::set_size(int width, int height) {
+void wm_view_xdg::resize(int width, int height) {
   wlr_xdg_toplevel_set_size(xdg_surface, width, height);
 }
 

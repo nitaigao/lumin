@@ -27,7 +27,6 @@ extern "C" {
 
 #include "wm_view.h"
 #include "wm_server.h"
-#include <iostream>
 
 /* Used to move all of the data necessary to render a surface from the top-level
  * frame handler to the per-surface render function. */
@@ -39,6 +38,16 @@ struct render_data {
   wlr_output_layout *layout;
   pixman_region32_t *buffer_damage;
 };
+
+wm_output::wm_output(wm_server *server, struct wlr_output *output, wlr_output_damage *damage)
+  : server_(server)
+  , damage_(damage)
+  , output_(output)
+  { }
+
+void wm_output::destroy() {
+  server_->remove_output(this);
+}
 
 static void scissor_output(struct wlr_output *wlr_output, pixman_box32_t *rect) {
   struct wlr_renderer *renderer = wlr_backend_get_renderer(wlr_output->backend);
@@ -115,7 +124,7 @@ static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
 
   int nrects;
   pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
-  for (int i = 0; i < nrects; ++i) {
+  for (int i = 0; i < nrects; i++) {
     scissor_output(output, &rects[i]);
     wlr_render_texture_with_matrix(rdata->renderer, texture, matrix, 1);
   }
@@ -125,47 +134,54 @@ static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
 
 struct damage_iterator_data {
   const wm_view *view;
-  const wm_output *output;
+  const wlr_output *output;
+  wlr_output_damage *output_damage;
 };
 
 void surface_damage_output(wlr_surface *surface, int sx, int sy, void *data) {
   auto damage_data = static_cast<damage_iterator_data*>(data);
   auto view = damage_data->view;
   auto output = damage_data->output;
+  auto output_damage = damage_data->output_damage;
 
   pixman_region32_t damage;
   pixman_region32_init(&damage);
   wlr_surface_get_effective_damage(surface, &damage);
   pixman_region32_translate(&damage, view->x + sx, view->y + sy);
 
-  wlr_region_scale(&damage, &damage, output->wlr_output->scale);
+  wlr_region_scale(&damage, &damage, output->scale);
 
-  wlr_output_damage_add(output->damage, &damage);
+  wlr_output_damage_add(output_damage, &damage);
   pixman_region32_fini(&damage);
+}
+
+void wm_output::take_whole_damage() {
+  wlr_output_damage_add_whole(damage_);
 }
 
 void wm_output::take_damage(const wm_view *view) {
   damage_iterator_data data = {
     .view = view,
-    .output = this
+    .output = output_,
+    .output_damage = damage_
   };
   view->for_each_surface(surface_damage_output, &data);
 }
 
 void wm_output::render() const {
-  wlr_renderer *renderer = server->renderer;
+  wlr_renderer *renderer = server_->renderer;
 
   struct timespec now;
   clock_gettime(CLOCK_MONOTONIC, &now);
 
-  if (!wlr_output_attach_render(wlr_output, NULL)) {
+  if (!wlr_output_attach_render(output_, NULL)) {
     return;
   }
 
   bool needs_frame = false;
   pixman_region32_t buffer_damage;
   pixman_region32_init(&buffer_damage);
-  wlr_output_damage_attach_render(this->damage, &needs_frame, &buffer_damage);
+  wlr_output_damage_attach_render(this->damage_, &needs_frame, &buffer_damage);
 
   if (!needs_frame) {
     return;
@@ -176,30 +192,30 @@ void wm_output::render() const {
   // wlr_output_effective_resolution(wlr_output, &width, &height);
 
   /* Begin the renderer (calls glViewport and some other GL sanity checks) */
-  wlr_renderer_begin(renderer, wlr_output->width, wlr_output->height);
+  wlr_renderer_begin(renderer, output_->width, output_->height);
 
   float color[4] = {0.0, 0.0, 0.0, 1.0};
   // wlr_renderer_clear(renderer, color);
 
   int nrects;
   pixman_box32_t *rects = pixman_region32_rectangles(&buffer_damage, &nrects);
-  for (int i = 0; i < nrects; ++i) {
-    scissor_output(wlr_output, &rects[i]);
+  for (int i = 0; i < nrects; i++) {
+    scissor_output(output_, &rects[i]);
     wlr_renderer_clear(renderer, color);
   }
 
   wm_view *view;
-  wl_list_for_each_reverse(view, &server->views, link) {
+  wl_list_for_each_reverse(view, &server_->views, link) {
     if (!view->mapped) {
       continue;
     }
 
     struct render_data render_data = {
-      .output = wlr_output,
+      .output = output_,
       .renderer = renderer,
       .view = view,
       .when = &now,
-      .layout = server->output_layout,
+      .layout = server_->output_layout,
       .buffer_damage = &buffer_damage
     };
 
@@ -212,7 +228,7 @@ void wm_output::render() const {
    * reason, wlroots provides a software fallback, which we ask it to render
    * here. wlr_cursor handles configuring hardware vs software cursors for you,
    * and this function is a no-op when hardware cursors are in use. */
-  wlr_output_render_software_cursors(wlr_output, NULL);
+  wlr_output_render_software_cursors(output_, NULL);
 
   /* Conclude rendering and swap the buffers, showing the final frame
    * on-screen. */
@@ -221,6 +237,6 @@ void wm_output::render() const {
   pixman_region32_t frame_damage;
   pixman_region32_init(&frame_damage);
 
-  wlr_output_set_damage(wlr_output, &frame_damage);
-  wlr_output_commit(wlr_output);
+  wlr_output_set_damage(output_, &frame_damage);
+  wlr_output_commit(output_);
 }

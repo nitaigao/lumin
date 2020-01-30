@@ -24,7 +24,7 @@ typedef void (*wlr_surface_iterator_func_t)(struct wlr_surface *surface,
 
 class wm_view {
  public:
-  virtual ~wm_view() { }
+  virtual ~wm_view();
 
   explicit wm_view(wm_server *server);
 
@@ -44,11 +44,15 @@ class wm_view {
 
   void tile_left();
 
+  void toggle_maximized();
+
+  void save_geometry();
+
  public:
 
-  virtual void set_size(int width, int height) = 0;
+  virtual void resize(int width, int height) = 0;
 
-  virtual void extends(wlr_box *box) = 0;
+  virtual void extents(wlr_box *box) = 0;
 
   virtual void activate() = 0;
 
@@ -63,8 +67,6 @@ class wm_view {
   virtual void focus() = 0;
 
   virtual void unfocus() = 0;
-
-  void toggle_maximized();
 
   virtual void maximize() = 0;
 
@@ -84,8 +86,6 @@ class wm_view {
 
   virtual void committed() = 0;
 
-  void save_geometry();
-
  public:
   wl_listener map;
   wl_listener unmap;
@@ -102,9 +102,10 @@ class wm_view {
 
   bool mapped;
   double x, y;
-  window_state state;
 
  protected:
+  window_state state;
+
   int old_width, old_height;
   int old_x, old_y;
 

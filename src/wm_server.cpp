@@ -26,7 +26,6 @@ extern "C" {
 
 #include <vector>
 #include <memory>
-#include <iostream>
 
 #include "wm_keyboard.h"
 #include "wm_view.h"
@@ -48,10 +47,14 @@ void wm_server::quit() {
   wl_display_terminate(wl_display);
 }
 
+void wm_server::remove_output(const wm_output *output) {
+  wlr_output_layout_remove(output_layout, output->output());
+}
+
 void wm_server::damage_outputs() {
   wm_output *output;
   wl_list_for_each(output, &outputs, link) {
-    wlr_output_damage_add_whole(output->damage);
+    output->take_whole_damage();
   }
 }
 
@@ -162,13 +165,13 @@ static void cursor_frame_notify(wl_listener *listener, void *data) {
 }
 
 static void output_frame_notify(wl_listener *listener, void *data) {
-  wm_output *output = wl_container_of(listener, output, frame);
+  wm_output *output = wl_container_of(listener, output, frame_);
   output->render();
 }
 
 static void output_destroy_notify(wl_listener *listener, void *data) {
-  wm_output *output = wl_container_of(listener, output, destroy);
-  wlr_output_layout_remove(output->server->output_layout, output->wlr_output);
+  wm_output *output = wl_container_of(listener, output, destroy_);
+  output->destroy();
   wl_list_remove(&output->link);
   delete output;
 }
@@ -208,16 +211,15 @@ static void new_output_notify(wl_listener *listener, void *data) {
     wlr_output_set_scale(wlr_output, 2);
   }
 
-  wm_output *output = new wm_output();
-  output->wlr_output = wlr_output;
-  output->server = server;
-  output->damage = wlr_output_damage_create(wlr_output);
+  auto damage = wlr_output_damage_create(wlr_output);
 
-  output->frame.notify = output_frame_notify;
-  wl_signal_add(&output->damage->events.frame, &output->frame);
+  wm_output *output = new wm_output(server, wlr_output, damage);
 
-  output->destroy.notify = output_destroy_notify;
-  wl_signal_add(&wlr_output->events.destroy, &output->destroy);
+  output->frame_.notify = output_frame_notify;
+  wl_signal_add(&damage->events.frame, &output->frame_);
+
+  output->destroy_.notify = output_destroy_notify;
+  wl_signal_add(&wlr_output->events.destroy, &output->destroy_);
 
   wlr_output_layout_add_auto(server->output_layout, wlr_output);
 
@@ -234,11 +236,11 @@ static void xdg_surface_map_notify(wl_listener *listener, void *data) {
 static void xdg_surface_unmap_notify(wl_listener *listener, void *data) {
   wm_view *view = wl_container_of(listener, view, unmap);
   view->unmap_view();
+  wl_list_remove(&view->link);
 }
 
 static void xdg_surface_destroy_notify(wl_listener *listener, void *data) {
   wm_view *view = wl_container_of(listener, view, destroy);
-  wl_list_remove(&view->link);
   delete view;
 }
 
@@ -278,7 +280,7 @@ static void new_xwayland_surface_notify(wl_listener *listener, void *data) {
   wm_server *server = wl_container_of(listener, server, new_xwayland_surface);
   auto xwayland_surface = static_cast<wlr_xwayland_surface*>(data);
 
-  wm_view_xwayland *view = new wm_view_xwayland(server, xwayland_surface);
+  auto view = new wm_view_xwayland(server, xwayland_surface);
 
   view->map.notify = xdg_surface_map_notify;
   wl_signal_add(&xwayland_surface->events.map, &view->map);
@@ -567,7 +569,7 @@ static void keyboard_key_notify(wl_listener *listener, void *data) {
 }
 
 void wm_server::new_keyboard(wlr_input_device *device) {
-  wm_keyboard *keyboard = new wm_keyboard();
+  auto keyboard = new wm_keyboard();
   keyboard->server = this;
   keyboard->device = device;
 
@@ -662,7 +664,7 @@ void wm_server::process_cursor_resize(uint32_t time) {
   view->x = x;
   view->y = y;
 
-  view->set_size(width, height);
+  view->resize(width, height);
 }
 
 void wm_server::process_cursor_motion(uint32_t time) {

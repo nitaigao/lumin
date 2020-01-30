@@ -15,7 +15,7 @@ class wm_view_xdg : public wm_view {
   void maximize();
   void windowify(bool restore_position);
 
-  void set_size(int width, int height);
+  void resize(int width, int height);
   void focus();
   void unfocus();
   void for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const;
@@ -24,7 +24,7 @@ class wm_view_xdg : public wm_view {
   void geometry(wlr_box *box) const;
   float scale_output(wlr_output *output) const;
   void scale_coords(double inx, double iny, double *outx, double *outy) const;
-  void extends(wlr_box *box);
+  void extents(wlr_box *box);
   void tile(int edges);
   void committed();
   void save_geometry();
