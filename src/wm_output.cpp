@@ -39,6 +39,11 @@ struct render_data {
   pixman_region32_t *buffer_damage;
 };
 
+wm_output::~wm_output() {
+  wl_list_remove(&frame_.link);
+  wl_list_remove(&destroy_.link);
+}
+
 wm_output::wm_output(wm_server *server, struct wlr_output *output, wlr_output_damage *damage)
   : server_(server)
   , damage_(damage)

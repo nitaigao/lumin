@@ -9,6 +9,8 @@ struct wlr_output_damage;
 
 class wm_output {
  public:
+  ~wm_output();
+
   explicit wm_output(wm_server *server,
                      struct wlr_output *output,
                      wlr_output_damage *damage);
