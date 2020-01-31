@@ -18,6 +18,8 @@ extern "C" {
   #include <wlr/types/wlr_seat.h>
   #include <wlr/types/wlr_xcursor_manager.h>
   #include <wlr/types/wlr_xdg_shell.h>
+  #include <wlr/types/wlr_output_damage.h>
+  #include <wlr/util/region.h>
   #include <wlr/util/log.h>
   #include <xkbcommon/xkbcommon.h>
 }
@@ -29,6 +31,10 @@ void wm_view_xdg::tile(int edges) {
   save_geometry();
   wlr_xdg_toplevel_set_tiled(xdg_surface, edges);
   state = WM_WINDOW_STATE_TILED;
+}
+
+void wm_view_xdg::committed() {
+  server->damage_output(this);
 }
 
 wm_view_xdg::wm_view_xdg(wm_server* server, wlr_xdg_surface *surface)
@@ -99,12 +105,14 @@ void wm_view_xdg::maximize() {
   y = output_box->y;
 
   wlr_xdg_toplevel_set_maximized(xdg_surface, true);
-  set_size(output_box->width, output_box->height);
+  resize(output_box->width, output_box->height);
 
   state = WM_WINDOW_STATE_MAXIMIZED;
 }
 
 void wm_view_xdg::windowify(bool restore_position) {
+  server->damage_outputs();
+
   wlr_xdg_toplevel_set_size(xdg_surface, old_width, old_height);
 
   if (state == WM_WINDOW_STATE_WINDOW) {
@@ -121,7 +129,7 @@ void wm_view_xdg::windowify(bool restore_position) {
   state = WM_WINDOW_STATE_WINDOW;
 }
 
-void wm_view_xdg::extends(wlr_box *box) {
+void wm_view_xdg::extents(wlr_box *box) {
   wlr_xdg_surface_get_geometry(xdg_surface, box);
 }
 
@@ -135,7 +143,7 @@ void wm_view_xdg::notify_keyboard_enter() {
     keyboard->keycodes, keyboard->num_keycodes, &keyboard->modifiers);
 }
 
-void wm_view_xdg::set_size(int width, int height) {
+void wm_view_xdg::resize(int width, int height) {
   wlr_xdg_toplevel_set_size(xdg_surface, width, height);
 }
 

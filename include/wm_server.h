@@ -20,6 +20,7 @@ struct wlr_xcursor_manager;
 struct wlr_output_layout;
 struct wm_view;
 struct wm_key_binding;
+struct wm_output;
 
 struct wm_server {
   wm_server();
@@ -86,6 +87,11 @@ struct wm_server {
   void dock_right();
   void dock_left();
   void maximize();
+
+  void damage_outputs();
+  void damage_output(const wm_view *view);
+
+  void remove_output(const wm_output *output);
 
  private:
   void init_keybindings();

@@ -25,6 +25,20 @@ extern "C" {
 #include "wm_server.h"
 #include "wm_output.h"
 
+void wm_view_xwayland::save_geometry() {
+  if (state == WM_WINDOW_STATE_WINDOW) {
+    old_width = xwayland_surface->width;
+    old_height = xwayland_surface->height;
+
+    old_x = x;
+    old_y = y;
+  }
+}
+
+void wm_view_xwayland::committed() {
+
+}
+
 void wm_view_xwayland::tile(int edges) {
   save_geometry();
   wlr_xwayland_surface_set_maximized(xwayland_surface, true);
@@ -65,7 +79,7 @@ float wm_view_xwayland::scale_output(wlr_output *output) const {
   return 1.0f;
 }
 
-void wm_view_xwayland::extends(wlr_box *box) {
+void wm_view_xwayland::extents(wlr_box *box) {
 }
 
 void wm_view_xwayland::maximize() {
@@ -87,7 +101,7 @@ void wm_view_xwayland::maximize() {
   y = output_box->y;
 
   wlr_xwayland_surface_set_maximized(xwayland_surface, true);
-  set_size(output_box->width * output->scale, output_box->height * output->scale);
+  resize(output_box->width * output->scale, output_box->height * output->scale);
 
   state = WM_WINDOW_STATE_MAXIMIZED;
 }
@@ -126,7 +140,7 @@ void wm_view_xwayland::notify_keyboard_enter() {
 }
 
 
-void wm_view_xwayland::set_size(int width, int height) {
+void wm_view_xwayland::resize(int width, int height) {
   wlr_xwayland_surface_configure(xwayland_surface, x, y, width, height);
 }
 

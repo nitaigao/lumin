@@ -17,6 +17,7 @@ extern "C" {
   #include <wlr/types/wlr_seat.h>
   #include <wlr/types/wlr_xcursor_manager.h>
   #include <wlr/types/wlr_xdg_shell.h>
+  #include <wlr/types/wlr_output_damage.h>
   #include <wlr/xwayland.h>
   #include <wlr/util/log.h>
   #include <wlr/backend/libinput.h>
@@ -44,6 +45,24 @@ wm_server::wm_server()
 
 void wm_server::quit() {
   wl_display_terminate(wl_display);
+}
+
+void wm_server::remove_output(const wm_output *output) {
+  wlr_output_layout_remove(output_layout, output->output());
+}
+
+void wm_server::damage_outputs() {
+  wm_output *output;
+  wl_list_for_each(output, &outputs, link) {
+    output->take_whole_damage();
+  }
+}
+
+void wm_server::damage_output(const wm_view *view) {
+  wm_output *output;
+  wl_list_for_each(output, &outputs, link) {
+    output->take_damage(view);
+  }
 }
 
 bool wm_server::handle_key(uint32_t keycode, const xkb_keysym_t *syms,
@@ -110,6 +129,7 @@ static void cursor_motion_absolute_notify(wl_listener *listener, void *data) {
   wm_server *server = wl_container_of(listener, server, cursor_motion_absolute);
   auto event = static_cast<struct wlr_event_pointer_motion_absolute*>(data);
   wlr_cursor_warp_absolute(server->cursor, event->device, event->x, event->y);
+
   server->process_cursor_motion(event->time_msec);
 }
 
@@ -145,13 +165,13 @@ static void cursor_frame_notify(wl_listener *listener, void *data) {
 }
 
 static void output_frame_notify(wl_listener *listener, void *data) {
-  wm_output *output = wl_container_of(listener, output, frame);
+  wm_output *output = wl_container_of(listener, output, frame_);
   output->render();
 }
 
 static void output_destroy_notify(wl_listener *listener, void *data) {
-  wm_output *output = wl_container_of(listener, output, destroy);
-  wlr_output_layout_remove(output->server->output_layout, output->wlr_output);
+  wm_output *output = wl_container_of(listener, output, destroy_);
+  output->destroy();
   wl_list_remove(&output->link);
   delete output;
 }
@@ -191,15 +211,15 @@ static void new_output_notify(wl_listener *listener, void *data) {
     wlr_output_set_scale(wlr_output, 2);
   }
 
-  wm_output *output = new wm_output();
-  output->wlr_output = wlr_output;
-  output->server = server;
+  auto damage = wlr_output_damage_create(wlr_output);
 
-  output->frame.notify = output_frame_notify;
-  wl_signal_add(&wlr_output->events.frame, &output->frame);
+  wm_output *output = new wm_output(server, wlr_output, damage);
 
-  output->destroy.notify = output_destroy_notify;
-  wl_signal_add(&wlr_output->events.destroy, &output->destroy);
+  output->frame_.notify = output_frame_notify;
+  wl_signal_add(&damage->events.frame, &output->frame_);
+
+  output->destroy_.notify = output_destroy_notify;
+  wl_signal_add(&wlr_output->events.destroy, &output->destroy_);
 
   wlr_output_layout_add_auto(server->output_layout, wlr_output);
 
@@ -216,12 +236,19 @@ static void xdg_surface_map_notify(wl_listener *listener, void *data) {
 static void xdg_surface_unmap_notify(wl_listener *listener, void *data) {
   wm_view *view = wl_container_of(listener, view, unmap);
   view->unmap_view();
+  wl_list_remove(&view->link);
 }
 
 static void xdg_surface_destroy_notify(wl_listener *listener, void *data) {
   wm_view *view = wl_container_of(listener, view, destroy);
-  wl_list_remove(&view->link);
   delete view;
+}
+
+static void xdg_surface_commit_notify(wl_listener *listener, void *data) {
+  wm_view *view = wl_container_of(listener, view, commit);
+  if (view->mapped) {
+    view->committed();
+  }
 }
 
 static void xdg_toplevel_request_move_notify(wl_listener *listener, void *data) {
@@ -253,7 +280,7 @@ static void new_xwayland_surface_notify(wl_listener *listener, void *data) {
   wm_server *server = wl_container_of(listener, server, new_xwayland_surface);
   auto xwayland_surface = static_cast<wlr_xwayland_surface*>(data);
 
-  wm_view_xwayland *view = new wm_view_xwayland(server, xwayland_surface);
+  auto view = new wm_view_xwayland(server, xwayland_surface);
 
   view->map.notify = xdg_surface_map_notify;
   wl_signal_add(&xwayland_surface->events.map, &view->map);
@@ -279,6 +306,18 @@ static void new_xwayland_surface_notify(wl_listener *listener, void *data) {
   wl_list_insert(&server->views, &view->link);
 }
 
+static void new_subsurface_notify(wl_listener *listener, void *data) {
+  auto *subsurface = static_cast<wlr_subsurface*>(data);
+  wm_view *view = wl_container_of(listener, view, new_subsurface);
+  wl_signal_add(&subsurface->surface->events.commit, &view->commit);
+}
+
+static void new_popup_notify(wl_listener *listener, void *data) {
+  auto *popup = static_cast<wlr_xdg_popup*>(data);
+  wm_view *view = wl_container_of(listener, view, new_popup);
+  wl_signal_add(&popup->base->surface->events.commit, &view->commit);
+}
+
 static void new_xdg_surface_notify(wl_listener *listener, void *data) {
   /* This event is raised when wlr_xdg_shell receives a new xdg surface from a
    * client, either a toplevel (application window) or popup. */
@@ -289,7 +328,7 @@ static void new_xdg_surface_notify(wl_listener *listener, void *data) {
   }
 
   /* Allocate a wm_view for this surface */
-  wm_view_xdg *view = new wm_view_xdg(server, xdg_surface);
+  auto view = new wm_view_xdg(server, xdg_surface);
 
   /* Listen to the various events it can emit */
   view->map.notify = xdg_surface_map_notify;
@@ -301,7 +340,15 @@ static void new_xdg_surface_notify(wl_listener *listener, void *data) {
   view->destroy.notify = xdg_surface_destroy_notify;
   wl_signal_add(&xdg_surface->events.destroy, &view->destroy);
 
-  /* cotd */
+  view->commit.notify = xdg_surface_commit_notify;
+  wl_signal_add(&xdg_surface->surface->events.commit, &view->commit);
+
+  view->new_subsurface.notify = new_subsurface_notify;
+  wl_signal_add(&xdg_surface->surface->events.new_subsurface, &view->new_subsurface);
+
+  view->new_popup.notify = new_popup_notify;
+  wl_signal_add(&xdg_surface->events.new_popup, &view->new_popup);
+
   struct wlr_xdg_toplevel *toplevel = xdg_surface->toplevel;
 
   view->request_move.notify = xdg_toplevel_request_move_notify;
@@ -336,6 +383,7 @@ void wm_server::dock_left() {
       break;
     }
     view->tile_left();
+    damage_outputs();
   }
 }
 
@@ -347,6 +395,7 @@ void wm_server::dock_right() {
       break;
     }
     view->tile_right();
+    damage_outputs();
   }
 }
 
@@ -520,7 +569,7 @@ static void keyboard_key_notify(wl_listener *listener, void *data) {
 }
 
 void wm_server::new_keyboard(wlr_input_device *device) {
-  wm_keyboard *keyboard = new wm_keyboard();
+  auto keyboard = new wm_keyboard();
   keyboard->server = this;
   keyboard->device = device;
 
@@ -615,13 +664,14 @@ void wm_server::process_cursor_resize(uint32_t time) {
   view->x = x;
   view->y = y;
 
-  view->set_size(width, height);
+  view->resize(width, height);
 }
 
 void wm_server::process_cursor_motion(uint32_t time) {
   /* If the mode is non-passthrough, delegate to those functions. */
   if (cursor_mode == WM_CURSOR_MOVE) {
     process_cursor_move(time);
+    damage_outputs();
     return;
   } else if (cursor_mode == WM_CURSOR_RESIZE) {
     process_cursor_resize(time);
