@@ -25,8 +25,6 @@ int KeyBinding::mods() const {
 }
 
 bool KeyBinding::matches(int modifiers, unsigned int sym, wlr_key_state key_state) {
-  if (mods() & modifiers && sym == key && state == key_state) {
-    return true;
-  }
-  return false;
+  bool match = (mods() & modifiers && sym == key && state == key_state);
+  return match;
 }

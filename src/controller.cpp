@@ -3,6 +3,7 @@
 extern "C" {
   #include <unistd.h>
   #include <wayland-server-core.h>
+  #include <wayland-contrib.h>
   #include <wlr/backend.h>
   #include <wlr/render/wlr_renderer.h>
   #include <wlr/types/wlr_cursor.h>
@@ -143,10 +144,11 @@ static void cursor_button_notify(wl_listener *listener, void *data) {
 
   if (event->state == WLR_BUTTON_RELEASED) {
     server->CursorMode = WM_CURSOR_PASSTHROUGH;
-  } else {
-    if (view != NULL) {
-      view->focus_view(surface);
-    }
+    return;
+  }
+
+  if (view != NULL) {
+    view->focus_view(surface);
   }
 }
 
@@ -365,37 +367,31 @@ static void new_xdg_surface_notify(wl_listener *listener, void *data) {
 
 void Controller::maximize() {
   int view_count = wl_list_length(&views);
-  if (view_count > 0) {
-    View *view;
-    wl_list_for_each(view, &views, link) {
-      break;
-    }
-    view->maximize();
-  }
+  if (view_count <= 0)
+    return;
+
+  View *view = wl_list_first(view, &views, link);
+  view->maximize();
 }
 
 void Controller::dock_left() {
   int view_count = wl_list_length(&views);
-  if (view_count > 0) {
-    View *view;
-    wl_list_for_each(view, &views, link) {
-      break;
-    }
-    view->tile_left();
-    damage_outputs();
-  }
+  if (view_count <= 0)
+    return;
+
+  View *view = wl_list_first(view, &views, link);
+  view->tile_left();
+  damage_outputs();
 }
 
 void Controller::dock_right() {
   int view_count = wl_list_length(&views);
-  if (view_count > 0) {
-    View *view;
-    wl_list_for_each(view, &views, link) {
-      break;
-    }
-    view->tile_right();
-    damage_outputs();
-  }
+  if (view_count <= 0)
+    return;
+
+  View *view = wl_list_first(view, &views, link);
+  view->tile_right();
+  damage_outputs();
 }
 
 void Controller::init_keybindings() {
@@ -443,7 +439,6 @@ void Controller::run() {
 
   renderer = wlr_backend_get_renderer(backend);
   wlr_renderer_init_wl_display(renderer, wl_display);
-
 
   wlr_compositor *compositor = wlr_compositor_create(wl_display, renderer);
   wlr_data_device_manager_create(wl_display);
@@ -532,11 +527,9 @@ void Controller::destroy() {
     delete keyboard;
   }
 
-  /* Once wl_display_run returns, we shut down the  */
   wl_display_destroy_clients(wl_display);
 
   wlr_backend_destroy(backend);
-
   wl_display_destroy(wl_display);
 }
 
@@ -752,7 +745,7 @@ void Controller::position_view(View *view) {
   view->y = parent_view->y + inside_y;
 }
 
-void Controller::pop_view(View *old_view) {
+void Controller::focus_top() {
   View *view;
   wl_list_for_each(view, &views, link) {
     if (view->mapped) {

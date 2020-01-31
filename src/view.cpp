@@ -193,6 +193,6 @@ void View::map_view() {
 
 void View::unmap_view() {
   mapped = false;
-  server->pop_view(this);
+  server->focus_top();
   server->damage_outputs();
 }

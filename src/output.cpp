@@ -28,8 +28,6 @@ extern "C" {
 #include "view.h"
 #include "controller.h"
 
-/* Used to move all of the data necessary to render a surface from the top-level
- * frame handler to the per-surface render function. */
 struct render_data {
   wlr_output *output;
   wlr_renderer *renderer;
@@ -202,6 +200,7 @@ void Output::render() const {
   float color[4] = {0.0, 0.0, 0.0, 1.0};
   // wlr_renderer_clear(renderer, color);
 
+  // Clear everything that has been damaged
   int nrects;
   pixman_box32_t *rects = pixman_region32_rectangles(&buffer_damage, &nrects);
   for (int i = 0; i < nrects; i++) {

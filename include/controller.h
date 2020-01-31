@@ -3,6 +3,7 @@
 
 #include <xkbcommon/xkbcommon.h>
 #include <wayland-server-core.h>
+
 #include <vector>
 #include <memory>
 
@@ -77,7 +78,7 @@ class Controller {
 
   void position_view(View* view);
 
-  void pop_view(View* view);
+  void focus_top();
 
   void quit();
 
