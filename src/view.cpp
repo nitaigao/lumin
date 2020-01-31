@@ -1,5 +1,4 @@
-#include "wm_view.h"
-
+#include "view.h"
 
 extern "C" {
   #include <unistd.h>
@@ -24,11 +23,11 @@ extern "C" {
   #include <xkbcommon/xkbcommon.h>
 }
 
-#include "wm_server.h"
-#include "wm_output.h"
-#include "wm_cursor_mode.h"
+#include "controller.h"
+#include "output.h"
+#include "cursor_mode.h"
 
-wm_view::~wm_view() {
+View::~View() {
   wl_list_remove(&map.link);
   wl_list_remove(&unmap.link);
   wl_list_remove(&commit.link);
@@ -40,7 +39,7 @@ wm_view::~wm_view() {
   wl_list_remove(&new_popup.link);
 }
 
-wm_view::wm_view(wm_server *server_)
+View::View(Controller *server_)
   : mapped(false)
   , x(0)
   , y(0)
@@ -51,7 +50,7 @@ wm_view::wm_view(wm_server *server_)
   , old_y(0)
   , server(server_) { }
 
-void wm_view::focus_view(wlr_surface *surface) {
+void View::focus_view(wlr_surface *surface) {
   wlr_seat *seat = server->seat;
   wlr_surface *prev_surface = seat->keyboard_state.focused_surface;
 
@@ -60,7 +59,7 @@ void wm_view::focus_view(wlr_surface *surface) {
   }
 
   if (prev_surface) {
-    wm_view *view = server->view_from_surface(seat->keyboard_state.focused_surface);
+    View *view = server->view_from_surface(seat->keyboard_state.focused_surface);
     view->unfocus();
   }
 
@@ -71,7 +70,7 @@ void wm_view::focus_view(wlr_surface *surface) {
   notify_keyboard_enter();
 }
 
-void wm_view::toggle_maximized() {
+void View::toggle_maximized() {
   if (state != WM_WINDOW_STATE_WINDOW) {
     windowify(true);
   } else {
@@ -79,7 +78,7 @@ void wm_view::toggle_maximized() {
   }
 }
 
-bool wm_view::view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy) {
+bool View::view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy) {
   if (!mapped) {
     return false;
   }
@@ -106,7 +105,7 @@ bool wm_view::view_at(double lx, double ly, wlr_surface **surface, double *sx, d
   return false;
 }
 
-void wm_view::tile_left() {
+void View::tile_left() {
   wlr_box box;
   extents(&box);
 
@@ -126,7 +125,7 @@ void wm_view::tile_left() {
   tile(WLR_EDGE_LEFT);
 }
 
-void wm_view::tile_right() {
+void View::tile_right() {
   wlr_box box;
   extents(&box);
 
@@ -149,7 +148,7 @@ void wm_view::tile_right() {
   tile(WLR_EDGE_RIGHT);
 }
 
-void wm_view::begin_interactive(enum wm_cursor_mode mode, uint32_t edges) {
+void View::begin_interactive(enum CursorMode mode, uint32_t edges) {
   /* This function sets up an interactive move or resize operation, where the
    * compositor stops propegating pointer events to clients and instead
    * consumes them itself, to move or resize windows. */
@@ -164,7 +163,7 @@ void wm_view::begin_interactive(enum wm_cursor_mode mode, uint32_t edges) {
   server->grab_y = 0;
 
   server->grabbed_view = this;
-  server->cursor_mode = mode;
+  server->CursorMode = mode;
 
   wlr_box geo_box;
   extents(&geo_box);
@@ -185,16 +184,15 @@ void wm_view::begin_interactive(enum wm_cursor_mode mode, uint32_t edges) {
   server->resize_edges = edges;
 }
 
-void wm_view::map_view() {
+void View::map_view() {
   mapped = true;
   server->position_view(this);
   focus();
   server->damage_outputs();
 }
 
-void wm_view::unmap_view() {
+void View::unmap_view() {
   mapped = false;
-  server->pop_view(this);
+  server->focus_top();
   server->damage_outputs();
 }
-

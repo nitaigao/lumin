@@ -1,22 +1,18 @@
-#ifndef WM_VIEW_XWAYLAND_H_
-#define WM_VIEW_XWAYLAND_H_
+#ifndef XWAYLAND_VIEW_H_
+#define XWAYLAND_VIEW_H_
 
-#include <wayland-server-core.h>
+#include "view.h"
 
-#include "wm_view.h"
-
-class wm_view_xwayland : public wm_view {
+class XWaylandView : public View {
  public:
-  wm_view_xwayland(wm_server *server, wlr_xwayland_surface *surface);
+  XWaylandView(Controller *server, wlr_xwayland_surface *surface);
 
   const wlr_surface* surface() const;
 
-  void activate();
   void notify_keyboard_enter();
 
-  wlr_surface* surface_at(double sx, double sy, double *sub_x, double *sub_y);
-
   void maximize();
+  void tile(int edges);
   void windowify(bool restore_position);
 
   void resize(int width, int height);
@@ -25,25 +21,28 @@ class wm_view_xwayland : public wm_view {
   void unfocus();
 
   void for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const;
+  wlr_surface* surface_at(double sx, double sy, double *sub_x, double *sub_y);
 
-  wm_view* parent() const;
   bool is_child() const;
+  View* parent() const;
 
   void geometry(wlr_box *box) const;
+  void extents(wlr_box *box);
 
   float scale_output(wlr_output *output) const;
   void scale_coords(double inx, double iny, double *outx, double *outy) const;
 
-  void extents(wlr_box *box);
-
-  void tile(int edges);
   void committed();
-  void save_geometry();
 
+ private:
+  void save_geometry();
+  void activate();
+
+ public:
   wl_listener request_configure;
 
  private:
   wlr_xwayland_surface *xwayland_surface;
 };
 
-#endif  // WM_VIEW_XWAYLAND_H_
+#endif  // XWAYLAND_VIEW_H_

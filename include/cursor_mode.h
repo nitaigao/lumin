@@ -1,0 +1,11 @@
+#ifndef CURSOR_MODE_H_
+#define CURSOR_MODE_H_
+
+enum CursorMode {
+  WM_CURSOR_NONE,
+  WM_CURSOR_PASSTHROUGH,
+  WM_CURSOR_MOVE,
+  WM_CURSOR_RESIZE,
+};
+
+#endif  // CURSOR_MODE_H_

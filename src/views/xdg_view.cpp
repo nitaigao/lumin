@@ -1,4 +1,4 @@
-#include "wm_view_xdg.h"
+#include "views/xdg_view.h"
 
 extern "C" {
   #include <unistd.h>
@@ -24,49 +24,49 @@ extern "C" {
   #include <xkbcommon/xkbcommon.h>
 }
 
-#include "wm_server.h"
-#include "wm_output.h"
+#include "controller.h"
+#include "output.h"
 
-void wm_view_xdg::tile(int edges) {
+void XdgView::tile(int edges) {
   save_geometry();
   wlr_xdg_toplevel_set_tiled(xdg_surface, edges);
   state = WM_WINDOW_STATE_TILED;
 }
 
-void wm_view_xdg::committed() {
+void XdgView::committed() {
   server->damage_output(this);
 }
 
-wm_view_xdg::wm_view_xdg(wm_server* server, wlr_xdg_surface *surface)
-  : wm_view(server)
+XdgView::XdgView(Controller* server, wlr_xdg_surface *surface)
+  : View(server)
   , xdg_surface(surface)
   {}
 
-void wm_view_xdg::scale_coords(double inx, double iny, double *outx, double *outy) const {
+void XdgView::scale_coords(double inx, double iny, double *outx, double *outy) const {
   *outx = inx;
   *outy = iny;
 }
 
-float wm_view_xdg::scale_output(wlr_output *output) const {
+float XdgView::scale_output(wlr_output *output) const {
   return output->scale;
 }
 
-void wm_view_xdg::for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const {
+void XdgView::for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const {
   if (xdg_surface->surface == NULL) {
     return;
   }
   wlr_xdg_surface_for_each_surface(xdg_surface, iterator, data);
 }
 
-void wm_view_xdg::focus() {
+void XdgView::focus() {
   focus_view(xdg_surface->surface);
 }
 
-void wm_view_xdg::unfocus() {
+void XdgView::unfocus() {
   wlr_xdg_toplevel_set_activated(xdg_surface, false);
 }
 
-void wm_view_xdg::geometry(struct wlr_box *box) const {
+void XdgView::geometry(struct wlr_box *box) const {
   wlr_surface_get_extends(xdg_surface->surface, box);
 
   if (!xdg_surface->geometry.width) {
@@ -76,11 +76,11 @@ void wm_view_xdg::geometry(struct wlr_box *box) const {
   wlr_box_intersection(&xdg_surface->geometry, box, box);
 }
 
-const wlr_surface* wm_view_xdg::surface() const {
+const wlr_surface* XdgView::surface() const {
   return xdg_surface->surface;
 }
 
-void wm_view_xdg::save_geometry() {
+void XdgView::save_geometry() {
   if (state == WM_WINDOW_STATE_WINDOW) {
     old_width = xdg_surface->geometry.width;
     old_height = xdg_surface->geometry.height;
@@ -90,7 +90,7 @@ void wm_view_xdg::save_geometry() {
   }
 }
 
-void wm_view_xdg::maximize() {
+void XdgView::maximize() {
   if (state == WM_WINDOW_STATE_MAXIMIZED) {
     return;
   }
@@ -110,7 +110,7 @@ void wm_view_xdg::maximize() {
   state = WM_WINDOW_STATE_MAXIMIZED;
 }
 
-void wm_view_xdg::windowify(bool restore_position) {
+void XdgView::windowify(bool restore_position) {
   server->damage_outputs();
 
   wlr_xdg_toplevel_set_size(xdg_surface, old_width, old_height);
@@ -129,33 +129,33 @@ void wm_view_xdg::windowify(bool restore_position) {
   state = WM_WINDOW_STATE_WINDOW;
 }
 
-void wm_view_xdg::extents(wlr_box *box) {
+void XdgView::extents(wlr_box *box) {
   wlr_xdg_surface_get_geometry(xdg_surface, box);
 }
 
-void wm_view_xdg::activate() {
+void XdgView::activate() {
   wlr_xdg_toplevel_set_activated(xdg_surface, true);
 }
 
-void wm_view_xdg::notify_keyboard_enter() {
+void XdgView::notify_keyboard_enter() {
   wlr_keyboard *keyboard = wlr_seat_get_keyboard(server->seat);
   wlr_seat_keyboard_notify_enter(server->seat, xdg_surface->surface,
     keyboard->keycodes, keyboard->num_keycodes, &keyboard->modifiers);
 }
 
-void wm_view_xdg::resize(int width, int height) {
+void XdgView::resize(int width, int height) {
   wlr_xdg_toplevel_set_size(xdg_surface, width, height);
 }
 
-wlr_surface* wm_view_xdg::surface_at(double sx, double sy, double *sub_x, double *sub_y) {
+wlr_surface* XdgView::surface_at(double sx, double sy, double *sub_x, double *sub_y) {
   return wlr_xdg_surface_surface_at(xdg_surface, sx, sy, sub_x, sub_y);
 }
 
-wm_view* wm_view_xdg::parent() const {
+View* XdgView::parent() const {
   return server->view_from_surface(xdg_surface->toplevel->parent->surface);
 }
 
-bool wm_view_xdg::is_child() const {
+bool XdgView::is_child() const {
   bool is_child = xdg_surface->toplevel->parent != NULL;
   return is_child;
 }

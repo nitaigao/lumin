@@ -1,12 +1,13 @@
-#ifndef WM_KEY_BINDING_H_
-#define WM_KEY_BINDING_H_
+#ifndef KEY_BINDING_H_
+#define KEY_BINDING_H_
 
 #include <wlr/types/wlr_keyboard.h>
 
-struct wm_key_binding {
-  virtual ~wm_key_binding() { }
+class KeyBinding {
+ public:
+  virtual ~KeyBinding() { }
 
-  wm_key_binding();
+  KeyBinding();
 
   bool ctrl;
   bool alt;
@@ -22,4 +23,4 @@ struct wm_key_binding {
 };
 
 
-#endif  // WM_KEY_BINDING_H_
+#endif  // KEY_BINDING_H_

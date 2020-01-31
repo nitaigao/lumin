@@ -1,19 +1,19 @@
-#ifndef WM_OUTPUT_H_
-#define WM_OUTPUT_H_
+#ifndef OUTPUT_H_
+#define OUTPUT_H_
 
 #include <wayland-server-core.h>
 
-struct wm_view;
-struct wm_server;
+struct View;
+struct Controller;
 struct wlr_output_damage;
 
-class wm_output {
+class Output {
  public:
-  ~wm_output();
+  ~Output();
 
-  explicit wm_output(wm_server *server,
-                     struct wlr_output *output,
-                     wlr_output_damage *damage);
+  explicit Output(Controller *server,
+                  struct wlr_output *output,
+                  wlr_output_damage *damage);
 
  public:
   const wlr_output_damage* damage() const {
@@ -33,13 +33,13 @@ class wm_output {
  public:
   void destroy();
   void render() const;
-  void take_damage(const wm_view *view);
+  void take_damage(const View *view);
   void take_whole_damage();
 
  private:
-  wm_server *server_;
+  Controller *server_;
   wlr_output_damage *damage_;
   struct wlr_output *output_;
 };
 
-#endif  // WM_OUTPUT_H_
+#endif  // OUTPUT_H_
