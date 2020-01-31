@@ -1,4 +1,4 @@
-#include "wm_view_xwayland.h"
+#include "views/xwayland_view.h"
 
 extern "C" {
   #include <unistd.h>
@@ -22,10 +22,10 @@ extern "C" {
   #include <xkbcommon/xkbcommon.h>
 }
 
-#include "wm_server.h"
-#include "wm_output.h"
+#include "controller.h"
+#include "output.h"
 
-void wm_view_xwayland::save_geometry() {
+void XWaylandView::save_geometry() {
   if (state == WM_WINDOW_STATE_WINDOW) {
     old_width = xwayland_surface->width;
     old_height = xwayland_surface->height;
@@ -35,54 +35,54 @@ void wm_view_xwayland::save_geometry() {
   }
 }
 
-void wm_view_xwayland::committed() {
+void XWaylandView::committed() {
 
 }
 
-void wm_view_xwayland::tile(int edges) {
+void XWaylandView::tile(int edges) {
   save_geometry();
   wlr_xwayland_surface_set_maximized(xwayland_surface, true);
   state = WM_WINDOW_STATE_TILED;
 }
 
-wm_view_xwayland::wm_view_xwayland(wm_server *server, wlr_xwayland_surface *surface)
-  : wm_view(server)
+XWaylandView::XWaylandView(Controller *server, wlr_xwayland_surface *surface)
+  : View(server)
   , xwayland_surface(surface)
   { }
 
-void wm_view_xwayland::scale_coords(double inx, double iny, double *outx, double *outy) const {
+void XWaylandView::scale_coords(double inx, double iny, double *outx, double *outy) const {
   wlr_output* output = wlr_output_layout_output_at(server->output_layout, inx, iny);
   *outx = inx * output->scale;
   *outy = iny * output->scale;
 }
 
-void wm_view_xwayland::for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const {
+void XWaylandView::for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const {
   if (xwayland_surface->surface == NULL) {
     return;
   }
   wlr_surface_for_each_surface(xwayland_surface->surface, iterator, data);
 }
 
-const wlr_surface* wm_view_xwayland::surface() const {
+const wlr_surface* XWaylandView::surface() const {
   return xwayland_surface->surface;
 }
 
-void wm_view_xwayland::focus() {
+void XWaylandView::focus() {
   focus_view(xwayland_surface->surface);
 }
 
-void wm_view_xwayland::unfocus() {
+void XWaylandView::unfocus() {
   wlr_xwayland_surface_activate(xwayland_surface, false);
 }
 
-float wm_view_xwayland::scale_output(wlr_output *output) const {
+float XWaylandView::scale_output(wlr_output *output) const {
   return 1.0f;
 }
 
-void wm_view_xwayland::extents(wlr_box *box) {
+void XWaylandView::extents(wlr_box *box) {
 }
 
-void wm_view_xwayland::maximize() {
+void XWaylandView::maximize() {
   if (state == WM_WINDOW_STATE_MAXIMIZED) {
     return;
   }
@@ -106,7 +106,7 @@ void wm_view_xwayland::maximize() {
   state = WM_WINDOW_STATE_MAXIMIZED;
 }
 
-void wm_view_xwayland::windowify(bool restore_position) {
+void XWaylandView::windowify(bool restore_position) {
   if (state == WM_WINDOW_STATE_WINDOW) {
     return;
   }
@@ -122,30 +122,30 @@ void wm_view_xwayland::windowify(bool restore_position) {
   state = WM_WINDOW_STATE_WINDOW;
 }
 
-wlr_surface* wm_view_xwayland::surface_at(double sx, double sy, double *sub_x, double *sub_y) {
+wlr_surface* XWaylandView::surface_at(double sx, double sy, double *sub_x, double *sub_y) {
   if (xwayland_surface->surface == NULL) {
     return NULL;
   }
   return wlr_surface_surface_at(xwayland_surface->surface, sx, sy, sub_x, sub_y);
 }
 
-void wm_view_xwayland::activate() {
+void XWaylandView::activate() {
   wlr_xwayland_surface_activate(xwayland_surface, true);
 }
 
-void wm_view_xwayland::notify_keyboard_enter() {
+void XWaylandView::notify_keyboard_enter() {
   wlr_keyboard *keyboard = wlr_seat_get_keyboard(server->seat);
   wlr_seat_keyboard_notify_enter(server->seat, xwayland_surface->surface,
     keyboard->keycodes, keyboard->num_keycodes, &keyboard->modifiers);
 }
 
 
-void wm_view_xwayland::resize(int width, int height) {
+void XWaylandView::resize(int width, int height) {
   wlr_xwayland_surface_configure(xwayland_surface, x, y, width, height);
 }
 
 
-void wm_view_xwayland::geometry(struct wlr_box *box) const {
+void XWaylandView::geometry(struct wlr_box *box) const {
   wlr_surface_get_extends(xwayland_surface->surface, box);
 
   if (!xwayland_surface->width) {
@@ -161,11 +161,11 @@ void wm_view_xwayland::geometry(struct wlr_box *box) const {
   wlr_box_intersection(&geometry, box, box);
 }
 
-wm_view* wm_view_xwayland::parent() const {
+View* XWaylandView::parent() const {
   return server->view_from_surface(xwayland_surface->parent->surface);
 }
 
-bool wm_view_xwayland::is_child() const {
+bool XWaylandView::is_child() const {
   bool is_child = xwayland_surface->parent != NULL;
   return is_child;
 }

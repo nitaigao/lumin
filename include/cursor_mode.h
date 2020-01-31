@@ -1,7 +1,7 @@
 #ifndef WM_CURSOR_MODE_H_
 #define WM_CURSOR_MODE_H_
 
-enum wm_cursor_mode {
+enum CursorMode {
   WM_CURSOR_NONE,
   WM_CURSOR_PASSTHROUGH,
   WM_CURSOR_MOVE,

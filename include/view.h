@@ -3,7 +3,7 @@
 
 #include <wayland-server-core.h>
 
-#include "wm_cursor_mode.h"
+#include "cursor_mode.h"
 
 struct wlr_xdg_surface;
 struct wlr_xwayland_surface;
@@ -11,7 +11,7 @@ struct wlr_surface;
 struct wlr_box;
 struct wlr_output;
 
-struct wm_server;
+struct Controller;
 
 enum window_state {
   WM_WINDOW_STATE_WINDOW = 0,
@@ -22,11 +22,11 @@ enum window_state {
 typedef void (*wlr_surface_iterator_func_t)(struct wlr_surface *surface,
   int sx, int sy, void *data);
 
-class wm_view {
+class View {
  public:
-  virtual ~wm_view();
+  virtual ~View();
 
-  explicit wm_view(wm_server *server);
+  explicit View(Controller *server);
 
  public:
 
@@ -34,7 +34,7 @@ class wm_view {
 
   void focus_view(wlr_surface *surface);
 
-  void begin_interactive(enum wm_cursor_mode mode, uint32_t edges);
+  void begin_interactive(enum CursorMode mode, uint32_t edges);
 
   void map_view();
 
@@ -72,7 +72,7 @@ class wm_view {
 
   virtual void windowify(bool restore_position) = 0;
 
-  virtual wm_view* parent() const = 0;
+  virtual View* parent() const = 0;
 
   virtual bool is_child() const = 0;
 
@@ -109,7 +109,7 @@ class wm_view {
   int old_width, old_height;
   int old_x, old_y;
 
-  wm_server *server;
+  Controller *server;
 };
 
 #endif  // WM_VIEW_H_

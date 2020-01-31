@@ -1,13 +1,13 @@
-#ifndef WM_VIEW_XWAYLAND_H_
-#define WM_VIEW_XWAYLAND_H_
+#ifndef WM_XWAYLAND_VIEW_H_
+#define WM_XWAYLAND_VIEW_H_
 
 #include <wayland-server-core.h>
 
-#include "wm_view.h"
+#include "view.h"
 
-class wm_view_xwayland : public wm_view {
+class XWaylandView : public View {
  public:
-  wm_view_xwayland(wm_server *server, wlr_xwayland_surface *surface);
+  XWaylandView(Controller *server, wlr_xwayland_surface *surface);
 
   const wlr_surface* surface() const;
 
@@ -26,7 +26,7 @@ class wm_view_xwayland : public wm_view {
 
   void for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const;
 
-  wm_view* parent() const;
+  View* parent() const;
   bool is_child() const;
 
   void geometry(wlr_box *box) const;
@@ -46,4 +46,4 @@ class wm_view_xwayland : public wm_view {
   wlr_xwayland_surface *xwayland_surface;
 };
 
-#endif  // WM_VIEW_XWAYLAND_H_
+#endif  // WM_XWAYLAND_VIEW_H_

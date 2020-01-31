@@ -6,10 +6,7 @@ project('lumin', 'cpp', default_options : [
 ])
 
 add_global_arguments('-Wno-unused-parameter', language : 'cpp')
-
-add_project_arguments([
-  '-DWLR_USE_UNSTABLE'
-], language: 'cpp')
+add_project_arguments(['-DWLR_USE_UNSTABLE'], language: 'cpp')
 
 wayland_server = dependency('wayland-server')
 wlroots = dependency('wlroots')
@@ -30,17 +27,17 @@ dependencies = [
 includes = include_directories(['include', 'protocols'])
 
 sources = [
-  'src/wm_key_binding.cpp',
-  'src/keybindings/wm_key_binding_dock_right.cpp',
-  'src/keybindings/wm_key_binding_dock_left.cpp',
-  'src/keybindings/wm_key_binding_maximize.cpp',
-  'src/keybindings/wm_key_binding_cmd.cpp',
-  'src/keybindings/wm_key_binding_quit.cpp',
-  'src/wm_output.cpp',
-  'src/wm_view_xwayland.cpp',
-  'src/wm_view_xdg.cpp',
-  'src/wm_view.cpp',
-  'src/wm_server.cpp',
+  'src/key_binding.cpp',
+  'src/keybindings/key_binding_dock_right.cpp',
+  'src/keybindings/key_binding_dock_left.cpp',
+  'src/keybindings/key_binding_maximize.cpp',
+  'src/keybindings/key_binding_cmd.cpp',
+  'src/keybindings/key_binding_quit.cpp',
+  'src/output.cpp',
+  'src/views/xwayland_view.cpp',
+  'src/views/xdg_view.cpp',
+  'src/view.cpp',
+  'src/controller.cpp',
   'src/main.cpp',
 ]
 

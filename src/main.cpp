@@ -1,7 +1,7 @@
-#include "wm_server.h"
+#include "controller.h"
 
 int main(int argc, char *argv[]) {
-  wm_server server;
+  Controller server;
   server.run();
   server.destroy();
 

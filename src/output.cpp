@@ -1,4 +1,4 @@
-#include "wm_output.h"
+#include "output.h"
 
 extern "C" {
   #include <unistd.h>
@@ -25,32 +25,32 @@ extern "C" {
   #include <xkbcommon/xkbcommon.h>
 }
 
-#include "wm_view.h"
-#include "wm_server.h"
+#include "view.h"
+#include "controller.h"
 
 /* Used to move all of the data necessary to render a surface from the top-level
  * frame handler to the per-surface render function. */
 struct render_data {
   wlr_output *output;
   wlr_renderer *renderer;
-  wm_view *view;
+  View *view;
   timespec *when;
   wlr_output_layout *layout;
   pixman_region32_t *buffer_damage;
 };
 
-wm_output::~wm_output() {
+Output::~Output() {
   wl_list_remove(&frame_.link);
   wl_list_remove(&destroy_.link);
 }
 
-wm_output::wm_output(wm_server *server, struct wlr_output *output, wlr_output_damage *damage)
+Output::Output(Controller *server, struct wlr_output *output, wlr_output_damage *damage)
   : server_(server)
   , damage_(damage)
   , output_(output)
   { }
 
-void wm_output::destroy() {
+void Output::destroy() {
   server_->remove_output(this);
 }
 
@@ -80,7 +80,7 @@ static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
 
   /* This function is called for every surface that needs to be rendered. */
   auto rdata = static_cast<struct render_data*>(data);
-  wm_view *view = rdata->view;
+  View *view = rdata->view;
   wlr_output_layout *layout = rdata->layout;
   struct wlr_output *output = rdata->output;
   pixman_region32_t *buffer_damage = rdata->buffer_damage;
@@ -138,7 +138,7 @@ static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
 }
 
 struct damage_iterator_data {
-  const wm_view *view;
+  const View *view;
   const wlr_output *output;
   wlr_output_damage *output_damage;
 };
@@ -160,11 +160,11 @@ void surface_damage_output(wlr_surface *surface, int sx, int sy, void *data) {
   pixman_region32_fini(&damage);
 }
 
-void wm_output::take_whole_damage() {
+void Output::take_whole_damage() {
   wlr_output_damage_add_whole(damage_);
 }
 
-void wm_output::take_damage(const wm_view *view) {
+void Output::take_damage(const View *view) {
   damage_iterator_data data = {
     .view = view,
     .output = output_,
@@ -173,7 +173,7 @@ void wm_output::take_damage(const wm_view *view) {
   view->for_each_surface(surface_damage_output, &data);
 }
 
-void wm_output::render() const {
+void Output::render() const {
   wlr_renderer *renderer = server_->renderer;
 
   struct timespec now;
@@ -209,7 +209,7 @@ void wm_output::render() const {
     wlr_renderer_clear(renderer, color);
   }
 
-  wm_view *view;
+  View *view;
   wl_list_for_each_reverse(view, &server_->views, link) {
     if (!view->mapped) {
       continue;

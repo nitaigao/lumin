@@ -3,10 +3,11 @@
 
 #include <wlr/types/wlr_keyboard.h>
 
-struct wm_key_binding {
-  virtual ~wm_key_binding() { }
+class KeyBinding {
+ public:
+  virtual ~KeyBinding() { }
 
-  wm_key_binding();
+  KeyBinding();
 
   bool ctrl;
   bool alt;

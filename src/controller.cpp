@@ -1,4 +1,4 @@
-#include "wm_server.h"
+#include "controller.h"
 
 extern "C" {
   #include <unistd.h>
@@ -27,45 +27,44 @@ extern "C" {
 #include <vector>
 #include <memory>
 
-#include "wm_keyboard.h"
-#include "wm_view.h"
-#include "wm_view_xwayland.h"
-#include "wm_view_xdg.h"
-#include "wm_output.h"
+#include "keyboard.h"
+#include "views/xwayland_view.h"
+#include "views/xdg_view.h"
+#include "output.h"
 
-#include "keybindings/wm_key_binding_cmd.h"
-#include "keybindings/wm_key_binding_quit.h"
-#include "keybindings/wm_key_binding_dock_right.h"
-#include "keybindings/wm_key_binding_dock_left.h"
-#include "keybindings/wm_key_binding_maximize.h"
+#include "keybindings/key_binding_cmd.h"
+#include "keybindings/key_binding_quit.h"
+#include "keybindings/key_binding_dock_right.h"
+#include "keybindings/key_binding_dock_left.h"
+#include "keybindings/key_binding_maximize.h"
 
-wm_server::wm_server()
-  : cursor_mode(WM_CURSOR_NONE) {
+Controller::Controller()
+  : CursorMode(WM_CURSOR_NONE) {
 }
 
-void wm_server::quit() {
+void Controller::quit() {
   wl_display_terminate(wl_display);
 }
 
-void wm_server::remove_output(const wm_output *output) {
+void Controller::remove_output(const Output *output) {
   wlr_output_layout_remove(output_layout, output->output());
 }
 
-void wm_server::damage_outputs() {
-  wm_output *output;
+void Controller::damage_outputs() {
+  Output *output;
   wl_list_for_each(output, &outputs, link) {
     output->take_whole_damage();
   }
 }
 
-void wm_server::damage_output(const wm_view *view) {
-  wm_output *output;
+void Controller::damage_output(const View *view) {
+  Output *output;
   wl_list_for_each(output, &outputs, link) {
     output->take_damage(view);
   }
 }
 
-bool wm_server::handle_key(uint32_t keycode, const xkb_keysym_t *syms,
+bool Controller::handle_key(uint32_t keycode, const xkb_keysym_t *syms,
   int nsyms, uint32_t modifiers, int state) {
   bool handled = false;
 
@@ -83,7 +82,7 @@ bool wm_server::handle_key(uint32_t keycode, const xkb_keysym_t *syms,
 }
 
 static void new_input_notify(wl_listener *listener, void *data) {
-  wm_server *server = wl_container_of(listener, server, new_input);
+  Controller *server = wl_container_of(listener, server, new_input);
   auto device = static_cast<struct wlr_input_device *>(data);
 
   switch (device->type) {
@@ -108,7 +107,7 @@ static void new_input_notify(wl_listener *listener, void *data) {
 }
 
 static void seat_request_cursor_notify(wl_listener *listener, void *data) {
-  wm_server *server = wl_container_of(listener, server, request_cursor);
+  Controller *server = wl_container_of(listener, server, request_cursor);
 
   auto event = static_cast<wlr_seat_pointer_request_set_cursor_event*>(data);
   wlr_seat_client *focused_client = server->seat->pointer_state.focused_client;
@@ -119,14 +118,14 @@ static void seat_request_cursor_notify(wl_listener *listener, void *data) {
 }
 
 static void cursor_motion_notify(wl_listener *listener, void *data) {
-  wm_server *server = wl_container_of(listener, server, cursor_motion);
+  Controller *server = wl_container_of(listener, server, cursor_motion);
   auto event = static_cast<struct wlr_event_pointer_motion*>(data);
   wlr_cursor_move(server->cursor, event->device, event->delta_x, event->delta_y);
   server->process_cursor_motion(event->time_msec);
 }
 
 static void cursor_motion_absolute_notify(wl_listener *listener, void *data) {
-  wm_server *server = wl_container_of(listener, server, cursor_motion_absolute);
+  Controller *server = wl_container_of(listener, server, cursor_motion_absolute);
   auto event = static_cast<struct wlr_event_pointer_motion_absolute*>(data);
   wlr_cursor_warp_absolute(server->cursor, event->device, event->x, event->y);
 
@@ -134,16 +133,16 @@ static void cursor_motion_absolute_notify(wl_listener *listener, void *data) {
 }
 
 static void cursor_button_notify(wl_listener *listener, void *data) {
-  wm_server *server = wl_container_of(listener, server, cursor_button);
+  Controller *server = wl_container_of(listener, server, cursor_button);
   auto event = static_cast<struct wlr_event_pointer_button*>(data);
   wlr_seat_pointer_notify_button(server->seat, event->time_msec, event->button, event->state);
 
   double sx, sy;
   wlr_surface *surface;
-  wm_view *view = server->desktop_view_at(server->cursor->x, server->cursor->y, &surface, &sx, &sy);
+  View *view = server->desktop_view_at(server->cursor->x, server->cursor->y, &surface, &sx, &sy);
 
   if (event->state == WLR_BUTTON_RELEASED) {
-    server->cursor_mode = WM_CURSOR_PASSTHROUGH;
+    server->CursorMode = WM_CURSOR_PASSTHROUGH;
   } else {
     if (view != NULL) {
       view->focus_view(surface);
@@ -152,7 +151,7 @@ static void cursor_button_notify(wl_listener *listener, void *data) {
 }
 
 static void cursor_axis_notify(wl_listener *listener, void *data) {
-  wm_server *server = wl_container_of(listener, server, cursor_axis);
+  Controller *server = wl_container_of(listener, server, cursor_axis);
   auto event = static_cast<wlr_event_pointer_axis*>(data);
   /* Notify the client with pointer focus of the axis event. */
   wlr_seat_pointer_notify_axis(server->seat, event->time_msec, event->orientation,
@@ -160,24 +159,24 @@ static void cursor_axis_notify(wl_listener *listener, void *data) {
 }
 
 static void cursor_frame_notify(wl_listener *listener, void *data) {
-  wm_server *server = wl_container_of(listener, server, cursor_frame);
+  Controller *server = wl_container_of(listener, server, cursor_frame);
   wlr_seat_pointer_notify_frame(server->seat);
 }
 
 static void output_frame_notify(wl_listener *listener, void *data) {
-  wm_output *output = wl_container_of(listener, output, frame_);
+  Output *output = wl_container_of(listener, output, frame_);
   output->render();
 }
 
 static void output_destroy_notify(wl_listener *listener, void *data) {
-  wm_output *output = wl_container_of(listener, output, destroy_);
+  Output *output = wl_container_of(listener, output, destroy_);
   output->destroy();
   wl_list_remove(&output->link);
   delete output;
 }
 
 static void new_output_notify(wl_listener *listener, void *data) {
-  wm_server *server = wl_container_of(listener, server, new_output);
+  Controller *server = wl_container_of(listener, server, new_output);
   auto wlr_output = static_cast<struct wlr_output*>(data);
 
   wlr_log(WLR_ERROR, "%s connected", wlr_output->name);
@@ -213,7 +212,7 @@ static void new_output_notify(wl_listener *listener, void *data) {
 
   auto damage = wlr_output_damage_create(wlr_output);
 
-  wm_output *output = new wm_output(server, wlr_output, damage);
+  Output *output = new Output(server, wlr_output, damage);
 
   output->frame_.notify = output_frame_notify;
   wl_signal_add(&damage->events.frame, &output->frame_);
@@ -229,47 +228,47 @@ static void new_output_notify(wl_listener *listener, void *data) {
 }
 
 static void xdg_surface_map_notify(wl_listener *listener, void *data) {
-  wm_view *view = wl_container_of(listener, view, map);
+  View *view = wl_container_of(listener, view, map);
   view->map_view();
 }
 
 static void xdg_surface_unmap_notify(wl_listener *listener, void *data) {
-  wm_view *view = wl_container_of(listener, view, unmap);
+  View *view = wl_container_of(listener, view, unmap);
   view->unmap_view();
   wl_list_remove(&view->link);
 }
 
 static void xdg_surface_destroy_notify(wl_listener *listener, void *data) {
-  wm_view *view = wl_container_of(listener, view, destroy);
+  View *view = wl_container_of(listener, view, destroy);
   delete view;
 }
 
 static void xdg_surface_commit_notify(wl_listener *listener, void *data) {
-  wm_view *view = wl_container_of(listener, view, commit);
+  View *view = wl_container_of(listener, view, commit);
   if (view->mapped) {
     view->committed();
   }
 }
 
 static void xdg_toplevel_request_move_notify(wl_listener *listener, void *data) {
-  wm_view *view = wl_container_of(listener, view, request_move);
+  View *view = wl_container_of(listener, view, request_move);
   view->windowify(false);
   view->begin_interactive(WM_CURSOR_MOVE, 0);
 }
 
 static void xdg_toplevel_request_resize_notify(wl_listener *listener, void *data) {
   auto event = static_cast<wlr_xdg_toplevel_resize_event*>(data);
-  wm_view *view = wl_container_of(listener, view, request_resize);
+  View *view = wl_container_of(listener, view, request_resize);
   view->begin_interactive(WM_CURSOR_RESIZE, event->edges);
 }
 
 static void xdg_toplevel_request_maximize_notify(wl_listener *listener, void *data) {
-  wm_view *view = wl_container_of(listener, view, request_maximize);
+  View *view = wl_container_of(listener, view, request_maximize);
   view->toggle_maximized();
 }
 
 static void xwayland_surface_request_configure_notify(wl_listener *listener, void *data) {
-  wm_view_xwayland *view = wl_container_of(listener, view, request_configure);
+  XWaylandView *view = wl_container_of(listener, view, request_configure);
   auto event = static_cast<wlr_xwayland_surface_configure_event*>(data);
   view->x = event->x;
   view->y = event->y;
@@ -277,10 +276,10 @@ static void xwayland_surface_request_configure_notify(wl_listener *listener, voi
 }
 
 static void new_xwayland_surface_notify(wl_listener *listener, void *data) {
-  wm_server *server = wl_container_of(listener, server, new_xwayland_surface);
+  Controller *server = wl_container_of(listener, server, new_xwayland_surface);
   auto xwayland_surface = static_cast<wlr_xwayland_surface*>(data);
 
-  auto view = new wm_view_xwayland(server, xwayland_surface);
+  auto view = new XWaylandView(server, xwayland_surface);
 
   view->map.notify = xdg_surface_map_notify;
   wl_signal_add(&xwayland_surface->events.map, &view->map);
@@ -308,27 +307,27 @@ static void new_xwayland_surface_notify(wl_listener *listener, void *data) {
 
 static void new_subsurface_notify(wl_listener *listener, void *data) {
   auto *subsurface = static_cast<wlr_subsurface*>(data);
-  wm_view *view = wl_container_of(listener, view, new_subsurface);
+  View *view = wl_container_of(listener, view, new_subsurface);
   wl_signal_add(&subsurface->surface->events.commit, &view->commit);
 }
 
 static void new_popup_notify(wl_listener *listener, void *data) {
   auto *popup = static_cast<wlr_xdg_popup*>(data);
-  wm_view *view = wl_container_of(listener, view, new_popup);
+  View *view = wl_container_of(listener, view, new_popup);
   wl_signal_add(&popup->base->surface->events.commit, &view->commit);
 }
 
 static void new_xdg_surface_notify(wl_listener *listener, void *data) {
   /* This event is raised when wlr_xdg_shell receives a new xdg surface from a
    * client, either a toplevel (application window) or popup. */
-  wm_server *server = wl_container_of(listener, server, new_xdg_surface);
+  Controller *server = wl_container_of(listener, server, new_xdg_surface);
   auto xdg_surface = static_cast<wlr_xdg_surface*>(data);
   if (xdg_surface->role != WLR_XDG_SURFACE_ROLE_TOPLEVEL) {
     return;
   }
 
   /* Allocate a wm_view for this surface */
-  auto view = new wm_view_xdg(server, xdg_surface);
+  auto view = new XdgView(server, xdg_surface);
 
   /* Listen to the various events it can emit */
   view->map.notify = xdg_surface_map_notify;
@@ -364,10 +363,10 @@ static void new_xdg_surface_notify(wl_listener *listener, void *data) {
   wl_list_insert(&server->views, &view->link);
 }
 
-void wm_server::maximize() {
+void Controller::maximize() {
   int view_count = wl_list_length(&views);
   if (view_count > 0) {
-    wm_view *view;
+    View *view;
     wl_list_for_each(view, &views, link) {
       break;
     }
@@ -375,10 +374,10 @@ void wm_server::maximize() {
   }
 }
 
-void wm_server::dock_left() {
+void Controller::dock_left() {
   int view_count = wl_list_length(&views);
   if (view_count > 0) {
-    wm_view *view;
+    View *view;
     wl_list_for_each(view, &views, link) {
       break;
     }
@@ -387,10 +386,10 @@ void wm_server::dock_left() {
   }
 }
 
-void wm_server::dock_right() {
+void Controller::dock_right() {
   int view_count = wl_list_length(&views);
   if (view_count > 0) {
-    wm_view *view;
+    View *view;
     wl_list_for_each(view, &views, link) {
       break;
     }
@@ -399,41 +398,41 @@ void wm_server::dock_right() {
   }
 }
 
-void wm_server::init_keybindings() {
-  auto terminal = std::make_shared<wm_key_binding_cmd>();
+void Controller::init_keybindings() {
+  auto terminal = std::make_shared<key_binding_cmd>();
   terminal->ctrl = true;
   terminal->key = XKB_KEY_Return;
   terminal->cmd = "tilix";
   terminal->state = WLR_KEY_PRESSED;
   key_bindings.push_back(terminal);
 
-  auto quit = std::make_shared<wm_key_binding_quit>(this);
+  auto quit = std::make_shared<key_binding_quit>(this);
   quit->alt = true;
   quit->ctrl = true;
   quit->key = XKB_KEY_BackSpace;
   quit->state = WLR_KEY_PRESSED;
   key_bindings.push_back(quit);
 
-  auto dock_left = std::make_shared<wm_key_binding_dock_left>(this);
+  auto dock_left = std::make_shared<key_binding_dock_left>(this);
   dock_left->super = true;
   dock_left->key = XKB_KEY_Left;
   dock_left->state = WLR_KEY_PRESSED;
   key_bindings.push_back(dock_left);
 
-  auto dock_right = std::make_shared<wm_key_binding_dock_right>(this);
+  auto dock_right = std::make_shared<key_binding_dock_right>(this);
   dock_right->super = true;
   dock_right->key = XKB_KEY_Right;
   dock_right->state = WLR_KEY_PRESSED;
   key_bindings.push_back(dock_right);
 
-  auto maximize = std::make_shared<wm_key_binding_maximize>(this);
+  auto maximize = std::make_shared<key_binding_maximize>(this);
   maximize->super = true;
   maximize->key = XKB_KEY_Up;
   maximize->state = WLR_KEY_PRESSED;
   key_bindings.push_back(maximize);
 }
 
-void wm_server::run() {
+void Controller::run() {
   wlr_log_init(WLR_DEBUG, NULL);
 
   init_keybindings();
@@ -520,7 +519,7 @@ void wm_server::run() {
   wl_display_run(wl_display);
 }
 
-void wm_server::destroy() {
+void Controller::destroy() {
   wlr_log(WLR_ERROR, "Quitting!");
 
   wlr_xcursor_manager_destroy(cursor_mgr);
@@ -528,7 +527,7 @@ void wm_server::destroy() {
   wlr_cursor_destroy(cursor);
   wlr_output_layout_destroy(output_layout);
 
-  wm_keyboard *keyboard, *tmp;
+  Keyboard *keyboard, *tmp;
   wl_list_for_each_safe(keyboard, tmp, &keyboards, link) {
     delete keyboard;
   }
@@ -542,7 +541,7 @@ void wm_server::destroy() {
 }
 
 static void keyboard_modifiers_notify(wl_listener *listener, void *data) {
-  wm_keyboard *keyboard = wl_container_of(listener, keyboard, modifiers);
+  Keyboard *keyboard = wl_container_of(listener, keyboard, modifiers);
   wlr_seat_set_keyboard(keyboard->server->seat, keyboard->device);
   wlr_seat_keyboard_notify_modifiers(keyboard->server->seat,
     &keyboard->device->keyboard->modifiers);
@@ -550,8 +549,8 @@ static void keyboard_modifiers_notify(wl_listener *listener, void *data) {
 
 static void keyboard_key_notify(wl_listener *listener, void *data) {
   /* This event is raised when a key is pressed or released. */
-  wm_keyboard *keyboard = wl_container_of(listener, keyboard, key);
-  wm_server *server = keyboard->server;
+  Keyboard *keyboard = wl_container_of(listener, keyboard, key);
+  Controller *server = keyboard->server;
   auto event = static_cast<struct wlr_event_keyboard_key *>(data);
   wlr_seat *seat = server->seat;
 
@@ -568,8 +567,8 @@ static void keyboard_key_notify(wl_listener *listener, void *data) {
   }
 }
 
-void wm_server::new_keyboard(wlr_input_device *device) {
-  auto keyboard = new wm_keyboard();
+void Controller::new_keyboard(wlr_input_device *device) {
+  auto keyboard = new Keyboard();
   keyboard->server = this;
   keyboard->device = device;
 
@@ -598,7 +597,7 @@ void wm_server::new_keyboard(wlr_input_device *device) {
   wl_list_insert(&keyboards, &keyboard->link);
 }
 
-void wm_server::new_pointer(wlr_input_device *device) {
+void Controller::new_pointer(wlr_input_device *device) {
   bool is_libinput = wlr_input_device_is_libinput(device);
   if (is_libinput) {
     libinput_device *libinput_device = wlr_libinput_get_device_handle(device);
@@ -610,9 +609,9 @@ void wm_server::new_pointer(wlr_input_device *device) {
   wlr_cursor_attach_input_device(cursor, device);
 }
 
-wm_view* wm_server::desktop_view_at(double lx, double ly,
+View* Controller::desktop_view_at(double lx, double ly,
   wlr_surface **surface, double *sx, double *sy) {
-  wm_view *view;
+  View *view;
   wl_list_for_each(view, &views, link) {
     double scaled_lx = 0;
     double scaled_ly = 0;
@@ -624,14 +623,14 @@ wm_view* wm_server::desktop_view_at(double lx, double ly,
   return NULL;
 }
 
-void wm_server::process_cursor_move(uint32_t time) {
+void Controller::process_cursor_move(uint32_t time) {
   grabbed_view->scale_coords(cursor->x, cursor->y, &grabbed_view->x, &grabbed_view->y);
   grabbed_view->x -= grab_x;
   grabbed_view->y -= grab_y;
 }
 
-void wm_server::process_cursor_resize(uint32_t time) {
-  wm_view *view = grabbed_view;
+void Controller::process_cursor_resize(uint32_t time) {
+  View *view = grabbed_view;
 
   double dx = 0;
   double dy = 0;
@@ -667,13 +666,13 @@ void wm_server::process_cursor_resize(uint32_t time) {
   view->resize(width, height);
 }
 
-void wm_server::process_cursor_motion(uint32_t time) {
+void Controller::process_cursor_motion(uint32_t time) {
   /* If the mode is non-passthrough, delegate to those functions. */
-  if (cursor_mode == WM_CURSOR_MOVE) {
+  if (CursorMode == WM_CURSOR_MOVE) {
     process_cursor_move(time);
     damage_outputs();
     return;
-  } else if (cursor_mode == WM_CURSOR_RESIZE) {
+  } else if (CursorMode == WM_CURSOR_RESIZE) {
     process_cursor_resize(time);
     return;
   }
@@ -681,7 +680,7 @@ void wm_server::process_cursor_motion(uint32_t time) {
   /* Otherwise, find the view under the pointer and send the event along. */
   double sx, sy;
   wlr_surface *surface = NULL;
-  wm_view *view = desktop_view_at(cursor->x, cursor->y, &surface, &sx, &sy);
+  View *view = desktop_view_at(cursor->x, cursor->y, &surface, &sx, &sy);
 
   if (!view) {
     /* If there's no view under the cursor, set the cursor image to a
@@ -715,8 +714,8 @@ void wm_server::process_cursor_motion(uint32_t time) {
   }
 }
 
-wm_view* wm_server::view_from_surface(wlr_surface *surface) {
-  wm_view *view;
+View* Controller::view_from_surface(wlr_surface *surface) {
+  View *view;
   wl_list_for_each(view, &views, link) {
     if (view->surface() == surface) {
       return view;
@@ -725,7 +724,7 @@ wm_view* wm_server::view_from_surface(wlr_surface *surface) {
   return NULL;
 }
 
-void wm_server::position_view(wm_view *view) {
+void Controller::position_view(View *view) {
   bool is_child = view->is_child();
 
   wlr_box geometry;
@@ -741,7 +740,7 @@ void wm_server::position_view(wm_view *view) {
     return;
   }
 
-  wm_view *parent_view = view->parent();
+  View *parent_view = view->parent();
 
   wlr_box parent_geometry;
   parent_view->geometry(&parent_geometry);
@@ -753,8 +752,8 @@ void wm_server::position_view(wm_view *view) {
   view->y = parent_view->y + inside_y;
 }
 
-void wm_server::pop_view(wm_view *old_view) {
-  wm_view *view;
+void Controller::pop_view(View *old_view) {
+  View *view;
   wl_list_for_each(view, &views, link) {
     if (view->mapped) {
       view->focus();
