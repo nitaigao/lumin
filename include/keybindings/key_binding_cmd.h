@@ -1,5 +1,5 @@
-#ifndef WM_KEYBINDINGS_KEY_BINDING_CMD_H_
-#define WM_KEYBINDINGS_KEY_BINDING_CMD_H_
+#ifndef KEYBINDINGS_KEY_BINDING_CMD_H_
+#define KEYBINDINGS_KEY_BINDING_CMD_H_
 
 #include <string>
 
@@ -11,4 +11,4 @@ struct key_binding_cmd : KeyBinding {
   void run();
 };
 
-#endif  // WM_KEYBINDINGS_KEY_BINDING_CMD_H_
+#endif  // KEYBINDINGS_KEY_BINDING_CMD_H_

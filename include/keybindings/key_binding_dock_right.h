@@ -1,5 +1,5 @@
-#ifndef WM_KEYBINDINGS_KEY_BINDING_DOCK_RIGHT_H_
-#define WM_KEYBINDINGS_KEY_BINDING_DOCK_RIGHT_H_
+#ifndef KEYBINDINGS_KEY_BINDING_DOCK_RIGHT_H_
+#define KEYBINDINGS_KEY_BINDING_DOCK_RIGHT_H_
 
 #include "key_binding.h"
 
@@ -15,4 +15,4 @@ struct key_binding_dock_right : KeyBinding {
   Controller *server;
 };
 
-#endif  // WM_KEYBINDINGS_KEY_BINDING_DOCK_RIGHT_H_
+#endif  // KEYBINDINGS_KEY_BINDING_DOCK_RIGHT_H_

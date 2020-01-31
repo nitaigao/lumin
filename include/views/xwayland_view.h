@@ -1,5 +1,5 @@
-#ifndef WM_XWAYLAND_VIEW_H_
-#define WM_XWAYLAND_VIEW_H_
+#ifndef XWAYLAND_VIEW_H_
+#define XWAYLAND_VIEW_H_
 
 #include <wayland-server-core.h>
 
@@ -46,4 +46,4 @@ class XWaylandView : public View {
   wlr_xwayland_surface *xwayland_surface;
 };
 
-#endif  // WM_XWAYLAND_VIEW_H_
+#endif  // XWAYLAND_VIEW_H_

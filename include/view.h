@@ -1,5 +1,5 @@
-#ifndef WM_VIEW_H_
-#define WM_VIEW_H_
+#ifndef VIEW_H_
+#define VIEW_H_
 
 #include <wayland-server-core.h>
 
@@ -29,7 +29,6 @@ class View {
   explicit View(Controller *server);
 
  public:
-
   bool view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
 
   void focus_view(wlr_surface *surface);
@@ -112,4 +111,4 @@ class View {
   Controller *server;
 };
 
-#endif  // WM_VIEW_H_
+#endif  // VIEW_H_

@@ -1,5 +1,5 @@
-#ifndef WM_CONTROLLER_H_
-#define WM_CONTROLLER_H_
+#ifndef CONTROLLER_H_
+#define CONTROLLER_H_
 
 #include <xkbcommon/xkbcommon.h>
 #include <wayland-server-core.h>
@@ -105,4 +105,4 @@ class Controller {
   std::vector<std::shared_ptr<KeyBinding>> key_bindings;
 };
 
-#endif  // WM_CONTROLLER_H_
+#endif  // CONTROLLER_H_

@@ -1,5 +1,5 @@
-#ifndef WM_OUTPUT_H_
-#define WM_OUTPUT_H_
+#ifndef OUTPUT_H_
+#define OUTPUT_H_
 
 #include <wayland-server-core.h>
 
@@ -42,4 +42,4 @@ class Output {
   struct wlr_output *output_;
 };
 
-#endif  // WM_OUTPUT_H_
+#endif  // OUTPUT_H_

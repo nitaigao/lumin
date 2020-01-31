@@ -1,5 +1,5 @@
-#ifndef WM_KEY_BINDING_H_
-#define WM_KEY_BINDING_H_
+#ifndef KEY_BINDING_H_
+#define KEY_BINDING_H_
 
 #include <wlr/types/wlr_keyboard.h>
 
@@ -23,4 +23,4 @@ class KeyBinding {
 };
 
 
-#endif  // WM_KEY_BINDING_H_
+#endif  // KEY_BINDING_H_

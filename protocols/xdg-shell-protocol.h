@@ -362,7 +362,7 @@ enum xdg_wm_base_error {
 	 */
 	XDG_WM_BASE_ERROR_INVALID_POSITIONER = 5,
 };
-#endif /* XDG_WM_BASE_ERROR_ENUM */
+#endif  // /* XDG_WM_BASE_ERROR_ENUM */
 
 /**
  * @ingroup iface_xdg_wm_base
@@ -466,7 +466,7 @@ enum xdg_positioner_error {
 	 */
 	XDG_POSITIONER_ERROR_INVALID_INPUT = 0,
 };
-#endif /* XDG_POSITIONER_ERROR_ENUM */
+#endif  // /* XDG_POSITIONER_ERROR_ENUM */
 
 #ifndef XDG_POSITIONER_ANCHOR_ENUM
 #define XDG_POSITIONER_ANCHOR_ENUM
@@ -481,7 +481,7 @@ enum xdg_positioner_anchor {
 	XDG_POSITIONER_ANCHOR_TOP_RIGHT = 7,
 	XDG_POSITIONER_ANCHOR_BOTTOM_RIGHT = 8,
 };
-#endif /* XDG_POSITIONER_ANCHOR_ENUM */
+#endif  // /* XDG_POSITIONER_ANCHOR_ENUM */
 
 #ifndef XDG_POSITIONER_GRAVITY_ENUM
 #define XDG_POSITIONER_GRAVITY_ENUM
@@ -496,7 +496,7 @@ enum xdg_positioner_gravity {
 	XDG_POSITIONER_GRAVITY_TOP_RIGHT = 7,
 	XDG_POSITIONER_GRAVITY_BOTTOM_RIGHT = 8,
 };
-#endif /* XDG_POSITIONER_GRAVITY_ENUM */
+#endif  // /* XDG_POSITIONER_GRAVITY_ENUM */
 
 #ifndef XDG_POSITIONER_CONSTRAINT_ADJUSTMENT_ENUM
 #define XDG_POSITIONER_CONSTRAINT_ADJUSTMENT_ENUM
@@ -515,7 +515,7 @@ enum xdg_positioner_constraint_adjustment {
 	XDG_POSITIONER_CONSTRAINT_ADJUSTMENT_RESIZE_X = 16,
 	XDG_POSITIONER_CONSTRAINT_ADJUSTMENT_RESIZE_Y = 32,
 };
-#endif /* XDG_POSITIONER_CONSTRAINT_ADJUSTMENT_ENUM */
+#endif  // /* XDG_POSITIONER_CONSTRAINT_ADJUSTMENT_ENUM */
 
 /**
  * @ingroup iface_xdg_positioner
@@ -685,7 +685,7 @@ enum xdg_surface_error {
 	XDG_SURFACE_ERROR_ALREADY_CONSTRUCTED = 2,
 	XDG_SURFACE_ERROR_UNCONFIGURED_BUFFER = 3,
 };
-#endif /* XDG_SURFACE_ERROR_ENUM */
+#endif  // /* XDG_SURFACE_ERROR_ENUM */
 
 /**
  * @ingroup iface_xdg_surface
@@ -862,7 +862,7 @@ enum xdg_toplevel_resize_edge {
 	XDG_TOPLEVEL_RESIZE_EDGE_TOP_RIGHT = 9,
 	XDG_TOPLEVEL_RESIZE_EDGE_BOTTOM_RIGHT = 10,
 };
-#endif /* XDG_TOPLEVEL_RESIZE_EDGE_ENUM */
+#endif  // /* XDG_TOPLEVEL_RESIZE_EDGE_ENUM */
 
 #ifndef XDG_TOPLEVEL_STATE_ENUM
 #define XDG_TOPLEVEL_STATE_ENUM
@@ -923,7 +923,7 @@ enum xdg_toplevel_state {
  * @ingroup iface_xdg_toplevel
  */
 #define XDG_TOPLEVEL_STATE_TILED_BOTTOM_SINCE_VERSION 2
-#endif /* XDG_TOPLEVEL_STATE_ENUM */
+#endif  // /* XDG_TOPLEVEL_STATE_ENUM */
 
 /**
  * @ingroup iface_xdg_toplevel
@@ -1410,7 +1410,7 @@ enum xdg_popup_error {
 	 */
 	XDG_POPUP_ERROR_INVALID_GRAB = 0,
 };
-#endif /* XDG_POPUP_ERROR_ENUM */
+#endif  // /* XDG_POPUP_ERROR_ENUM */
 
 /**
  * @ingroup iface_xdg_popup
