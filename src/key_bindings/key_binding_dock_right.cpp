@@ -1,4 +1,4 @@
-#include "keybindings/key_binding_dock_right.h"
+#include "key_bindings/key_binding_dock_right.h"
 
 #include "controller.h"
 

@@ -1,4 +1,4 @@
-#include "keybindings/key_binding_cmd.h"
+#include "key_bindings/key_binding_cmd.h"
 
 #include <unistd.h>
 

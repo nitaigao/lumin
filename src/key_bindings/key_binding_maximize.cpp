@@ -1,4 +1,4 @@
-#include "keybindings/key_binding_maximize.h"
+#include "key_bindings/key_binding_maximize.h"
 
 #include "controller.h"
 

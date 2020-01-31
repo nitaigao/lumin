@@ -28,11 +28,11 @@ includes = include_directories(['include', 'protocols'])
 
 sources = [
   'src/key_binding.cpp',
-  'src/keybindings/key_binding_dock_right.cpp',
-  'src/keybindings/key_binding_dock_left.cpp',
-  'src/keybindings/key_binding_maximize.cpp',
-  'src/keybindings/key_binding_cmd.cpp',
-  'src/keybindings/key_binding_quit.cpp',
+  'src/key_bindings/key_binding_dock_right.cpp',
+  'src/key_bindings/key_binding_dock_left.cpp',
+  'src/key_bindings/key_binding_maximize.cpp',
+  'src/key_bindings/key_binding_cmd.cpp',
+  'src/key_bindings/key_binding_quit.cpp',
   'src/output.cpp',
   'src/views/xwayland_view.cpp',
   'src/views/xdg_view.cpp',

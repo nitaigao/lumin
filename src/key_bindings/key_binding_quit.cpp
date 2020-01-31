@@ -1,4 +1,4 @@
-#include "keybindings/key_binding_quit.h"
+#include "key_bindings/key_binding_quit.h"
 
 #include "controller.h"
 

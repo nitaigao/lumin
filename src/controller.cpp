@@ -32,11 +32,11 @@ extern "C" {
 #include "views/xdg_view.h"
 #include "output.h"
 
-#include "keybindings/key_binding_cmd.h"
-#include "keybindings/key_binding_quit.h"
-#include "keybindings/key_binding_dock_right.h"
-#include "keybindings/key_binding_dock_left.h"
-#include "keybindings/key_binding_maximize.h"
+#include "key_bindings/key_binding_cmd.h"
+#include "key_bindings/key_binding_quit.h"
+#include "key_bindings/key_binding_dock_right.h"
+#include "key_bindings/key_binding_dock_left.h"
+#include "key_bindings/key_binding_maximize.h"
 
 Controller::Controller()
   : CursorMode(WM_CURSOR_NONE) {
