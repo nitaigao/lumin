@@ -76,10 +76,11 @@ bool View::windowed() const {
 }
 
 void View::toggle_maximized() {
-  if (state != WM_WINDOW_STATE_WINDOW) {
-    window(true);
-  } else {
+  bool is_windowed = windowed();
+  if (is_windowed) {
     maximize();
+  } else {
+    window(true);
   }
 }
 
