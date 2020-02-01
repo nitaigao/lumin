@@ -25,7 +25,6 @@ extern "C" {
   #include <xkbcommon/xkbcommon.h>
 }
 
-#include <iostream>
 #include <memory>
 #include <vector>
 
@@ -249,33 +248,21 @@ static void xdg_surface_destroy_notify(wl_listener *listener, void *data) {
 static void xdg_popup_subsurface_commit_notify(wl_listener *listener, void *data) {
   Subsurface *subsurface = wl_container_of(listener, subsurface, commit);
   subsurface->server->damage_outputs();
-  // if (subsurface->view->mapped) {
-  //   subsurface->view->committed();
-  // }
 }
 
 static void xdg_subsurface_commit_notify(wl_listener *listener, void *data) {
   Subsurface *subsurface = wl_container_of(listener, subsurface, commit);
   subsurface->server->damage_outputs();
-  // if (subsurface->view->mapped) {
-  //   subsurface->view->committed();
-  // }
 }
 
 static void xdg_popup_destroy_notify(wl_listener *listener, void *data) {
   Popup *popup = wl_container_of(listener, popup, destroy);
   popup->server->damage_outputs();
-  // if (popup->view->mapped) {
-  //   popup->view->committed();
-  // }
 }
 
 static void xdg_popup_commit_notify(wl_listener *listener, void *data) {
   Popup *popup = wl_container_of(listener, popup, commit);
   popup->server->damage_outputs();
-  // if (popup->view->mapped) {
-  //   popup->view->committed();
-  // }
 }
 
 static void xdg_surface_commit_notify(wl_listener *listener, void *data) {

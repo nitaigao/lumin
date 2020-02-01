@@ -24,7 +24,7 @@ typedef void (*wlr_surface_iterator_func_t)(struct wlr_surface *surface,
 
 class View {
  public:
-  virtual ~View();
+  virtual ~View() { };
 
   explicit View(Controller *server);
 

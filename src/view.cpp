@@ -30,35 +30,6 @@ extern "C" {
 const int DEFAULT_MINIMUM_WIDTH = 800;
 const int DEFAULT_MINIMUM_HEIGHT = 600;
 
-View::~View() {
-  // wl_list_init(&map.link);
-  // wl_list_remove(&map.link);
-
-  // wl_list_init(&unmap.link);
-  // wl_list_remove(&unmap.link);
-
-  // wl_list_init(&commit.link);
-  // wl_list_remove(&commit.link);
-
-  // wl_list_init(&destroy.link);
-  // wl_list_remove(&destroy.link);
-
-  // wl_list_init(&request_move.link);
-  // wl_list_remove(&request_move.link);
-
-  // wl_list_init(&request_resize.link);
-  // wl_list_remove(&request_resize.link);
-
-  // wl_list_init(&request_maximize.link);
-  // wl_list_remove(&request_maximize.link);
-
-  // wl_list_init(&new_subsurface.link);
-  // wl_list_remove(&new_subsurface.link);
-
-  // wl_list_init(&new_popup.link);
-  // wl_list_remove(&new_popup.link);
-}
-
 View::View(Controller *server_)
   : mapped(false)
   , x(0)
