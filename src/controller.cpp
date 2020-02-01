@@ -174,7 +174,6 @@ static void output_destroy_notify(wl_listener *listener, void *data) {
   Output *output = wl_container_of(listener, output, destroy_);
   output->destroy();
   wl_list_remove(&output->link);
-  // delete output;
 }
 
 static void new_output_notify(wl_listener *listener, void *data) {
@@ -242,7 +241,6 @@ static void xdg_surface_unmap_notify(wl_listener *listener, void *data) {
 static void xdg_surface_destroy_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, destroy);
   wl_list_remove(&view->link);
-  // delete view;
 }
 
 static void xdg_popup_subsurface_commit_notify(wl_listener *listener, void *data) {
