@@ -24,6 +24,8 @@ extern "C" {
   #include <xkbcommon/xkbcommon.h>
 }
 
+#include <iostream>
+
 #include "controller.h"
 #include "output.h"
 
@@ -110,11 +112,7 @@ void XdgView::maximize() {
   state = WM_WINDOW_STATE_MAXIMIZED;
 }
 
-void XdgView::windowify(bool restore_position) {
-  server->damage_outputs();
-
-  wlr_xdg_toplevel_set_size(xdg_surface, old_width, old_height);
-
+void XdgView::window(bool restore_position) {
   if (state == WM_WINDOW_STATE_WINDOW) {
     return;
   }
@@ -122,10 +120,19 @@ void XdgView::windowify(bool restore_position) {
   if (restore_position) {
     x = old_x;
     y = old_y;
+  } else {
+    wlr_box geometry;
+    extents(&geometry);
+
+    float surface_x = server->cursor->x - x;
+    float x_percentage = surface_x / geometry.width;
+    float desired_x = old_width * x_percentage;
+    x = server->cursor->x - desired_x;
   }
 
   wlr_xdg_toplevel_set_maximized(xdg_surface, false);
-
+  wlr_xdg_toplevel_set_size(xdg_surface, old_width, old_height);
+  server->damage_outputs();
   state = WM_WINDOW_STATE_WINDOW;
 }
 

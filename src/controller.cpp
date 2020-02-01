@@ -254,7 +254,7 @@ static void xdg_surface_commit_notify(wl_listener *listener, void *data) {
 
 static void xdg_toplevel_request_move_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, request_move);
-  view->windowify(false);
+  view->window(false);
   view->begin_interactive(WM_CURSOR_MOVE, 0);
 }
 

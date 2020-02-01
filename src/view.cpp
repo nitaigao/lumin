@@ -70,11 +70,17 @@ void View::focus_view(wlr_surface *surface) {
   notify_keyboard_enter();
 }
 
+bool View::windowed() const {
+  bool windowed = state == WM_WINDOW_STATE_WINDOW;
+  return windowed;
+}
+
 void View::toggle_maximized() {
-  if (state != WM_WINDOW_STATE_WINDOW) {
-    windowify(true);
-  } else {
+  bool is_windowed = windowed();
+  if (is_windowed) {
     maximize();
+  } else {
+    window(true);
   }
 }
 
