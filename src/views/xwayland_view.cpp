@@ -106,7 +106,7 @@ void XWaylandView::maximize() {
   state = WM_WINDOW_STATE_MAXIMIZED;
 }
 
-void XWaylandView::windowify(bool restore_position) {
+void XWaylandView::window(bool restore_position) {
   if (state == WM_WINDOW_STATE_WINDOW) {
     return;
   }

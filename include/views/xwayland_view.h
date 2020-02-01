@@ -13,7 +13,7 @@ class XWaylandView : public View {
 
   void maximize();
   void tile(int edges);
-  void windowify(bool restore_position);
+  void window(bool restore_position);
 
   void resize(int width, int height);
 

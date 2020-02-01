@@ -35,6 +35,7 @@ class View {
   void tile_right();
   void tile_left();
   void toggle_maximized();
+  bool windowed() const;
 
   void focus_view(wlr_surface *surface);
   bool view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
@@ -48,7 +49,7 @@ class View {
 
   virtual void maximize() = 0;
   virtual void tile(int edges) = 0;
-  virtual void windowify(bool restore_position) = 0;
+  virtual void window(bool restore_position) = 0;
 
   virtual void resize(int width, int height) = 0;
 
