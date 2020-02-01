@@ -35,9 +35,7 @@ void XWaylandView::save_geometry() {
   }
 }
 
-void XWaylandView::committed() {
-
-}
+void XWaylandView::committed() { }
 
 void XWaylandView::tile(int edges) {
   save_geometry();
@@ -51,9 +49,8 @@ XWaylandView::XWaylandView(Controller *server, wlr_xwayland_surface *surface)
   { }
 
 void XWaylandView::scale_coords(double inx, double iny, double *outx, double *outy) const {
-  wlr_output* output = wlr_output_layout_output_at(server->output_layout, inx, iny);
-  *outx = inx * output->scale;
-  *outy = iny * output->scale;
+  *outx = inx;
+  *outy = iny;
 }
 
 void XWaylandView::for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const {
@@ -110,16 +107,9 @@ void XWaylandView::window(bool restore_position) {
   if (state == WM_WINDOW_STATE_WINDOW) {
     return;
   }
-
-  if (restore_position) {
-    x = old_x;
-    y = old_y;
-  }
-
+  View::window(restore_position);
   wlr_xwayland_surface_set_maximized(xwayland_surface, false);
   wlr_xwayland_surface_configure(xwayland_surface, old_x, old_y, old_width, old_height);
-
-  state = WM_WINDOW_STATE_WINDOW;
 }
 
 wlr_surface* XWaylandView::surface_at(double sx, double sy, double *sub_x, double *sub_y) {

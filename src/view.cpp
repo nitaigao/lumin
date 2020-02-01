@@ -27,25 +27,16 @@ extern "C" {
 #include "output.h"
 #include "cursor_mode.h"
 
-View::~View() {
-  wl_list_remove(&map.link);
-  wl_list_remove(&unmap.link);
-  wl_list_remove(&commit.link);
-  wl_list_remove(&destroy.link);
-  wl_list_remove(&request_move.link);
-  wl_list_remove(&request_resize.link);
-  wl_list_remove(&request_maximize.link);
-  wl_list_remove(&new_subsurface.link);
-  wl_list_remove(&new_popup.link);
-}
+const int DEFAULT_MINIMUM_WIDTH = 800;
+const int DEFAULT_MINIMUM_HEIGHT = 600;
 
 View::View(Controller *server_)
   : mapped(false)
   , x(0)
   , y(0)
   , state(WM_WINDOW_STATE_WINDOW)
-  , old_width(0)
-  , old_height(0)
+  , old_width(DEFAULT_MINIMUM_WIDTH)
+  , old_height(DEFAULT_MINIMUM_HEIGHT)
   , old_x(0)
   , old_y(0)
   , server(server_) { }
@@ -75,12 +66,46 @@ bool View::windowed() const {
   return windowed;
 }
 
-void View::toggle_maximized() {
+bool View::tiled() const {
+  bool tiled = state == WM_WINDOW_STATE_TILED;
+  return tiled;
+}
+
+bool View::maximized() const {
+  bool maximised = state == WM_WINDOW_STATE_MAXIMIZED;
+  return maximised;
+}
+
+void View::window(bool restore_position) {
   bool is_windowed = windowed();
   if (is_windowed) {
-    maximize();
+    return;
+  }
+
+  if (restore_position) {
+    x = old_x;
+    y = old_y;
   } else {
+    wlr_box geometry;
+    extents(&geometry);
+
+    float surface_x = server->cursor->x - x;
+    float x_percentage = surface_x / geometry.width;
+    float desired_x = old_width * x_percentage;
+    x = server->cursor->x - desired_x;
+  }
+
+  server->damage_outputs();
+  state = WM_WINDOW_STATE_WINDOW;
+}
+
+void View::toggle_maximized() {
+  bool is_maximised = maximized();
+
+  if (is_maximised) {
     window(true);
+  } else {
+    maximize();
   }
 }
 
@@ -112,6 +137,8 @@ bool View::view_at(double lx, double ly, wlr_surface **surface, double *sx, doub
 }
 
 void View::tile_left() {
+  tile(WLR_EDGE_LEFT);
+
   wlr_box box;
   extents(&box);
 
@@ -127,11 +154,11 @@ void View::tile_left() {
   y = 0;
 
   wlr_output_layout_output_coords(server->output_layout, output, &x, &y);
-
-  tile(WLR_EDGE_LEFT);
 }
 
 void View::tile_right() {
+  tile(WLR_EDGE_RIGHT);
+
   wlr_box box;
   extents(&box);
 
@@ -151,7 +178,6 @@ void View::tile_right() {
   int height = output->height / output->scale;
 
   resize(width, height);
-  tile(WLR_EDGE_RIGHT);
 }
 
 void View::begin_interactive(enum CursorMode mode, uint32_t edges) {

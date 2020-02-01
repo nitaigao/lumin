@@ -25,8 +25,8 @@ extern "C" {
   #include <xkbcommon/xkbcommon.h>
 }
 
-#include <vector>
 #include <memory>
+#include <vector>
 
 #include "keyboard.h"
 #include "views/xwayland_view.h"
@@ -174,7 +174,6 @@ static void output_destroy_notify(wl_listener *listener, void *data) {
   Output *output = wl_container_of(listener, output, destroy_);
   output->destroy();
   wl_list_remove(&output->link);
-  delete output;
 }
 
 static void new_output_notify(wl_listener *listener, void *data) {
@@ -237,12 +236,31 @@ static void xdg_surface_map_notify(wl_listener *listener, void *data) {
 static void xdg_surface_unmap_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, unmap);
   view->unmap_view();
-  wl_list_remove(&view->link);
 }
 
 static void xdg_surface_destroy_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, destroy);
-  delete view;
+  wl_list_remove(&view->link);
+}
+
+static void xdg_popup_subsurface_commit_notify(wl_listener *listener, void *data) {
+  Subsurface *subsurface = wl_container_of(listener, subsurface, commit);
+  subsurface->server->damage_outputs();
+}
+
+static void xdg_subsurface_commit_notify(wl_listener *listener, void *data) {
+  Subsurface *subsurface = wl_container_of(listener, subsurface, commit);
+  subsurface->server->damage_outputs();
+}
+
+static void xdg_popup_destroy_notify(wl_listener *listener, void *data) {
+  Popup *popup = wl_container_of(listener, popup, destroy);
+  popup->server->damage_outputs();
+}
+
+static void xdg_popup_commit_notify(wl_listener *listener, void *data) {
+  Popup *popup = wl_container_of(listener, popup, commit);
+  popup->server->damage_outputs();
 }
 
 static void xdg_surface_commit_notify(wl_listener *listener, void *data) {
@@ -307,16 +325,67 @@ static void new_xwayland_surface_notify(wl_listener *listener, void *data) {
   wl_list_insert(&server->views, &view->link);
 }
 
+static void new_popup_subsurface_notify(wl_listener *listener, void *data) {
+  auto *wlr_subsurface_ = static_cast<wlr_subsurface*>(data);
+  Popup *popup = wl_container_of(listener, popup, new_subsurface);
+
+  auto subsurface = new Subsurface();
+  subsurface->server = popup->server;
+
+  subsurface->commit.notify = xdg_popup_subsurface_commit_notify;
+  wl_signal_add(&wlr_subsurface_->surface->events.commit, &subsurface->commit);
+}
+
 static void new_subsurface_notify(wl_listener *listener, void *data) {
-  auto *subsurface = static_cast<wlr_subsurface*>(data);
+  auto *wlr_subsurface_ = static_cast<wlr_subsurface*>(data);
   View *view = wl_container_of(listener, view, new_subsurface);
-  wl_signal_add(&subsurface->surface->events.commit, &view->commit);
+
+  auto subsurface = new Subsurface();
+  subsurface->server = view->server;
+
+  subsurface->commit.notify = xdg_subsurface_commit_notify;
+  wl_signal_add(&wlr_subsurface_->surface->events.commit, &subsurface->commit);
+}
+
+static void new_popup_popup_notify(wl_listener *listener, void *data) {
+  auto *xdg_popup = static_cast<wlr_xdg_popup*>(data);
+  Popup *parent_popup = wl_container_of(listener, parent_popup, new_popup);
+
+  auto popup = new Popup();
+  popup->server = parent_popup->server;
+
+  popup->commit.notify = xdg_popup_commit_notify;
+  wl_signal_add(&xdg_popup->base->surface->events.commit, &popup->commit);
+
+  popup->destroy.notify = xdg_popup_destroy_notify;
+  wl_signal_add(&xdg_popup->base->surface->events.destroy, &popup->destroy);
+
+  popup->new_subsurface.notify = new_popup_subsurface_notify;
+  wl_signal_add(&xdg_popup->base->surface->events.new_subsurface, &popup->new_subsurface);
+
+  popup->new_popup.notify = new_popup_popup_notify;
+  wl_signal_add(&xdg_popup->base->events.new_popup, &popup->new_popup);
 }
 
 static void new_popup_notify(wl_listener *listener, void *data) {
-  auto *popup = static_cast<wlr_xdg_popup*>(data);
+  auto *xdg_popup = static_cast<wlr_xdg_popup*>(data);
+
   View *view = wl_container_of(listener, view, new_popup);
-  wl_signal_add(&popup->base->surface->events.commit, &view->commit);
+
+  auto popup = new Popup();
+  popup->server = view->server;
+
+  popup->commit.notify = xdg_popup_commit_notify;
+  wl_signal_add(&xdg_popup->base->surface->events.commit, &popup->commit);
+
+  popup->destroy.notify = xdg_popup_destroy_notify;
+  wl_signal_add(&xdg_popup->base->surface->events.destroy, &popup->destroy);
+
+  popup->new_subsurface.notify = new_popup_subsurface_notify;
+  wl_signal_add(&xdg_popup->base->surface->events.new_subsurface, &popup->new_subsurface);
+
+  popup->new_popup.notify = new_popup_popup_notify;
+  wl_signal_add(&xdg_popup->base->events.new_popup, &popup->new_popup);
 }
 
 static void new_xdg_surface_notify(wl_listener *listener, void *data) {
@@ -365,13 +434,13 @@ static void new_xdg_surface_notify(wl_listener *listener, void *data) {
   wl_list_insert(&server->views, &view->link);
 }
 
-void Controller::maximize() {
+void Controller::toggle_maximize() {
   int view_count = wl_list_length(&views);
   if (view_count <= 0)
     return;
 
   View *view = wl_list_first(view, &views, link);
-  view->maximize();
+  view->toggle_maximized();
 }
 
 void Controller::dock_left() {
@@ -520,7 +589,6 @@ void Controller::destroy() {
   wlr_xcursor_manager_destroy(cursor_mgr);
 
   wlr_cursor_destroy(cursor);
-  wlr_output_layout_destroy(output_layout);
 
   Keyboard *keyboard, *tmp;
   wl_list_for_each_safe(keyboard, tmp, &keyboards, link) {
@@ -530,6 +598,7 @@ void Controller::destroy() {
   wl_display_destroy_clients(wl_display);
 
   wlr_backend_destroy(backend);
+  wlr_output_layout_destroy(output_layout);
   wl_display_destroy(wl_display);
 }
 
@@ -575,7 +644,7 @@ void Controller::new_keyboard(wlr_input_device *device) {
   wlr_keyboard_set_keymap(device->keyboard, keymap);
   xkb_keymap_unref(keymap);
   xkb_context_unref(context);
-  wlr_keyboard_set_repeat_info(device->keyboard, 25, 600);
+  wlr_keyboard_set_repeat_info(device->keyboard, 25, 200);
 
   /* Here we set up listeners for keyboard events. */
   keyboard->modifiers.notify = keyboard_modifiers_notify;
@@ -597,6 +666,7 @@ void Controller::new_pointer(wlr_input_device *device) {
     libinput_device_config_tap_set_enabled(libinput_device, LIBINPUT_CONFIG_TAP_ENABLED);
     libinput_device_config_scroll_set_natural_scroll_enabled(libinput_device, 1);
     libinput_device_config_accel_set_profile(libinput_device, LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT);
+    libinput_device_config_accel_set_speed(libinput_device, -0.5);
   }
 
   wlr_cursor_attach_input_device(cursor, device);

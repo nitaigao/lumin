@@ -24,7 +24,7 @@ typedef void (*wlr_surface_iterator_func_t)(struct wlr_surface *surface,
 
 class View {
  public:
-  virtual ~View();
+  virtual ~View() { };
 
   explicit View(Controller *server);
 
@@ -36,6 +36,8 @@ class View {
   void tile_left();
   void toggle_maximized();
   bool windowed() const;
+  bool tiled() const;
+  bool maximized() const;
 
   void focus_view(wlr_surface *surface);
   bool view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
@@ -49,7 +51,7 @@ class View {
 
   virtual void maximize() = 0;
   virtual void tile(int edges) = 0;
-  virtual void window(bool restore_position) = 0;
+  virtual void window(bool restore_position);
 
   virtual void resize(int width, int height) = 0;
 
@@ -95,6 +97,20 @@ class View {
   int old_width, old_height;
   int old_x, old_y;
 
+ public:
+  Controller *server;
+};
+
+struct Subsurface {
+  wl_listener commit;
+  Controller *server;
+};
+
+struct Popup {
+  wl_listener commit;
+  wl_listener destroy;
+  wl_listener new_subsurface;
+  wl_listener new_popup;
   Controller *server;
 };
 

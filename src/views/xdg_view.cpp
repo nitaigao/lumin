@@ -24,16 +24,8 @@ extern "C" {
   #include <xkbcommon/xkbcommon.h>
 }
 
-#include <iostream>
-
 #include "controller.h"
 #include "output.h"
-
-void XdgView::tile(int edges) {
-  save_geometry();
-  wlr_xdg_toplevel_set_tiled(xdg_surface, edges);
-  state = WM_WINDOW_STATE_TILED;
-}
 
 void XdgView::committed() {
   server->damage_output(this);
@@ -84,24 +76,42 @@ const wlr_surface* XdgView::surface() const {
 
 void XdgView::save_geometry() {
   if (state == WM_WINDOW_STATE_WINDOW) {
-    old_width = xdg_surface->geometry.width;
-    old_height = xdg_surface->geometry.height;
+    wlr_box geometry;
+    extents(&geometry);
+
+    if (geometry.width != 0) {
+      old_width = geometry.width;
+      old_height = geometry.height;
+    }
 
     old_x = x;
     old_y = y;
   }
 }
 
+void XdgView::tile(int edges) {
+  save_geometry();
+
+  bool is_maximized = maximized();
+  if (is_maximized) {
+    wlr_xdg_toplevel_set_maximized(xdg_surface, false);
+  }
+
+  wlr_xdg_toplevel_set_tiled(xdg_surface, edges);
+  state = WM_WINDOW_STATE_TILED;
+}
+
 void XdgView::maximize() {
-  if (state == WM_WINDOW_STATE_MAXIMIZED) {
-    return;
+  save_geometry();
+
+  bool is_tiled = tiled();
+  if (is_tiled) {
+    wlr_xdg_toplevel_set_tiled(xdg_surface, WLR_EDGE_NONE);
   }
 
   wlr_output* output = wlr_output_layout_output_at(server->output_layout,
     server->cursor->x, server->cursor->y);
   wlr_box *output_box = wlr_output_layout_get_box(server->output_layout, output);
-
-  save_geometry();
 
   x = output_box->x;
   y = output_box->y;
@@ -113,27 +123,17 @@ void XdgView::maximize() {
 }
 
 void XdgView::window(bool restore_position) {
-  if (state == WM_WINDOW_STATE_WINDOW) {
-    return;
+  if (tiled()) {
+    wlr_xdg_toplevel_set_tiled(xdg_surface, WLR_EDGE_NONE);
   }
 
-  if (restore_position) {
-    x = old_x;
-    y = old_y;
-  } else {
-    wlr_box geometry;
-    extents(&geometry);
-
-    float surface_x = server->cursor->x - x;
-    float x_percentage = surface_x / geometry.width;
-    float desired_x = old_width * x_percentage;
-    x = server->cursor->x - desired_x;
+  if (maximized()) {
+    wlr_xdg_toplevel_set_maximized(xdg_surface, false);
   }
 
-  wlr_xdg_toplevel_set_maximized(xdg_surface, false);
   wlr_xdg_toplevel_set_size(xdg_surface, old_width, old_height);
-  server->damage_outputs();
-  state = WM_WINDOW_STATE_WINDOW;
+
+  View::window(restore_position);
 }
 
 void XdgView::extents(wlr_box *box) {

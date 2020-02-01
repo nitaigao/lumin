@@ -8,5 +8,5 @@ key_binding_maximize::key_binding_maximize(Controller *server_)
   { }
 
 void key_binding_maximize::run() {
-  server->maximize();
+  server->toggle_maximize();
 }
