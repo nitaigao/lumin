@@ -473,12 +473,6 @@ void Controller::init_keybindings() {
   terminal->state = WLR_KEY_PRESSED;
   key_bindings.push_back(terminal);
 
-  auto quit_2 = std::make_shared<key_binding_quit>(this);
-  quit_2->ctrl = true;
-  quit_2->key = XKB_KEY_q;
-  quit_2->state = WLR_KEY_PRESSED;
-  key_bindings.push_back(quit_2);
-
   auto quit = std::make_shared<key_binding_quit>(this);
   quit->alt = true;
   quit->ctrl = true;
