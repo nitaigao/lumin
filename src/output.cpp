@@ -38,7 +38,9 @@ struct render_data {
 };
 
 Output::~Output() {
+  wl_list_init(&frame_.link);
   wl_list_remove(&frame_.link);
+  wl_list_init(&destroy_.link);
   wl_list_remove(&destroy_.link);
 }
 
@@ -102,18 +104,16 @@ static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
 
   wlr_output_layout_output_coords(layout, output, &ox, &oy);
 
-  float scale = view->scale_output(output);
-
   ox += view->x + sx;
   oy += view->y + sy;
 
   /* We also have to apply the scale factor for HiDPI outputs. This is only
    * part of the puzzle, TinyWL does not fully support HiDPI. */
   struct wlr_box box = {
-    .x = static_cast<int>(ox) * static_cast<int>(scale),
-    .y = static_cast<int>(oy) * static_cast<int>(scale),
-    .width = surface->current.width * static_cast<int>(scale),
-    .height = surface->current.height * static_cast<int>(scale),
+    .x = static_cast<int>(ox) * static_cast<int>(output->scale),
+    .y = static_cast<int>(oy) * static_cast<int>(output->scale),
+    .width = surface->current.width * static_cast<int>(output->scale),
+    .height = surface->current.height * static_cast<int>(output->scale),
   };
 
   float matrix[9];
@@ -131,6 +131,8 @@ static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
     scissor_output(output, &rects[i]);
     wlr_render_texture_with_matrix(rdata->renderer, texture, matrix, 1);
   }
+
+  pixman_region32_fini(&damage);
 
   wlr_surface_send_frame_done(surface, rdata->when);
 }
@@ -184,7 +186,7 @@ void Output::render() const {
   bool needs_frame = false;
   pixman_region32_t buffer_damage;
   pixman_region32_init(&buffer_damage);
-  wlr_output_damage_attach_render(this->damage_, &needs_frame, &buffer_damage);
+  wlr_output_damage_attach_render(damage_, &needs_frame, &buffer_damage);
 
   if (!needs_frame) {
     return;
@@ -226,6 +228,8 @@ void Output::render() const {
     view->for_each_surface(render_surface, &render_data);
   }
 
+  pixman_region32_fini(&buffer_damage);
+
   /* Hardware cursors are rendered by the GPU on a separate plane, and can be
    * moved around without re-rendering what's beneath them - which is more
    * efficient. However, not all hardware supports hardware cursors. For this
@@ -243,4 +247,6 @@ void Output::render() const {
 
   wlr_output_set_damage(output_, &frame_damage);
   wlr_output_commit(output_);
+
+  pixman_region32_fini(&frame_damage);
 }

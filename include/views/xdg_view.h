@@ -1,5 +1,5 @@
-#ifndef XDG_VIEW_H_
-#define XDG_VIEW_H_
+#ifndef VIEWS_XDG_VIEW_H_
+#define VIEWS_XDG_VIEW_H_
 
 #include "view.h"
 
@@ -40,7 +40,6 @@ class XdgView : public View {
 
  private:
   wlr_xdg_surface *xdg_surface;
-
 };
 
-#endif  // XDG_VIEW_H_
+#endif  // VIEWS_XDG_VIEW_H_

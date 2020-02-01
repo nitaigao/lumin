@@ -90,7 +90,7 @@ class Controller {
 
   void dock_right();
   void dock_left();
-  void maximize();
+  void toggle_maximize();
 
 
   void remove_output(const Output *output);
