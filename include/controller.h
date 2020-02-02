@@ -60,7 +60,7 @@ class Controller {
 
   double grab_cursor_x, grab_cursor_y;
   double grab_x, grab_y;
-  int grab_width, grab_height;
+  double grab_width, grab_height;
   uint32_t resize_edges;
 
   wlr_output_layout *output_layout;

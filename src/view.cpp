@@ -22,6 +22,14 @@ View::View(Controller *server_, wlr_xdg_surface *surface)
   , xdg_surface(surface)
 { }
 
+uint View::min_width() const {
+  return xdg_surface->toplevel->current.min_width;
+}
+
+uint View::min_height() const {
+  return xdg_surface->toplevel->current.min_height;
+}
+
 void View::focus_view(wlr_surface *surface) {
   wlr_seat *seat = server->seat;
   wlr_surface *prev_surface = seat->keyboard_state.focused_surface;
@@ -322,7 +330,7 @@ void View::notify_keyboard_enter() {
     keyboard->keycodes, keyboard->num_keycodes, &keyboard->modifiers);
 }
 
-void View::resize(int width, int height) {
+void View::resize(double width, double height) {
   wlr_xdg_toplevel_set_size(xdg_surface, width, height);
 }
 

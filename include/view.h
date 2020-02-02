@@ -30,7 +30,7 @@ class View {
   void map_view();
   void unmap_view();
 
-  void resize(int width, int height);
+  void resize(double width, double height);
 
   void toggle_maximized();
   void maximize();
@@ -47,6 +47,9 @@ class View {
 
   void focus();
   void unfocus();
+
+  uint min_width() const;
+  uint min_height() const;
 
   bool is_child() const;
   View* parent() const;
@@ -95,7 +98,7 @@ class View {
  public:
   Controller *server;
 
- private:
+//  private:
   wlr_xdg_surface *xdg_surface;
 };
 
