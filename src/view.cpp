@@ -188,7 +188,7 @@ void View::unmap_view() {
 }
 
 void View::committed() {
-  server->damage_output(this);
+  server->damage_outputs();
 }
 
 void View::for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const {

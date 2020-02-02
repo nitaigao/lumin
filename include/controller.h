@@ -97,7 +97,6 @@ class Controller {
 
  public:
   void damage_outputs();
-  void damage_output(const View *view);
 
  public:
 
