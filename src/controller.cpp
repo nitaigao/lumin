@@ -65,6 +65,8 @@ static void new_input_notify(wl_listener *listener, void *data) {
   Controller *server = wl_container_of(listener, server, new_input);
   auto device = static_cast<struct wlr_input_device *>(data);
 
+  std::clog << device->name << std::endl;
+
   switch (device->type) {
   case WLR_INPUT_DEVICE_KEYBOARD:
     server->new_keyboard(device);
@@ -72,6 +74,10 @@ static void new_input_notify(wl_listener *listener, void *data) {
 
   case WLR_INPUT_DEVICE_POINTER:
     server->new_pointer(device);
+    break;
+
+  case WLR_INPUT_DEVICE_SWITCH:
+    server->new_switch(device);
     break;
 
   default:
@@ -146,7 +152,9 @@ static void cursor_frame_notify(wl_listener *listener, void *data) {
 
 static void output_frame_notify(wl_listener *listener, void *data) {
   Output *output = wl_container_of(listener, output, frame_);
-  output->render();
+  if (output->output_->enabled) {
+    output->render();
+  }
 }
 
 static void output_destroy_notify(wl_listener *listener, void *data) {
@@ -159,7 +167,9 @@ static void new_output_notify(wl_listener *listener, void *data) {
   Controller *server = wl_container_of(listener, server, new_output);
   auto wlr_output = static_cast<struct wlr_output*>(data);
 
-  wlr_log(WLR_ERROR, "%s connected", wlr_output->name);
+  // wlr_log(WLR_ERROR, "%s connected", wlr_output->name);
+
+  std::clog << wlr_output->name << " connected" << std::endl;
 
   /* Some backends don't have modes. DRM+KMS does, and we need to set a mode
    * before we can use the output. The mode is a tuple of (width, height,
@@ -171,7 +181,9 @@ static void new_output_notify(wl_listener *listener, void *data) {
     wlr_output_set_mode(wlr_output, mode);
     wlr_output_enable(wlr_output, true);
     if (!wlr_output_commit(wlr_output)) {
-      wlr_log(WLR_ERROR, "Failed to commit output");
+      std::cerr << "Failed to commit output" << std::endl;
+
+      // wlr_log(WLR_ERROR, "Failed to commit output");
       return;
     }
   }
@@ -454,7 +466,7 @@ static void handle_request_set_selection(struct wl_listener *listener, void *dat
 }
 
 void Controller::run() {
-  wlr_log_init(WLR_DEBUG, NULL);
+  // wlr_log_init(WLR_DEBUG, NULL);
 
   init_keybindings();
 
@@ -532,12 +544,15 @@ void Controller::run() {
 
   setenv("WAYLAND_DISPLAY", socket, true);
 
-  wlr_log(WLR_INFO, "Wayland WAYLAND_DISPLAY=%s", socket);
+  std::clog << "Wayland WAYLAND_DISPLAY=" << socket << std::endl;
+
+  // wlr_log(WLR_INFO, "Wayland WAYLAND_DISPLAY=%s", socket);
   wl_display_run(wl_display);
 }
 
 void Controller::destroy() {
-  wlr_log(WLR_ERROR, "Quitting!");
+  std::clog << "Quitting!" << std::endl;
+  // wlr_log(WLR_ERROR, "Quitting!");
 
   wlr_xcursor_manager_destroy(cursor_mgr);
 
@@ -553,6 +568,45 @@ void Controller::destroy() {
   wlr_backend_destroy(backend);
   wlr_output_layout_destroy(output_layout);
   wl_display_destroy(wl_display);
+}
+
+static void lid_notify(wl_listener *listener, void *data) {
+  auto event = static_cast<wlr_event_switch_toggle *>(data);
+  Controller *server = wl_container_of(listener, server, lid);
+
+  std::clog << "lid_notify" << std::endl;
+
+  if (event->switch_type != WLR_SWITCH_TYPE_LID) {
+    return;
+  }
+
+  const std::string laptop_screen_name = "eDP-1";
+
+  if (event->switch_state == WLR_SWITCH_STATE_ON) {
+    server->disconnect_output(laptop_screen_name, false);
+  }
+
+  if (event->switch_state == WLR_SWITCH_STATE_OFF) {
+    server->disconnect_output(laptop_screen_name, true);
+  }
+}
+
+void Controller::disconnect_output(const std::string& name, bool enabled) {
+  Output *output = NULL;
+  wl_list_for_each(output, &outputs, link) {
+    if (name.compare(output->output_->name) == 0) {
+      break;
+    }
+  }
+
+  if (enabled) {
+    wlr_output_enable(output->output_, true);
+    wlr_output_layout_add_auto(output_layout, output->output_);
+    wlr_output_set_scale(output->output_, 3);
+  } else {
+    wlr_output_enable(output->output_, false);
+    wlr_output_layout_remove(output_layout, output->output_);
+  }
 }
 
 static void keyboard_modifiers_notify(wl_listener *listener, void *data) {
@@ -623,6 +677,12 @@ void Controller::new_pointer(wlr_input_device *device) {
   }
 
   wlr_cursor_attach_input_device(cursor, device);
+}
+
+void Controller::new_switch(wlr_input_device *device) {
+  std::clog << "new_switch" << std::endl;
+  lid.notify = lid_notify;
+  wl_signal_add(&device->switch_device->events.toggle, &lid);
 }
 
 View* Controller::desktop_view_at(double lx, double ly,

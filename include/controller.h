@@ -50,6 +50,7 @@ class Controller {
   wl_listener request_cursor;
   wl_listener request_set_primary_selection;
   wl_listener request_set_selection;
+  wl_listener lid;
 
  public:
   wlr_seat *seat;
@@ -71,6 +72,7 @@ class Controller {
 
   void new_keyboard(wlr_input_device *device);
   void new_pointer(wlr_input_device *device);
+  void new_switch(wlr_input_device *device);
 
   void process_cursor_move(uint32_t time);
   void process_cursor_resize(uint32_t time);
@@ -87,13 +89,14 @@ class Controller {
   void run();
   void destroy();
 
+  void disconnect_output(const std::string& name, bool enabled);
+
   bool handle_key(uint32_t keycode, const xkb_keysym_t *syms, int nsyms,
     uint32_t modifiers, int state);
 
   void dock_right();
   void dock_left();
   void toggle_maximize();
-
 
   void remove_output(const Output *output);
 
