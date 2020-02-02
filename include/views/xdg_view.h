@@ -29,9 +29,6 @@ class XdgView : public View {
   void geometry(wlr_box *box) const;
   void extents(wlr_box *box) const;
 
-  float scale_output(wlr_output *output) const;
-  void scale_coords(double inx, double iny, double *outx, double *outy) const;
-
   void committed();
 
  private:

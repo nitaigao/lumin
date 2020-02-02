@@ -1,28 +1,6 @@
 #include "views/xdg_view.h"
 
-extern "C" {
-  #include <unistd.h>
-  #include <wayland-server-core.h>
-  #include <wlr/backend.h>
-  #include <wlr/xwayland.h>
-  #include <wlr/render/wlr_renderer.h>
-  #include <wlr/types/wlr_cursor.h>
-  #include <wlr/types/wlr_compositor.h>
-  #include <wlr/types/wlr_data_device.h>
-  #include <wlr/types/wlr_input_device.h>
-  #include <wlr/types/wlr_keyboard.h>
-  #include <wlr/types/wlr_matrix.h>
-  #include <wlr/types/wlr_output.h>
-  #include <wlr/types/wlr_output_layout.h>
-  #include <wlr/types/wlr_pointer.h>
-  #include <wlr/types/wlr_seat.h>
-  #include <wlr/types/wlr_xcursor_manager.h>
-  #include <wlr/types/wlr_xdg_shell.h>
-  #include <wlr/types/wlr_output_damage.h>
-  #include <wlr/util/region.h>
-  #include <wlr/util/log.h>
-  #include <xkbcommon/xkbcommon.h>
-}
+#include "wlroots.h"
 
 #include "controller.h"
 #include "output.h"
@@ -35,15 +13,6 @@ XdgView::XdgView(Controller* server, wlr_xdg_surface *surface)
   : View(server)
   , xdg_surface(surface)
   {}
-
-void XdgView::scale_coords(double inx, double iny, double *outx, double *outy) const {
-  *outx = inx;
-  *outy = iny;
-}
-
-float XdgView::scale_output(wlr_output *output) const {
-  return output->scale;
-}
 
 void XdgView::for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const {
   if (xdg_surface->surface == NULL) {
