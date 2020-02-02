@@ -1,6 +1,6 @@
 #include "controller.h"
 
-
+#include <iostream>
 #include <memory>
 #include <vector>
 
@@ -445,6 +445,18 @@ void Controller::init_keybindings() {
   key_bindings.push_back(maximize);
 }
 
+static void handle_request_set_primary_selection(struct wl_listener *listener, void *data) {
+  Controller *controller = wl_container_of(listener, controller, request_set_primary_selection);
+  auto event = static_cast<wlr_seat_request_set_primary_selection_event*>(data);
+  wlr_seat_set_primary_selection(controller->seat, event->source, event->serial);
+}
+
+static void handle_request_set_selection(struct wl_listener *listener, void *data) {
+  Controller *controller = wl_container_of(listener, controller, request_set_selection);
+  auto event = static_cast<wlr_seat_request_set_selection_event*>(data);
+  wlr_seat_set_selection(controller->seat, event->source, event->serial);
+}
+
 void Controller::run() {
   wlr_log_init(WLR_DEBUG, NULL);
 
@@ -501,6 +513,15 @@ void Controller::run() {
   request_cursor.notify = seat_request_cursor_notify;
   wl_signal_add(&seat->events.request_set_cursor, &request_cursor);
 
+  wlr_data_control_manager_v1_create(wl_display);
+  wlr_primary_selection_v1_device_manager_create(wl_display);
+
+  request_set_selection.notify = handle_request_set_selection;
+  wl_signal_add(&seat->events.request_set_selection, &request_set_selection);
+
+  request_set_primary_selection.notify = handle_request_set_primary_selection;
+  wl_signal_add(&seat->events.request_set_primary_selection, &request_set_primary_selection);
+
   const char *socket = wl_display_add_socket_auto(wl_display);
   if (!socket) {
     wlr_backend_destroy(backend);
@@ -514,8 +535,6 @@ void Controller::run() {
   }
 
   setenv("WAYLAND_DISPLAY", socket, true);
-
-  wlr_data_device_manager_create(wl_display);
 
   wlr_log(WLR_INFO, "Wayland WAYLAND_DISPLAY=%s", socket);
   wl_display_run(wl_display);
