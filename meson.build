@@ -34,7 +34,6 @@ sources = [
   'src/key_bindings/key_binding_cmd.cpp',
   'src/key_bindings/key_binding_quit.cpp',
   'src/output.cpp',
-  'src/views/xdg_view.cpp',
   'src/view.cpp',
   'src/controller.cpp',
   'src/main.cpp',

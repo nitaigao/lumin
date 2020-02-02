@@ -14,7 +14,7 @@ struct wlr_output;
 struct Controller;
 
 enum WindowState {
-  WM_WINDOW_STATE_WINDOW = 0,
+  WM_WINDOW_STATE_WINDOW,
   WM_WINDOW_STATE_TILED = 1,
   WM_WINDOW_STATE_MAXIMIZED = 2
 };
@@ -24,53 +24,51 @@ typedef void (*wlr_surface_iterator_func_t)(struct wlr_surface *surface,
 
 class View {
  public:
-  virtual ~View() { };
-
-  explicit View(Controller *server);
+  View(Controller *server, wlr_xdg_surface *surface);
 
  public:
   void map_view();
   void unmap_view();
 
+  void resize(int width, int height);
+
+  void toggle_maximized();
+  void maximize();
+  bool maximized() const;
+
+  void tile(int edges);
+  bool tiled() const;
+
+  void window(bool restore_position);
+  bool windowed() const;
+
   void tile_right();
   void tile_left();
-  void toggle_maximized();
-  bool windowed() const;
-  bool tiled() const;
-  bool maximized() const;
+
+  void focus();
+  void unfocus();
+
+  bool is_child() const;
+  View* parent() const;
+
+  void geometry(wlr_box *box) const;
+  void extents(wlr_box *box) const;
+
+  const wlr_surface* surface() const;
 
   void focus_view(wlr_surface *surface);
   bool view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
 
+  void committed();
   void begin_interactive(enum CursorMode mode, uint32_t edges);
+  void notify_keyboard_enter();
 
- public:
-  virtual const wlr_surface* surface() const = 0;
-
-  virtual void notify_keyboard_enter() = 0;
-
-  virtual void maximize() = 0;
-  virtual void tile(int edges) = 0;
-  virtual void window(bool restore_position);
-
-  virtual void resize(int width, int height) = 0;
-
-  virtual void focus() = 0;
-  virtual void unfocus() = 0;
-
-  virtual void for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const = 0;
-  virtual wlr_surface* surface_at(double sx, double sy, double *sub_x, double *sub_y) = 0;
-
-  virtual bool is_child() const = 0;
-  virtual View* parent() const = 0;
-
-  virtual void geometry(wlr_box *box) const = 0;
-  virtual void extents(wlr_box *box) const = 0;
-
-  virtual void committed() = 0;
+  void for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const;
+  wlr_surface* surface_at(double sx, double sy, double *sub_x, double *sub_y);
 
  private:
-  virtual void activate() = 0;
+  void activate();
+  void save_geometry();
 
  public:
   wl_listener map;
@@ -96,6 +94,9 @@ class View {
 
  public:
   Controller *server;
+
+ private:
+  wlr_xdg_surface *xdg_surface;
 };
 
 struct Subsurface {

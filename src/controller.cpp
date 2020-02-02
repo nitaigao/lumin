@@ -7,7 +7,7 @@
 #include "wlroots.h"
 
 #include "keyboard.h"
-#include "views/xdg_view.h"
+#include "view.h"
 #include "output.h"
 
 #include "key_bindings/key_binding_cmd.h"
@@ -352,7 +352,7 @@ static void new_xdg_surface_notify(wl_listener *listener, void *data) {
   }
 
   /* Allocate a wm_view for this surface */
-  auto view = new XdgView(server, xdg_surface);
+  auto view = new View(server, xdg_surface);
 
   /* Listen to the various events it can emit */
   view->map.notify = xdg_surface_map_notify;
