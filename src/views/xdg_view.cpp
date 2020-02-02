@@ -90,6 +90,10 @@ void XdgView::save_geometry() {
 }
 
 void XdgView::tile(int edges) {
+  if (tiled()) {
+    return;
+  }
+
   save_geometry();
 
   bool is_maximized = maximized();
@@ -102,6 +106,10 @@ void XdgView::tile(int edges) {
 }
 
 void XdgView::maximize() {
+  if (maximized()) {
+    return;
+  }
+
   save_geometry();
 
   bool is_tiled = tiled();
@@ -123,6 +131,10 @@ void XdgView::maximize() {
 }
 
 void XdgView::window(bool restore_position) {
+  if (windowed()) {
+    return;
+  }
+
   if (tiled()) {
     wlr_xdg_toplevel_set_tiled(xdg_surface, WLR_EDGE_NONE);
   }
@@ -136,7 +148,7 @@ void XdgView::window(bool restore_position) {
   View::window(restore_position);
 }
 
-void XdgView::extents(wlr_box *box) {
+void XdgView::extents(wlr_box *box) const {
   wlr_xdg_surface_get_geometry(xdg_surface, box);
 }
 

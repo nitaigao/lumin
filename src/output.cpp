@@ -37,6 +37,13 @@ struct render_data {
   pixman_region32_t *buffer_damage;
 };
 
+struct damage_iterator_data {
+  const View *view;
+  wlr_output *output;
+  wlr_output_damage *output_damage;
+  wlr_output_layout *output_layout;
+};
+
 Output::~Output() {
   wl_list_init(&frame_.link);
   wl_list_remove(&frame_.link);
@@ -44,10 +51,11 @@ Output::~Output() {
   wl_list_remove(&destroy_.link);
 }
 
-Output::Output(Controller *server, struct wlr_output *output, wlr_output_damage *damage)
-  : server_(server)
+Output::Output(Controller *server, struct wlr_output *output, wlr_output_damage *damage, wlr_output_layout *layout)
+  : output_(output)
+  , server_(server)
   , damage_(damage)
-  , output_(output)
+  , layout_(layout)
   { }
 
 void Output::destroy() {
@@ -137,22 +145,21 @@ static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
   wlr_surface_send_frame_done(surface, rdata->when);
 }
 
-struct damage_iterator_data {
-  const View *view;
-  const wlr_output *output;
-  wlr_output_damage *output_damage;
-};
-
 void surface_damage_output(wlr_surface *surface, int sx, int sy, void *data) {
   auto damage_data = static_cast<damage_iterator_data*>(data);
   auto view = damage_data->view;
   auto output = damage_data->output;
   auto output_damage = damage_data->output_damage;
+  auto layout = damage_data->output_layout;
+
+  double output_x = view->x + sx;
+  double output_y = view->y + sy;
+  wlr_output_layout_output_coords(layout, output, &output_x, &output_y);
 
   pixman_region32_t damage;
   pixman_region32_init(&damage);
   wlr_surface_get_effective_damage(surface, &damage);
-  pixman_region32_translate(&damage, view->x + sx, view->y + sy);
+  pixman_region32_translate(&damage, output_x, output_y);
 
   wlr_region_scale(&damage, &damage, output->scale);
 
@@ -168,7 +175,8 @@ void Output::take_damage(const View *view) {
   damage_iterator_data data = {
     .view = view,
     .output = output_,
-    .output_damage = damage_
+    .output_damage = damage_,
+    .output_layout = layout_
   };
   view->for_each_surface(surface_damage_output, &data);
 }

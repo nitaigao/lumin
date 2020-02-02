@@ -65,7 +65,7 @@ class View {
   virtual View* parent() const = 0;
 
   virtual void geometry(wlr_box *box) const = 0;
-  virtual void extents(wlr_box *box) = 0;
+  virtual void extents(wlr_box *box) const = 0;
 
   virtual float scale_output(wlr_output *output) const = 0;
   virtual void scale_coords(double inx, double iny, double *outx, double *outy) const = 0;

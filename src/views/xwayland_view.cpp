@@ -76,7 +76,7 @@ float XWaylandView::scale_output(wlr_output *output) const {
   return 1.0f;
 }
 
-void XWaylandView::extents(wlr_box *box) {
+void XWaylandView::extents(wlr_box *box) const {
 }
 
 void XWaylandView::maximize() {

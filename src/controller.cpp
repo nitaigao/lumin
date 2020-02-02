@@ -58,10 +58,22 @@ void Controller::damage_outputs() {
   }
 }
 
+bool layout_intersects(wlr_output_layout *layout, const Output *output, const View *view) {
+  wlr_box geometry;
+  view->extents(&geometry);
+  geometry.x += view->x;
+  geometry.y += view->y;
+  bool intersects = wlr_output_layout_intersects(layout, output->output_, &geometry);
+  return intersects;
+}
+
 void Controller::damage_output(const View *view) {
-  Output *output;
+  Output *output = NULL;
   wl_list_for_each(output, &outputs, link) {
-    output->take_damage(view);
+    bool intersects = layout_intersects(output_layout, output, view);
+    if (intersects) {
+      output->take_damage(view);
+    }
   }
 }
 
@@ -213,7 +225,7 @@ static void new_output_notify(wl_listener *listener, void *data) {
 
   auto damage = wlr_output_damage_create(wlr_output);
 
-  Output *output = new Output(server, wlr_output, damage);
+  Output *output = new Output(server, wlr_output, damage, server->output_layout);
 
   output->frame_.notify = output_frame_notify;
   wl_signal_add(&damage->events.frame, &output->frame_);
