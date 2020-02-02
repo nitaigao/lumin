@@ -337,18 +337,15 @@ static void new_popup_notify(wl_listener *listener, void *data) {
 }
 
 static void new_xdg_surface_notify(wl_listener *listener, void *data) {
-  /* This event is raised when wlr_xdg_shell receives a new xdg surface from a
-   * client, either a toplevel (application window) or popup. */
-  Controller *server = wl_container_of(listener, server, new_xdg_surface);
   auto xdg_surface = static_cast<wlr_xdg_surface*>(data);
   if (xdg_surface->role != WLR_XDG_SURFACE_ROLE_TOPLEVEL) {
     return;
   }
 
-  /* Allocate a wm_view for this surface */
+  Controller *server = wl_container_of(listener, server, new_xdg_surface);
+
   auto view = new View(server, xdg_surface);
 
-  /* Listen to the various events it can emit */
   view->map.notify = xdg_surface_map_notify;
   wl_signal_add(&xdg_surface->events.map, &view->map);
 
@@ -378,7 +375,6 @@ static void new_xdg_surface_notify(wl_listener *listener, void *data) {
   view->request_maximize.notify = xdg_toplevel_request_maximize_notify;
   wl_signal_add(&toplevel->events.request_maximize, &view->request_maximize);
 
-  /* Add it to the list of views. */
   wl_list_insert(&server->views, &view->link);
 }
 
@@ -651,14 +647,11 @@ void Controller::process_cursor_resize(uint32_t time) {
   double dx = cursor->x - grab_cursor_x;
   double dy = cursor->y - grab_cursor_y;
 
-  dx -= grab_cursor_x;
-  dy -= grab_cursor_y;
-
   double x = view->x;
   double y = view->y;
 
-  int width = grab_width;
-  int height = grab_height;
+  double width = grab_width;
+  double height = grab_height;
 
   if (resize_edges & WLR_EDGE_TOP) {
     y = grab_y + dy;
@@ -674,8 +667,15 @@ void Controller::process_cursor_resize(uint32_t time) {
     width += dx;
   }
 
-  view->x = x;
-  view->y = y;
+  uint min_width = view->min_width();
+  if (width > min_width) {
+    view->x = x;
+  }
+
+  uint min_height = view->min_height();
+  if (height > min_height) {
+    view->y = y;
+  }
 
   view->resize(width, height);
 }
