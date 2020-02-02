@@ -1,8 +1,7 @@
-#ifndef WL_ROOTS_H_
-#define WL_ROOTS_H_
+#ifndef WLROOTS_H_
+#define WLROOTS_H_
 
 #define static
-// #define class char
 
 extern "C" {
   #include <unistd.h>
@@ -31,6 +30,5 @@ extern "C" {
 }
 
 #undef static
-// #undef class
 
-#endif  // WL_ROOTS_H_
+#endif  // WLROOTS_H_
