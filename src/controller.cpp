@@ -1,36 +1,13 @@
 #include "controller.h"
 
-extern "C" {
-  #include <unistd.h>
-  #include <wayland-server-core.h>
-  #include <wayland-contrib.h>
-  #include <wlr/backend.h>
-  #include <wlr/render/wlr_renderer.h>
-  #include <wlr/types/wlr_cursor.h>
-  #include <wlr/types/wlr_compositor.h>
-  #include <wlr/types/wlr_data_device.h>
-  #include <wlr/types/wlr_input_device.h>
-  #include <wlr/types/wlr_keyboard.h>
-  #include <wlr/types/wlr_matrix.h>
-  #include <wlr/types/wlr_output.h>
-  #include <wlr/types/wlr_output_layout.h>
-  #include <wlr/types/wlr_pointer.h>
-  #include <wlr/types/wlr_seat.h>
-  #include <wlr/types/wlr_xcursor_manager.h>
-  #include <wlr/types/wlr_xdg_shell.h>
-  #include <wlr/types/wlr_output_damage.h>
-  #include <wlr/xwayland.h>
-  #include <wlr/util/log.h>
-  #include <wlr/backend/libinput.h>
-  #include <xkbcommon/xkbcommon.h>
-}
 
 #include <memory>
 #include <vector>
 
+#include "wlroots.h"
+
 #include "keyboard.h"
-#include "views/xwayland_view.h"
-#include "views/xdg_view.h"
+#include "view.h"
 #include "output.h"
 
 #include "key_bindings/key_binding_cmd.h"
@@ -209,19 +186,23 @@ static void new_output_notify(wl_listener *listener, void *data) {
     }
   }
 
+  int scale = 1;
+
   if (strcmp(wlr_output->name, "X11-1") == 0) {
-    wlr_output_set_scale(wlr_output, 2);
+    scale = 2;
   }
 
   if (strcmp(wlr_output->name, "eDP-1") == 0) {
-    wlr_output_set_scale(wlr_output, 3);
+    scale = 3;
   }
 
   if (strcmp(wlr_output->name, "DP-0") == 0 ||
       strcmp(wlr_output->name, "DP-1") == 0 ||
       strcmp(wlr_output->name, "DP-2") == 0) {
-    wlr_output_set_scale(wlr_output, 2);
+    scale = 2;
   }
+
+  wlr_output_set_scale(wlr_output, scale);
 
   auto damage = wlr_output_damage_create(wlr_output);
 
@@ -238,6 +219,9 @@ static void new_output_notify(wl_listener *listener, void *data) {
   wlr_output_create_global(wlr_output);
 
   wl_list_insert(&server->outputs, &output->link);
+
+  wlr_xcursor_manager_load(server->cursor_mgr, scale);
+  wlr_xcursor_manager_set_cursor_image(server->cursor_mgr, "left_ptr", server->cursor);
 }
 
 static void xdg_surface_map_notify(wl_listener *listener, void *data) {
@@ -297,44 +281,6 @@ static void xdg_toplevel_request_resize_notify(wl_listener *listener, void *data
 static void xdg_toplevel_request_maximize_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, request_maximize);
   view->toggle_maximized();
-}
-
-static void xwayland_surface_request_configure_notify(wl_listener *listener, void *data) {
-  XWaylandView *view = wl_container_of(listener, view, request_configure);
-  auto event = static_cast<wlr_xwayland_surface_configure_event*>(data);
-  view->x = event->x;
-  view->y = event->y;
-  wlr_xwayland_surface_configure(event->surface, event->x, event->y, event->width, event->height);
-}
-
-static void new_xwayland_surface_notify(wl_listener *listener, void *data) {
-  Controller *server = wl_container_of(listener, server, new_xwayland_surface);
-  auto xwayland_surface = static_cast<wlr_xwayland_surface*>(data);
-
-  auto view = new XWaylandView(server, xwayland_surface);
-
-  view->map.notify = xdg_surface_map_notify;
-  wl_signal_add(&xwayland_surface->events.map, &view->map);
-
-  view->unmap.notify = xdg_surface_unmap_notify;
-  wl_signal_add(&xwayland_surface->events.unmap, &view->unmap);
-
-  view->destroy.notify = xdg_surface_destroy_notify;
-  wl_signal_add(&xwayland_surface->events.destroy, &view->destroy);
-
-  view->request_configure.notify = xwayland_surface_request_configure_notify;
-  wl_signal_add(&xwayland_surface->events.request_configure, &view->request_configure);
-
-  view->request_move.notify = xdg_toplevel_request_move_notify;
-  wl_signal_add(&xwayland_surface->events.request_move, &view->request_move);
-
-  view->request_resize.notify = xdg_toplevel_request_resize_notify;
-  wl_signal_add(&xwayland_surface->events.request_resize, &view->request_resize);
-
-  view->request_maximize.notify = xdg_toplevel_request_maximize_notify;
-  wl_signal_add(&xwayland_surface->events.request_maximize, &view->request_maximize);
-
-  wl_list_insert(&server->views, &view->link);
 }
 
 static void new_popup_subsurface_notify(wl_listener *listener, void *data) {
@@ -410,7 +356,7 @@ static void new_xdg_surface_notify(wl_listener *listener, void *data) {
   }
 
   /* Allocate a wm_view for this surface */
-  auto view = new XdgView(server, xdg_surface);
+  auto view = new View(server, xdg_surface);
 
   /* Listen to the various events it can emit */
   view->map.notify = xdg_surface_map_notify;
@@ -521,7 +467,7 @@ void Controller::run() {
   renderer = wlr_backend_get_renderer(backend);
   wlr_renderer_init_wl_display(renderer, wl_display);
 
-  wlr_compositor *compositor = wlr_compositor_create(wl_display, renderer);
+  wlr_compositor_create(wl_display, renderer);
   wlr_data_device_manager_create(wl_display);
 
   output_layout = wlr_output_layout_create();
@@ -539,9 +485,6 @@ void Controller::run() {
   wlr_cursor_attach_output_layout(cursor, output_layout);
 
   cursor_mgr = wlr_xcursor_manager_create(NULL, 24);
-  wlr_xcursor_manager_load(cursor_mgr, 1);
-  wlr_xcursor_manager_load(cursor_mgr, 2);
-  wlr_xcursor_manager_load(cursor_mgr, 3);
 
   cursor_motion.notify = cursor_motion_notify;
   wl_signal_add(&cursor->events.motion, &cursor_motion);
@@ -583,13 +526,6 @@ void Controller::run() {
   setenv("WAYLAND_DISPLAY", socket, true);
 
   wlr_data_device_manager_create(wl_display);
-
-  xwayland = wlr_xwayland_create(wl_display, compositor, true);
-  wlr_xwayland_set_seat(xwayland, seat);
-
-  new_xwayland_surface.notify = new_xwayland_surface_notify;
-  wl_signal_add(&xwayland->events.new_surface, &new_xwayland_surface);
-  wlr_log(WLR_INFO, "XWayland DISPLAY=%s", xwayland->display_name);
 
   wlr_log(WLR_INFO, "Wayland WAYLAND_DISPLAY=%s", socket);
   wl_display_run(wl_display);
@@ -688,10 +624,7 @@ View* Controller::desktop_view_at(double lx, double ly,
   wlr_surface **surface, double *sx, double *sy) {
   View *view;
   wl_list_for_each(view, &views, link) {
-    double scaled_lx = 0;
-    double scaled_ly = 0;
-    view->scale_coords(lx, ly, &scaled_lx, &scaled_ly);
-    if (view->view_at(scaled_lx, scaled_ly, surface, sx, sy)) {
+    if (view->view_at(lx, ly, surface, sx, sy)) {
       return view;
     }
   }
@@ -699,18 +632,15 @@ View* Controller::desktop_view_at(double lx, double ly,
 }
 
 void Controller::process_cursor_move(uint32_t time) {
-  grabbed_view->scale_coords(cursor->x, cursor->y, &grabbed_view->x, &grabbed_view->y);
-  grabbed_view->x -= grab_x;
-  grabbed_view->y -= grab_y;
+  grabbed_view->x = cursor->x - grabbed_view->x;
+  grabbed_view->y = cursor->y - grabbed_view->y;
 }
 
 void Controller::process_cursor_resize(uint32_t time) {
   View *view = grabbed_view;
 
-  double dx = 0;
-  double dy = 0;
-
-  view->scale_coords(cursor->x, cursor->y, &dx, &dy);
+  double dx = cursor->x - grab_cursor_x;
+  double dy = cursor->y - grab_cursor_y;
 
   dx -= grab_cursor_x;
   dy -= grab_cursor_y;

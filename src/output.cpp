@@ -1,29 +1,6 @@
 #include "output.h"
 
-extern "C" {
-  #include <unistd.h>
-  #include <wayland-server-core.h>
-  #include <wlr/backend.h>
-  #include <wlr/render/wlr_renderer.h>
-  #include <wlr/types/wlr_cursor.h>
-  #include <wlr/types/wlr_compositor.h>
-  #include <wlr/types/wlr_data_device.h>
-  #include <wlr/types/wlr_input_device.h>
-  #include <wlr/types/wlr_keyboard.h>
-  #include <wlr/types/wlr_matrix.h>
-  #include <wlr/types/wlr_output.h>
-  #include <wlr/types/wlr_output_layout.h>
-  #include <wlr/types/wlr_pointer.h>
-  #include <wlr/types/wlr_seat.h>
-  #include <wlr/types/wlr_xcursor_manager.h>
-  #include <wlr/types/wlr_xdg_shell.h>
-  #include <wlr/types/wlr_output_damage.h>
-  #include <wlr/util/log.h>
-  #include <wlr/util/region.h>
-  #include <wlr/xwayland.h>
-  #include <wlr/backend/libinput.h>
-  #include <xkbcommon/xkbcommon.h>
-}
+#include "wlroots.h"
 
 #include "view.h"
 #include "controller.h"
@@ -244,17 +221,18 @@ void Output::render() const {
    * reason, wlroots provides a software fallback, which we ask it to render
    * here. wlr_cursor handles configuring hardware vs software cursors for you,
    * and this function is a no-op when hardware cursors are in use. */
-  wlr_output_render_software_cursors(output_, NULL);
+  //
 
   /* Conclude rendering and swap the buffers, showing the final frame
    * on-screen. */
-  wlr_renderer_end(renderer);
 
   pixman_region32_t frame_damage;
   pixman_region32_init(&frame_damage);
 
   wlr_output_set_damage(output_, &frame_damage);
+  // wlr_output_render_software_cursors(output_, NULL);
   wlr_output_commit(output_);
+  wlr_renderer_end(renderer);
 
   pixman_region32_fini(&frame_damage);
 }

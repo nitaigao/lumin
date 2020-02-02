@@ -1,6 +1,6 @@
 #include "key_binding.h"
 
-#include <wlr/types/wlr_keyboard.h>
+#include "wlroots.h"
 
 KeyBinding::KeyBinding()
     : ctrl(false)
