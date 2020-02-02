@@ -14,7 +14,7 @@ struct wlr_output;
 struct Controller;
 
 enum WindowState {
-  WM_WINDOW_STATE_WINDOW,
+  WM_WINDOW_STATE_WINDOW = 0,
   WM_WINDOW_STATE_TILED = 1,
   WM_WINDOW_STATE_MAXIMIZED = 2
 };
