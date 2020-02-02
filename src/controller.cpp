@@ -44,16 +44,6 @@ bool layout_intersects(wlr_output_layout *layout, const Output *output, const Vi
   return intersects;
 }
 
-void Controller::damage_output(const View *view) {
-  Output *output = NULL;
-  wl_list_for_each(output, &outputs, link) {
-    bool intersects = layout_intersects(output_layout, output, view);
-    if (intersects) {
-      output->take_damage(view);
-    }
-  }
-}
-
 bool Controller::handle_key(uint32_t keycode, const xkb_keysym_t *syms,
   int nsyms, uint32_t modifiers, int state) {
   bool handled = false;
@@ -632,8 +622,8 @@ View* Controller::desktop_view_at(double lx, double ly,
 }
 
 void Controller::process_cursor_move(uint32_t time) {
-  grabbed_view->x = cursor->x - grabbed_view->x;
-  grabbed_view->y = cursor->y - grabbed_view->y;
+  grabbed_view->x = cursor->x - grab_x;
+  grabbed_view->y = cursor->y - grab_y;
 }
 
 void Controller::process_cursor_resize(uint32_t time) {
