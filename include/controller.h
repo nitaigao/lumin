@@ -48,6 +48,8 @@ class Controller {
   wl_listener cursor_axis;
   wl_listener cursor_frame;
   wl_listener request_cursor;
+  wl_listener request_set_primary_selection;
+  wl_listener request_set_selection;
 
  public:
   wlr_seat *seat;
