@@ -186,19 +186,23 @@ static void new_output_notify(wl_listener *listener, void *data) {
     }
   }
 
+  int scale = 1;
+
   if (strcmp(wlr_output->name, "X11-1") == 0) {
-    wlr_output_set_scale(wlr_output, 2);
+    scale = 2;
   }
 
   if (strcmp(wlr_output->name, "eDP-1") == 0) {
-    wlr_output_set_scale(wlr_output, 3);
+    scale = 3;
   }
 
   if (strcmp(wlr_output->name, "DP-0") == 0 ||
       strcmp(wlr_output->name, "DP-1") == 0 ||
       strcmp(wlr_output->name, "DP-2") == 0) {
-    wlr_output_set_scale(wlr_output, 2);
+    scale = 2;
   }
+
+  wlr_output_set_scale(wlr_output, scale);
 
   auto damage = wlr_output_damage_create(wlr_output);
 
@@ -216,7 +220,7 @@ static void new_output_notify(wl_listener *listener, void *data) {
 
   wl_list_insert(&server->outputs, &output->link);
 
-  wlr_xcursor_manager_load(server->cursor_mgr, wlr_output->scale);
+  wlr_xcursor_manager_load(server->cursor_mgr, scale);
   wlr_xcursor_manager_set_cursor_image(server->cursor_mgr, "left_ptr", server->cursor);
 }
 
