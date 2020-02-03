@@ -125,7 +125,7 @@ void Output::take_damage(const View *view) {
 }
 
 void Output::render() const {
-  wlr_renderer *renderer = server_->renderer;
+  wlr_renderer *renderer = server_->renderer_;
 
   struct timespec now;
   clock_gettime(CLOCK_MONOTONIC, &now);

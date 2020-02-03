@@ -21,7 +21,7 @@ Server::Server()
 }
 
 void Server::quit() {
-  wl_display_terminate(wl_display);
+  wl_display_terminate(display_);
 }
 
 void Server::remove_output(const Output *output) {
@@ -104,21 +104,21 @@ static void seat_request_cursor_notify(wl_listener *listener, void *data) {
   wlr_seat_client *focused_client = server->seat->pointer_state.focused_client;
 
   if (focused_client == event->seat_client) {
-    wlr_cursor_set_surface(server->cursor, event->surface, event->hotspot_x, event->hotspot_y);
+    wlr_cursor_set_surface(server->cursor_, event->surface, event->hotspot_x, event->hotspot_y);
   }
 }
 
 static void cursor_motion_notify(wl_listener *listener, void *data) {
   Server *server = wl_container_of(listener, server, cursor_motion);
   auto event = static_cast<struct wlr_event_pointer_motion*>(data);
-  wlr_cursor_move(server->cursor, event->device, event->delta_x, event->delta_y);
+  wlr_cursor_move(server->cursor_, event->device, event->delta_x, event->delta_y);
   server->process_cursor_motion(event->time_msec);
 }
 
 static void cursor_motion_absolute_notify(wl_listener *listener, void *data) {
   Server *server = wl_container_of(listener, server, cursor_motion_absolute);
   auto event = static_cast<struct wlr_event_pointer_motion_absolute*>(data);
-  wlr_cursor_warp_absolute(server->cursor, event->device, event->x, event->y);
+  wlr_cursor_warp_absolute(server->cursor_, event->device, event->x, event->y);
 
   server->process_cursor_motion(event->time_msec);
 }
@@ -130,7 +130,7 @@ static void cursor_button_notify(wl_listener *listener, void *data) {
 
   double sx, sy;
   wlr_surface *surface;
-  View *view = server->desktop_view_at(server->cursor->x, server->cursor->y, &surface, &sx, &sy);
+  View *view = server->desktop_view_at(server->cursor_->x, server->cursor_->y, &surface, &sx, &sy);
 
   if (event->state == WLR_BUTTON_RELEASED) {
     server->CursorMode = WM_CURSOR_PASSTHROUGH;
@@ -232,8 +232,8 @@ static void new_output_notify(wl_listener *listener, void *data) {
 
   // wl_list_insert(&server->outputs, &output->link);
 
-  wlr_xcursor_manager_load(server->cursor_mgr, scale);
-  wlr_xcursor_manager_set_cursor_image(server->cursor_mgr, "left_ptr", server->cursor);
+  wlr_xcursor_manager_load(server->cursor_manager_, scale);
+  wlr_xcursor_manager_set_cursor_image(server->cursor_manager_, "left_ptr", server->cursor_);
 }
 
 static void xdg_surface_map_notify(wl_listener *listener, void *data) {
@@ -480,55 +480,55 @@ void Server::run() {
 
   init_keybindings();
 
-  wl_display = wl_display_create();
+  display_ = wl_display_create();
 
-  backend = wlr_backend_autocreate(wl_display, NULL);
+  backend_ = wlr_backend_autocreate(display_, NULL);
 
-  renderer = wlr_backend_get_renderer(backend);
-  wlr_renderer_init_wl_display(renderer, wl_display);
+  renderer_ = wlr_backend_get_renderer(backend_);
+  wlr_renderer_init_wl_display(renderer_, display_);
 
-  wlr_compositor_create(wl_display, renderer);
-  wlr_data_device_manager_create(wl_display);
+  wlr_compositor_create(display_, renderer_);
+  wlr_data_device_manager_create(display_);
 
   output_layout = wlr_output_layout_create();
 
   new_output.notify = new_output_notify;
-  wl_signal_add(&backend->events.new_output, &new_output);
+  wl_signal_add(&backend_->events.new_output, &new_output);
 
-  xdg_shell = wlr_xdg_shell_create(wl_display);
+  xdg_shell_ = wlr_xdg_shell_create(display_);
   new_xdg_surface.notify = new_xdg_surface_notify;
-  wl_signal_add(&xdg_shell->events.new_surface, &new_xdg_surface);
+  wl_signal_add(&xdg_shell_->events.new_surface, &new_xdg_surface);
 
-  cursor = wlr_cursor_create();
-  wlr_cursor_attach_output_layout(cursor, output_layout);
+  cursor_ = wlr_cursor_create();
+  wlr_cursor_attach_output_layout(cursor_, output_layout);
 
-  cursor_mgr = wlr_xcursor_manager_create(NULL, 24);
+  cursor_manager_ = wlr_xcursor_manager_create(NULL, 24);
 
   cursor_motion.notify = cursor_motion_notify;
-  wl_signal_add(&cursor->events.motion, &cursor_motion);
+  wl_signal_add(&cursor_->events.motion, &cursor_motion);
 
   cursor_motion_absolute.notify = cursor_motion_absolute_notify;
-  wl_signal_add(&cursor->events.motion_absolute, &cursor_motion_absolute);
+  wl_signal_add(&cursor_->events.motion_absolute, &cursor_motion_absolute);
 
   cursor_button.notify = cursor_button_notify;
-  wl_signal_add(&cursor->events.button, &cursor_button);
+  wl_signal_add(&cursor_->events.button, &cursor_button);
 
   cursor_axis.notify = cursor_axis_notify;
-  wl_signal_add(&cursor->events.axis, &cursor_axis);
+  wl_signal_add(&cursor_->events.axis, &cursor_axis);
 
   cursor_frame.notify = cursor_frame_notify;
-  wl_signal_add(&cursor->events.frame, &cursor_frame);
+  wl_signal_add(&cursor_->events.frame, &cursor_frame);
 
   new_input.notify = new_input_notify;
-  wl_signal_add(&backend->events.new_input, &new_input);
+  wl_signal_add(&backend_->events.new_input, &new_input);
 
-  seat = wlr_seat_create(wl_display, "seat0");
+  seat = wlr_seat_create(display_, "seat0");
 
   request_cursor.notify = seat_request_cursor_notify;
   wl_signal_add(&seat->events.request_set_cursor, &request_cursor);
 
-  wlr_data_control_manager_v1_create(wl_display);
-  wlr_primary_selection_v1_device_manager_create(wl_display);
+  wlr_data_control_manager_v1_create(display_);
+  wlr_primary_selection_v1_device_manager_create(display_);
 
   request_set_selection.notify = handle_request_set_selection;
   wl_signal_add(&seat->events.request_set_selection, &request_set_selection);
@@ -536,15 +536,15 @@ void Server::run() {
   request_set_primary_selection.notify = handle_request_set_primary_selection;
   wl_signal_add(&seat->events.request_set_primary_selection, &request_set_primary_selection);
 
-  const char *socket = wl_display_add_socket_auto(wl_display);
+  const char *socket = wl_display_add_socket_auto(display_);
   if (!socket) {
-    wlr_backend_destroy(backend);
+    wlr_backend_destroy(backend_);
     return;
   }
 
-  if (!wlr_backend_start(backend)) {
-    wlr_backend_destroy(backend);
-    wl_display_destroy(wl_display);
+  if (!wlr_backend_start(backend_)) {
+    wlr_backend_destroy(backend_);
+    wl_display_destroy(display_);
     return;
   }
 
@@ -553,22 +553,22 @@ void Server::run() {
   std::clog << "Wayland WAYLAND_DISPLAY=" << socket << std::endl;
 
   // wlr_log(WLR_INFO, "Wayland WAYLAND_DISPLAY=%s", socket);
-  wl_display_run(wl_display);
+  wl_display_run(display_);
 }
 
 void Server::destroy() {
   std::clog << "Quitting!" << std::endl;
   // wlr_log(WLR_ERROR, "Quitting!");
 
-  wlr_xcursor_manager_destroy(cursor_mgr);
+  wlr_xcursor_manager_destroy(cursor_manager_);
 
-  wlr_cursor_destroy(cursor);
+  wlr_cursor_destroy(cursor_);
 
-  wl_display_destroy_clients(wl_display);
+  wl_display_destroy_clients(display_);
 
-  wlr_backend_destroy(backend);
+  wlr_backend_destroy(backend_);
   wlr_output_layout_destroy(output_layout);
-  wl_display_destroy(wl_display);
+  wl_display_destroy(display_);
 }
 
 static void lid_notify(wl_listener *listener, void *data) {
@@ -677,7 +677,7 @@ void Server::new_pointer(wlr_input_device *device) {
     libinput_device_config_accel_set_speed(libinput_device, -0.5);
   }
 
-  wlr_cursor_attach_input_device(cursor, device);
+  wlr_cursor_attach_input_device(cursor_, device);
 }
 
 void Server::new_switch(wlr_input_device *device) {
@@ -697,15 +697,15 @@ View* Server::desktop_view_at(double lx, double ly,
 }
 
 void Server::process_cursor_move(uint32_t time) {
-  grabbed_view->x = cursor->x - grab_x;
-  grabbed_view->y = cursor->y - grab_y;
+  grabbed_view->x = cursor_->x - grab_x;
+  grabbed_view->y = cursor_->y - grab_y;
 }
 
 void Server::process_cursor_resize(uint32_t time) {
   View *view = grabbed_view;
 
-  double dx = cursor->x - grab_cursor_x;
-  double dy = cursor->y - grab_cursor_y;
+  double dx = cursor_->x - grab_cursor_x;
+  double dy = cursor_->y - grab_cursor_y;
 
   double x = view->x;
   double y = view->y;
@@ -754,13 +754,13 @@ void Server::process_cursor_motion(uint32_t time) {
   /* Otherwise, find the view under the pointer and send the event along. */
   double sx, sy;
   wlr_surface *surface = NULL;
-  View *view = desktop_view_at(cursor->x, cursor->y, &surface, &sx, &sy);
+  View *view = desktop_view_at(cursor_->x, cursor_->y, &surface, &sx, &sy);
 
   if (!view) {
     /* If there's no view under the cursor, set the cursor image to a
      * default. This is what makes the cursor image appear when you move it
      * around the screen, not over any views. */
-    wlr_xcursor_manager_set_cursor_image(cursor_mgr, "left_ptr", cursor);
+    wlr_xcursor_manager_set_cursor_image(cursor_manager_, "left_ptr", cursor_);
   }
 
   if (surface) {
@@ -804,7 +804,7 @@ void Server::position_view(View *view) {
   view->geometry(&geometry);
 
   if (!is_child) {
-    wlr_output* output = wlr_output_layout_output_at(output_layout, cursor->x, cursor->y);
+    wlr_output* output = wlr_output_layout_output_at(output_layout, cursor_->x, cursor_->y);
     int inside_x = ((output->width  / output->scale) - geometry.width) / 2.0;
     int inside_y = ((output->height / output->scale) - geometry.height) / 2.0;
 

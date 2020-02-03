@@ -29,15 +29,14 @@ class Server {
  public:
   Server();
 
-  struct wl_display *wl_display;
-  wlr_backend *backend;
-  wlr_renderer *renderer;
+  struct wl_display *display_;
+  wlr_backend *backend_;
+  wlr_renderer *renderer_;
 
-  wlr_xdg_shell *xdg_shell;
-  wlr_xwayland *xwayland;
+  wlr_xdg_shell *xdg_shell_;
 
-  wlr_cursor *cursor;
-  wlr_xcursor_manager *cursor_mgr;
+  wlr_cursor *cursor_;
+  wlr_xcursor_manager *cursor_manager_;
 
  public:
   wl_listener new_input;

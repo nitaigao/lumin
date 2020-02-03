@@ -172,13 +172,13 @@ void View::begin_interactive(enum CursorMode mode, uint32_t edges) {
   extents(&geo_box);
 
   if (mode == WM_CURSOR_MOVE) {
-    server->grab_x = server->cursor->x - x;
-    server->grab_y = server->cursor->y - y;
+    server->grab_x = server->cursor_->x - x;
+    server->grab_y = server->cursor_->y - y;
   } else {
     server->grab_x = x;
     server->grab_y = y;
-    server->grab_cursor_x = server->cursor->x;
-    server->grab_cursor_y = server->cursor->y;
+    server->grab_cursor_x = server->cursor_->x;
+    server->grab_cursor_y = server->cursor_->y;
   }
 
   server->grab_width = geo_box.width;
@@ -277,7 +277,7 @@ void View::maximize() {
   }
 
   wlr_output* output = wlr_output_layout_output_at(server->output_layout,
-    server->cursor->x, server->cursor->y);
+    server->cursor_->x, server->cursor_->y);
   wlr_box *output_box = wlr_output_layout_get_box(server->output_layout, output);
 
   x = output_box->x;
@@ -311,10 +311,10 @@ void View::window(bool restore_position) {
     wlr_box geometry;
     extents(&geometry);
 
-    float surface_x = server->cursor->x - x;
+    float surface_x = server->cursor_->x - x;
     float x_percentage = surface_x / geometry.width;
     float desired_x = old_width * x_percentage;
-    x = server->cursor->x - desired_x;
+    x = server->cursor_->x - desired_x;
   }
 
   server->damage_outputs();
