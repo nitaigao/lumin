@@ -26,9 +26,13 @@ Output::~Output() {
   wl_list_remove(&destroy_.link);
 }
 
-Output::Output(Server *server, struct wlr_output *output,
-  wlr_output_damage *damage, wlr_output_layout *layout)
+Output::Output(Server *server,
+  struct wlr_output *output,
+  wlr_renderer *renderer,
+  wlr_output_damage *damage,
+  wlr_output_layout *layout)
   : output_(output)
+  , renderer_(renderer)
   , server_(server)
   , damage_(damage)
   , layout_(layout)
@@ -129,8 +133,6 @@ void Output::frame() {
 }
 
 void Output::render(const std::vector<std::shared_ptr<View>>& views) const {
-  wlr_renderer *renderer = server_->renderer_;
-
   struct timespec now;
   clock_gettime(CLOCK_MONOTONIC, &now);
 
@@ -152,10 +154,10 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const {
   // wlr_output_effective_resolution(wlr_output, &width, &height);
 
   /* Begin the renderer (calls glViewport and some other GL sanity checks) */
-  wlr_renderer_begin(renderer, output_->width, output_->height);
+  wlr_renderer_begin(renderer_, output_->width, output_->height);
 
   float color[4] = {0.0, 0.0, 0.0, 1.0};
-  wlr_renderer_clear(renderer, color);
+  wlr_renderer_clear(renderer_, color);
 
   for (auto it = views.rbegin(); it != views.rend(); ++it) {
     auto &view = (*it);
@@ -165,10 +167,10 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const {
 
     struct render_data render_data = {
       .output = output_,
-      .renderer = renderer,
+      .renderer = renderer_,
       .view = view.get(),
       .when = &now,
-      .layout = server_->output_layout,
+      .layout = layout_,
       .buffer_damage = &buffer_damage
     };
 
@@ -194,7 +196,7 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const {
 
   wlr_output_set_damage(output_, &frame_damage);
   wlr_output_commit(output_);
-  wlr_renderer_end(renderer);
+  wlr_renderer_end(renderer_);
 
   pixman_region32_fini(&frame_damage);
 }

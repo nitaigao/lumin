@@ -87,50 +87,6 @@ bool View::view_at(double lx, double ly, wlr_surface **surface, double *sx, doub
   return false;
 }
 
-void View::tile_left() {
-  tile(WLR_EDGE_LEFT);
-
-  wlr_box box;
-  extents(&box);
-
-  int corner_x = x + box.x + (box.width / 2.0f);
-  int corner_y = y + box.y + (box.height / 2.0f);
-  wlr_output* output = wlr_output_layout_output_at(server->output_layout, corner_x, corner_y);
-
-  int width = (output->width / 2.0f) / output->scale;
-  int height = output->height / output->scale;
-  resize(width, height);
-
-  x = 0;
-  y = 0;
-
-  wlr_output_layout_output_coords(server->output_layout, output, &x, &y);
-}
-
-void View::tile_right() {
-  tile(WLR_EDGE_RIGHT);
-
-  wlr_box box;
-  extents(&box);
-
-  int corner_x = x + box.x + (box.width / 2.0f);
-  int corner_y = y + box.y + (box.height / 2.0f);
-  wlr_output* output = wlr_output_layout_output_at(server->output_layout, corner_x, corner_y);
-
-  y = 0;
-  x = 0;
-
-  wlr_output_layout_output_coords(server->output_layout, output, &x, &y);
-
-  // middle of the screen
-  x += (output->width / 2.0f) / output->scale;
-
-  int width = (output->width / 2.0f) / output->scale;
-  int height = output->height / output->scale;
-
-  resize(width, height);
-}
-
 void View::begin_interactive(enum CursorMode mode, uint32_t edges) {
   server->begin_interactive(this, mode, edges);
 }
@@ -217,6 +173,10 @@ void View::maximize() {
     return;
   }
 
+  server->maximize_view(this);
+}
+
+void View::maxi() {
   save_geometry();
 
   bool is_tiled = tiled();
@@ -224,15 +184,7 @@ void View::maximize() {
     wlr_xdg_toplevel_set_tiled(xdg_surface, WLR_EDGE_NONE);
   }
 
-  wlr_output* output = wlr_output_layout_output_at(server->output_layout,
-    server->cursor_->x, server->cursor_->y);
-  wlr_box *output_box = wlr_output_layout_get_box(server->output_layout, output);
-
-  x = output_box->x;
-  y = output_box->y;
-
   wlr_xdg_toplevel_set_maximized(xdg_surface, true);
-  resize(output_box->width, output_box->height);
 
   state = WM_WINDOW_STATE_MAXIMIZED;
 }
@@ -256,13 +208,13 @@ void View::window(bool restore_position) {
     x = saved_state_.x;
     y = saved_state_.y;
   } else {
-    wlr_box geometry;
-    extents(&geometry);
+    // wlr_box geometry;
+    // extents(&geometry);
 
-    float surface_x = server->cursor_->x - x;
-    float x_percentage = surface_x / geometry.width;
-    float desired_x = saved_state_.width * x_percentage;
-    x = server->cursor_->x - desired_x;
+    // float surface_x = server->cursor_->x - x;
+    // float x_percentage = surface_x / geometry.width;
+    // float desired_x = saved_state_.width * x_percentage;
+    // x = server->cursor_->x - desired_x;
   }
 
   server->damage_outputs();

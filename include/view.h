@@ -38,15 +38,13 @@ class View {
   void toggle_maximized();
   void maximize();
   bool maximized() const;
+  void maxi();
 
   void tile(int edges);
   bool tiled() const;
 
   void window(bool restore_position);
   bool windowed() const;
-
-  void tile_right();
-  void tile_left();
 
   void focus();
   void unfocus();

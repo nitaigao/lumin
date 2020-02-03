@@ -10,6 +10,7 @@ class View;
 class Server;
 struct wlr_output_damage;
 struct wlr_output_layout;
+struct wlr_renderer;
 
 class Output {
  public:
@@ -17,6 +18,7 @@ class Output {
 
   explicit Output(Server *server,
                   struct wlr_output *output,
+                  wlr_renderer *renderer,
                   wlr_output_damage *damage,
                   wlr_output_layout *layout);
 
@@ -47,6 +49,7 @@ class Output {
   struct wlr_output *output_;
 
  private:
+  wlr_renderer *renderer_;
   Server *server_;
   wlr_output_damage *damage_;
   wlr_output_layout *layout_;

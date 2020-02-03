@@ -28,6 +28,9 @@ struct wlr_seat_pointer_request_set_cursor_event;
 struct wlr_seat_request_set_primary_selection_event;
 struct wlr_seat_request_set_selection_event;
 struct wlr_event_pointer_axis;
+struct wlr_event_pointer_motion;
+struct wlr_output;
+
 class View;
 class KeyBinding;
 class Output;
@@ -35,15 +38,6 @@ class Output;
 class Server {
  public:
   Server();
-
-  struct wl_display *display_;
-  wlr_backend *backend_;
-  wlr_renderer *renderer_;
-
-  wlr_xdg_shell *xdg_shell_;
-
-  wlr_cursor *cursor_;
-  wlr_xcursor_manager *cursor_manager_;
 
  public:
   wl_listener new_input;
@@ -59,13 +53,9 @@ class Server {
   wl_listener request_set_selection;
   wl_listener lid;
   wl_listener output_frame;
-
- public:
-  wlr_output_layout *output_layout;
   wl_listener new_output;
 
-  View* desktop_view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
-
+ public:
   void new_keyboard(wlr_input_device *device);
   void new_pointer(wlr_input_device *device);
   void new_switch(wlr_input_device *device);
@@ -88,17 +78,7 @@ class Server {
   void run();
   void destroy();
 
-  void destroy_view(View *view);
-
-  void add_output(std::shared_ptr<Output>& output);
-  void add_view(std::shared_ptr<View>& view);
-
   void disconnect_output(const std::string& name, bool enabled);
-  void begin_interactive(View *view, CursorMode mode, unsigned int edges);
-  void button(wlr_event_pointer_button *event);
-
-  bool handle_key(uint32_t keycode, const xkb_keysym_t *syms, int nsyms,
-    uint32_t modifiers, int state);
 
   void dock_right();
   void dock_left();
@@ -106,17 +86,39 @@ class Server {
 
   void remove_output(const Output *output);
 
-  void set_cursor(wlr_seat_pointer_request_set_cursor_event *event);
-  void axis(wlr_event_pointer_axis *event);
+ public: // Signals
+   void maximize_view(View *view);
+   void begin_interactive(View *view, CursorMode mode, unsigned int edges);
+   void destroy_view(View *view);
+
+ public: // Events
+  void on_button(wlr_event_pointer_button *event);
+  void on_set_cursor(wlr_seat_pointer_request_set_cursor_event *event);
+  void on_axis(wlr_event_pointer_axis *event);
   void on_cursor_frame();
-  void set_primary_selection(wlr_seat_request_set_primary_selection_event *event);
-  void set_selection(wlr_seat_request_set_selection_event *event);
+  void on_set_primary_selection(wlr_seat_request_set_primary_selection_event *event);
+  void on_set_selection(wlr_seat_request_set_selection_event *event);
+  void on_new_xdg_surface(wlr_xdg_surface *xdg_surface);
+  void on_new_output(wlr_output* output);
+  void on_cursor_motion(wlr_event_pointer_motion* event);
+
+  static void cursor_motion_absolute_notify(wl_listener *listener, void *data);
+  static void cursor_motion_notify(wl_listener *listener, void *data);
+
+  bool handle_key(uint32_t keycode, const xkb_keysym_t *syms, int nsyms,
+    uint32_t modifiers, int state);
+
+  void add_output(const std::shared_ptr<Output>& output);
 
  public:
   void damage_outputs();
 
  private:
+  View* desktop_view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
+
   void init_keybindings();
+
+ private:
   std::vector<std::shared_ptr<KeyBinding>> key_bindings;
 
   std::vector<std::shared_ptr<Output>> outputs_;
@@ -134,7 +136,14 @@ class Server {
     enum CursorMode CursorMode;
   } grab_state_;
 
-  wlr_seat *seat;
+  struct wl_display *display_;
+  wlr_xdg_shell *xdg_shell_;
+  wlr_seat *seat_;
+  wlr_output_layout *layout_;
+  wlr_backend *backend_;
+  wlr_renderer *renderer_;
+  wlr_xcursor_manager *cursor_manager_;
+  wlr_cursor *cursor_;
 };
 
 #endif  // SERVER_H_
