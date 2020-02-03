@@ -11,7 +11,7 @@ struct wlr_surface;
 struct wlr_box;
 struct wlr_output;
 
-struct Controller;
+class Controller;
 
 enum WindowState {
   WM_WINDOW_STATE_WINDOW = 0,

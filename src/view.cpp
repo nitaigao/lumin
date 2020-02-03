@@ -43,8 +43,13 @@ void View::focus_view(wlr_surface *surface) {
     view->unfocus();
   }
 
-  wl_list_remove(&link);
-  wl_list_insert(&server->views, &link);
+  auto condition = [this](auto &view) { return view.get() == this; };
+  auto result = std::find_if(server->views_.begin(), server->views_.end(), condition);
+  if (result != server->views_.end()) {
+    auto resultValue = *result;
+    server->views_.erase(result);
+    server->views_.insert(server->views_.begin(), resultValue);
+  }
 
   activate();
   notify_keyboard_enter();

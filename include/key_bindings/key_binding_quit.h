@@ -5,7 +5,7 @@
 
 #include <string>
 
-struct Controller;
+class Controller;
 
 struct key_binding_quit : KeyBinding {
   explicit key_binding_quit(Controller *server_);

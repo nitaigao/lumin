@@ -8,6 +8,8 @@
 #include <memory>
 
 #include "cursor_mode.h"
+#include "output.h"
+#include "keyboard.h"
 
 struct wlr_renderer;
 struct wlr_seat;
@@ -19,9 +21,9 @@ struct wlr_xdg_shell;
 struct wlr_cursor;
 struct wlr_xcursor_manager;
 struct wlr_output_layout;
-struct View;
-struct KeyBinding;
-struct Output;
+class View;
+class KeyBinding;
+class Output;
 
 class Controller {
  public:
@@ -33,7 +35,6 @@ class Controller {
 
   wlr_xdg_shell *xdg_shell;
   wlr_xwayland *xwayland;
-  wl_list views;
 
   wlr_cursor *cursor;
   wlr_xcursor_manager *cursor_mgr;
@@ -55,7 +56,6 @@ class Controller {
  public:
   wlr_seat *seat;
 
-  wl_list keyboards;
   enum CursorMode CursorMode;
   View *grabbed_view;
 
@@ -65,8 +65,11 @@ class Controller {
   uint32_t resize_edges;
 
   wlr_output_layout *output_layout;
-  wl_list outputs;
   wl_listener new_output;
+
+  std::vector<std::shared_ptr<Output>> outputs_;
+  std::vector<std::shared_ptr<Keyboard>> keyboards_;
+  std::vector<std::shared_ptr<View>> views_;
 
   View* desktop_view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
 
@@ -89,6 +92,8 @@ class Controller {
   void run();
   void destroy();
 
+  void add_output(std::shared_ptr<Output>& output);
+
   void disconnect_output(const std::string& name, bool enabled);
 
   bool handle_key(uint32_t keycode, const xkb_keysym_t *syms, int nsyms,
@@ -102,8 +107,6 @@ class Controller {
 
  public:
   void damage_outputs();
-
- public:
 
  private:
   void init_keybindings();

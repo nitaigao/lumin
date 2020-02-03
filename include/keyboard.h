@@ -3,7 +3,8 @@
 
 #include <wayland-server-core.h>
 
-struct Controller;
+struct wlr_input_device;
+class Controller;
 
 struct Keyboard {
   wl_list link;

@@ -5,7 +5,7 @@
 
 #include <string>
 
-struct Controller;
+class Controller;
 
 struct key_binding_dock_right : KeyBinding {
   explicit key_binding_dock_right(Controller *server_);

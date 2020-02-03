@@ -3,8 +3,8 @@
 
 #include <wayland-server-core.h>
 
-struct View;
-struct Controller;
+class View;
+class Controller;
 struct wlr_output_damage;
 struct wlr_output_layout;
 

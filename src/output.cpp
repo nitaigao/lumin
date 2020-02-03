@@ -22,9 +22,7 @@ struct damage_iterator_data {
 };
 
 Output::~Output() {
-  wl_list_init(&frame_.link);
   wl_list_remove(&frame_.link);
-  wl_list_init(&destroy_.link);
   wl_list_remove(&destroy_.link);
 }
 
@@ -155,8 +153,8 @@ void Output::render() const {
   float color[4] = {0.0, 0.0, 0.0, 1.0};
   wlr_renderer_clear(renderer, color);
 
-  View *view;
-  wl_list_for_each_reverse(view, &server_->views, link) {
+  for (auto it = server_->views_.rbegin(); it != server_->views_.rend(); ++it) {
+    auto &view = (*it);
     if (!view->mapped) {
       continue;
     }
@@ -164,7 +162,7 @@ void Output::render() const {
     struct render_data render_data = {
       .output = output_,
       .renderer = renderer,
-      .view = view,
+      .view = view.get(),
       .when = &now,
       .layout = server_->output_layout,
       .buffer_damage = &buffer_damage
@@ -172,6 +170,7 @@ void Output::render() const {
 
     view->for_each_surface(render_surface, &render_data);
   }
+
 
   pixman_region32_fini(&buffer_damage);
 
