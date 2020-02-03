@@ -54,7 +54,7 @@ void View::toggle_maximized() {
   bool is_maximised = maximized();
 
   if (is_maximised) {
-    window(true);
+    window();
   } else {
     maximize();
   }
@@ -189,7 +189,7 @@ void View::maxi() {
   state = WM_WINDOW_STATE_MAXIMIZED;
 }
 
-void View::window(bool restore_position) {
+void View::grabi(int grab_x) {
   if (windowed()) {
     return;
   }
@@ -204,18 +204,39 @@ void View::window(bool restore_position) {
 
   wlr_xdg_toplevel_set_size(xdg_surface, saved_state_.width, saved_state_.height);
 
-  if (restore_position) {
-    x = saved_state_.x;
-    y = saved_state_.y;
-  } else {
-    // wlr_box geometry;
-    // extents(&geometry);
+  wlr_box geometry;
+  extents(&geometry);
 
-    // float surface_x = server->cursor_->x - x;
-    // float x_percentage = surface_x / geometry.width;
-    // float desired_x = saved_state_.width * x_percentage;
-    // x = server->cursor_->x - desired_x;
+  float surface_x = grab_x - x;
+  float x_percentage = surface_x / geometry.width;
+  float desired_x = saved_state_.width * x_percentage;
+  x = grab_x - desired_x;
+
+  server->damage_outputs();
+  state = WM_WINDOW_STATE_WINDOW;
+}
+
+void View::grab() {
+  server->view_grabbed(this);
+}
+
+void View::window() {
+  if (windowed()) {
+    return;
   }
+
+  if (tiled()) {
+    wlr_xdg_toplevel_set_tiled(xdg_surface, WLR_EDGE_NONE);
+  }
+
+  if (maximized()) {
+    wlr_xdg_toplevel_set_maximized(xdg_surface, false);
+  }
+
+  wlr_xdg_toplevel_set_size(xdg_surface, saved_state_.width, saved_state_.height);
+
+  x = saved_state_.x;
+  y = saved_state_.y;
 
   server->damage_outputs();
   state = WM_WINDOW_STATE_WINDOW;

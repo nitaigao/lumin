@@ -346,8 +346,7 @@ static void xdg_surface_commit_notify(wl_listener *listener, void *data) {
 
 static void xdg_toplevel_request_move_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, request_move);
-  view->window(false);
-  view->begin_interactive(WM_CURSOR_MOVE, WLR_EDGE_NONE);
+  view->grab();
 }
 
 static void xdg_toplevel_request_resize_notify(wl_listener *listener, void *data) {
@@ -467,6 +466,11 @@ static void new_xdg_surface_notify(wl_listener *listener, void *data) {
 
   Server *server = wl_container_of(listener, server, new_xdg_surface);
   server->on_new_xdg_surface(xdg_surface);
+}
+
+void Server::view_grabbed(View *view) {
+  view->grabi(cursor_->x);
+  view->begin_interactive(WM_CURSOR_MOVE, WLR_EDGE_NONE);
 }
 
 void Server::maximize_view(View *view) {

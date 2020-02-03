@@ -43,7 +43,10 @@ class View {
   void tile(int edges);
   bool tiled() const;
 
-  void window(bool restore_position);
+  void grab();
+  void grabi(int cursor_x);
+
+  void window();
   bool windowed() const;
 
   void focus();

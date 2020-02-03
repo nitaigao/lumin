@@ -90,6 +90,7 @@ class Server {
    void maximize_view(View *view);
    void begin_interactive(View *view, CursorMode mode, unsigned int edges);
    void destroy_view(View *view);
+   void view_grabbed(View *view);
 
  public: // Events
   void on_button(wlr_event_pointer_button *event);
