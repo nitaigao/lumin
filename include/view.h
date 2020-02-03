@@ -10,6 +10,7 @@ struct wlr_xwayland_surface;
 struct wlr_surface;
 struct wlr_box;
 struct wlr_output;
+struct wlr_seat;
 
 class Server;
 
@@ -66,7 +67,7 @@ class View {
 
   void committed();
   void begin_interactive(enum CursorMode mode, uint32_t edges);
-  void notify_keyboard_enter();
+  void notify_keyboard_enter(wlr_seat *seat);
 
   void for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const;
   wlr_surface* surface_at(double sx, double sy, double *sub_x, double *sub_y);

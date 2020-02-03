@@ -81,32 +81,49 @@ static void new_input_notify(wl_listener *listener, void *data) {
   auto device = static_cast<struct wlr_input_device *>(data);
 
   switch (device->type) {
-  case WLR_INPUT_DEVICE_KEYBOARD:
-    server->new_keyboard(device);
-    break;
-
-  case WLR_INPUT_DEVICE_POINTER:
-    server->new_pointer(device);
-    break;
-
-  case WLR_INPUT_DEVICE_SWITCH:
-    server->new_switch(device);
-    break;
-
-  default:
-    break;
+    case WLR_INPUT_DEVICE_KEYBOARD:
+      server->new_keyboard(device);
+      break;
+    case WLR_INPUT_DEVICE_POINTER:
+      server->new_pointer(device);
+      break;
+    case WLR_INPUT_DEVICE_SWITCH:
+      server->new_switch(device);
+      break;
+    default:
+      break;
   }
+}
+
+void Server::set_primary_selection(wlr_seat_request_set_primary_selection_event *event) {
+  wlr_seat_set_primary_selection(seat, event->source, event->serial);
+}
+
+void Server::set_selection(wlr_seat_request_set_selection_event *event) {
+  wlr_seat_set_selection(seat, event->source, event->serial);
+}
+
+void Server::set_cursor(wlr_seat_pointer_request_set_cursor_event *event) {
+  wlr_seat_client *focused_client = seat->pointer_state.focused_client;
+
+  if (focused_client == event->seat_client) {
+    wlr_cursor_set_surface(cursor_, event->surface, event->hotspot_x, event->hotspot_y);
+  }
+}
+
+void Server::axis(wlr_event_pointer_axis *event) {
+  wlr_seat_pointer_notify_axis(seat, event->time_msec, event->orientation,
+    event->delta, event->delta_discrete, event->source);
+}
+
+void Server::on_cursor_frame() {
+  wlr_seat_pointer_notify_frame(seat);
 }
 
 static void seat_request_cursor_notify(wl_listener *listener, void *data) {
   Server *server = wl_container_of(listener, server, request_cursor);
-
   auto event = static_cast<wlr_seat_pointer_request_set_cursor_event*>(data);
-  wlr_seat_client *focused_client = server->seat->pointer_state.focused_client;
-
-  if (focused_client == event->seat_client) {
-    wlr_cursor_set_surface(server->cursor_, event->surface, event->hotspot_x, event->hotspot_y);
-  }
+  server->set_cursor(event);
 }
 
 static void cursor_motion_notify(wl_listener *listener, void *data) {
@@ -152,7 +169,7 @@ void Server::focus_view(View *view) {
   }
 
   view->activate();
-  view->notify_keyboard_enter();
+  view->notify_keyboard_enter(seat);
 }
 
 void Server::render_output(const Output *output) const {
@@ -162,14 +179,13 @@ void Server::render_output(const Output *output) const {
 static void cursor_axis_notify(wl_listener *listener, void *data) {
   Server *server = wl_container_of(listener, server, cursor_axis);
   auto event = static_cast<wlr_event_pointer_axis*>(data);
-  /* Notify the client with pointer focus of the axis event. */
-  wlr_seat_pointer_notify_axis(server->seat, event->time_msec, event->orientation,
-    event->delta, event->delta_discrete, event->source);
+  server->axis(event);
+
 }
 
 static void cursor_frame_notify(wl_listener *listener, void *data) {
   Server *server = wl_container_of(listener, server, cursor_frame);
-  wlr_seat_pointer_notify_frame(server->seat);
+  server->on_cursor_frame();
 }
 
 static void output_frame_notify(wl_listener *listener, void *data) {
@@ -535,15 +551,15 @@ void Server::init_keybindings() {
 }
 
 static void handle_request_set_primary_selection(struct wl_listener *listener, void *data) {
-  Server *controller = wl_container_of(listener, controller, request_set_primary_selection);
+  Server *server = wl_container_of(listener, server, request_set_primary_selection);
   auto event = static_cast<wlr_seat_request_set_primary_selection_event*>(data);
-  wlr_seat_set_primary_selection(controller->seat, event->source, event->serial);
+  server->set_primary_selection(event);
 }
 
 static void handle_request_set_selection(struct wl_listener *listener, void *data) {
-  Server *controller = wl_container_of(listener, controller, request_set_selection);
+  Server *server = wl_container_of(listener, server, request_set_selection);
   auto event = static_cast<wlr_seat_request_set_selection_event*>(data);
-  wlr_seat_set_selection(controller->seat, event->source, event->serial);
+  server->set_selection(event);
 }
 
 void Server::run() {
@@ -552,9 +568,7 @@ void Server::run() {
   init_keybindings();
 
   display_ = wl_display_create();
-
   backend_ = wlr_backend_autocreate(display_, NULL);
-
   renderer_ = wlr_backend_get_renderer(backend_);
   wlr_renderer_init_wl_display(renderer_, display_);
 
@@ -623,20 +637,15 @@ void Server::run() {
 
   std::clog << "Wayland WAYLAND_DISPLAY=" << socket << std::endl;
 
-  // wlr_log(WLR_INFO, "Wayland WAYLAND_DISPLAY=%s", socket);
   wl_display_run(display_);
 }
 
 void Server::destroy() {
   std::clog << "Quitting!" << std::endl;
-  // wlr_log(WLR_ERROR, "Quitting!");
 
   wlr_xcursor_manager_destroy(cursor_manager_);
-
   wlr_cursor_destroy(cursor_);
-
   wl_display_destroy_clients(display_);
-
   wlr_backend_destroy(backend_);
   wlr_output_layout_destroy(output_layout);
   wl_display_destroy(display_);
@@ -684,17 +693,15 @@ void Server::disconnect_output(const std::string& name, bool enabled) {
 
 static void keyboard_modifiers_notify(wl_listener *listener, void *data) {
   Keyboard *keyboard = wl_container_of(listener, keyboard, modifiers);
-  wlr_seat_set_keyboard(keyboard->server->seat, keyboard->device);
-  wlr_seat_keyboard_notify_modifiers(keyboard->server->seat,
+  wlr_seat_set_keyboard(keyboard->seat, keyboard->device);
+  wlr_seat_keyboard_notify_modifiers(keyboard->seat,
     &keyboard->device->keyboard->modifiers);
 }
 
 static void keyboard_key_notify(wl_listener *listener, void *data) {
-  /* This event is raised when a key is pressed or released. */
   Keyboard *keyboard = wl_container_of(listener, keyboard, key);
   Server *server = keyboard->server;
   auto event = static_cast<struct wlr_event_keyboard_key *>(data);
-  wlr_seat *seat = server->seat;
 
   uint32_t keycode = event->keycode + 8;
   const xkb_keysym_t *syms;
@@ -704,8 +711,8 @@ static void keyboard_key_notify(wl_listener *listener, void *data) {
   bool handled = server->handle_key(keycode, syms, nsyms, modifiers, event->state);
 
   if (!handled) {
-    wlr_seat_set_keyboard(seat, keyboard->device);
-    wlr_seat_keyboard_notify_key(seat, event->time_msec, event->keycode, event->state);
+    wlr_seat_set_keyboard(keyboard->seat, keyboard->device);
+    wlr_seat_keyboard_notify_key(keyboard->seat, event->time_msec, event->keycode, event->state);
   }
 }
 
@@ -713,6 +720,7 @@ void Server::new_keyboard(wlr_input_device *device) {
   auto keyboard = std::make_shared<Keyboard>();
   keyboard->server = this;
   keyboard->device = device;
+  keyboard->seat = seat;
 
   /* We need to prepare an XKB keymap and assign it to the keyboard. This
    * assumes the defaults (e.g. layout = "us"). */

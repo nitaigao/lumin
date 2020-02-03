@@ -277,9 +277,9 @@ void View::activate() {
   wlr_xdg_toplevel_set_activated(xdg_surface, true);
 }
 
-void View::notify_keyboard_enter() {
-  wlr_keyboard *keyboard = wlr_seat_get_keyboard(server->seat);
-  wlr_seat_keyboard_notify_enter(server->seat, xdg_surface->surface,
+void View::notify_keyboard_enter(wlr_seat *seat) {
+  wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat);
+  wlr_seat_keyboard_notify_enter(seat, xdg_surface->surface,
     keyboard->keycodes, keyboard->num_keycodes, &keyboard->modifiers);
 }
 

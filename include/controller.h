@@ -24,6 +24,10 @@ struct wlr_cursor;
 struct wlr_xcursor_manager;
 struct wlr_output_layout;
 struct wlr_event_pointer_button;
+struct wlr_seat_pointer_request_set_cursor_event;
+struct wlr_seat_request_set_primary_selection_event;
+struct wlr_seat_request_set_selection_event;
+struct wlr_event_pointer_axis;
 class View;
 class KeyBinding;
 class Output;
@@ -57,8 +61,6 @@ class Server {
   wl_listener output_frame;
 
  public:
-  wlr_seat *seat;
-
   wlr_output_layout *output_layout;
   wl_listener new_output;
 
@@ -104,6 +106,12 @@ class Server {
 
   void remove_output(const Output *output);
 
+  void set_cursor(wlr_seat_pointer_request_set_cursor_event *event);
+  void axis(wlr_event_pointer_axis *event);
+  void on_cursor_frame();
+  void set_primary_selection(wlr_seat_request_set_primary_selection_event *event);
+  void set_selection(wlr_seat_request_set_selection_event *event);
+
  public:
   void damage_outputs();
 
@@ -125,6 +133,8 @@ class Server {
     uint32_t resize_edges;
     enum CursorMode CursorMode;
   } grab_state_;
+
+  wlr_seat *seat;
 };
 
 #endif  // SERVER_H_
