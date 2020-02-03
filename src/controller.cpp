@@ -27,8 +27,8 @@ Server::Server()
     .height = 0,
     .resize_edges = 0,
     .CursorMode = WM_CURSOR_NONE
-    }) {
-}
+    })
+  { }
 
 void Server::quit() {
   wl_display_terminate(display_);
@@ -48,15 +48,6 @@ void Server::damage_outputs() {
   for (auto &output : outputs_) {
     output->take_whole_damage();
   }
-}
-
-bool layout_intersects(wlr_output_layout *layout, const Output *output, const View *view) {
-  wlr_box geometry;
-  view->extents(&geometry);
-  geometry.x += view->x;
-  geometry.y += view->y;
-  bool intersects = wlr_output_layout_intersects(layout, output->output_, &geometry);
-  return intersects;
 }
 
 bool Server::handle_key(uint32_t keycode, const xkb_keysym_t *syms,
@@ -709,22 +700,14 @@ static void lid_notify(wl_listener *listener, void *data) {
 }
 
 void Server::disconnect_output(const std::string& name, bool enabled) {
-  auto lambda = [name](auto &output) -> bool { return (name.compare(output->output_->name) == 0); };
+  auto lambda = [name](auto &output) -> bool { return output->is_named(name); };
   auto it = std::find_if(outputs_.begin(), outputs_.end(), lambda);
   if (it == outputs_.end()) {
     return;
   }
 
   auto &output = (*it);
-
-  if (enabled) {
-    wlr_output_enable(output->output_, true);
-    wlr_output_layout_add_auto(layout_, output->output_);
-    wlr_output_set_scale(output->output_, 3);
-  } else {
-    wlr_output_enable(output->output_, false);
-    wlr_output_layout_remove(layout_, output->output_);
-  }
+  output->enable(enabled);
 }
 
 static void keyboard_modifiers_notify(wl_listener *listener, void *data) {

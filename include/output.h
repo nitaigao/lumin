@@ -4,6 +4,7 @@
 #include <wayland-server-core.h>
 
 #include <memory>
+#include <string>
 #include <vector>
 
 class View;
@@ -35,9 +36,9 @@ class Output {
   wl_listener frame_;
   wl_listener destroy_;
 
-  wl_list link;
-
  public:
+  bool is_named(const std::string& name) const;
+  void enable(bool enabled);
   void destroy();
   void render(const std::vector<std::shared_ptr<View>>& views) const;
   void take_damage(const View *view);
@@ -45,10 +46,9 @@ class Output {
 
   void frame();
 
- public:
+ private:
   struct wlr_output *output_;
 
- private:
   wlr_renderer *renderer_;
   Server *server_;
   wlr_output_damage *damage_;

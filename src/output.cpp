@@ -114,6 +114,11 @@ void surface_damage_output(wlr_surface *surface, int sx, int sy, void *data) {
   pixman_region32_fini(&damage);
 }
 
+bool Output::is_named(const std::string& name) const {
+  bool match = name.compare(output_->name) == 0;
+  return match;
+}
+
 void Output::take_whole_damage() {
   wlr_output_damage_add_whole(damage_);
 }
@@ -126,6 +131,16 @@ void Output::take_damage(const View *view) {
     .output_layout = layout_
   };
   view->for_each_surface(surface_damage_output, &data);
+}
+
+void Output::enable(bool enabled) {
+  wlr_output_enable(output_, enabled);
+  if (enabled) {
+    wlr_output_layout_add_auto(layout_, output_);
+    wlr_output_set_scale(output_, output_->scale);
+  } else {
+    wlr_output_layout_remove(layout_, output_);
+  }
 }
 
 void Output::frame() {
