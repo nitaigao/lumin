@@ -124,7 +124,11 @@ void Output::take_damage(const View *view) {
   view->for_each_surface(surface_damage_output, &data);
 }
 
-void Output::render() const {
+void Output::frame() {
+  server_->render_output(this);
+}
+
+void Output::render(const std::vector<std::shared_ptr<View>>& views) const {
   wlr_renderer *renderer = server_->renderer_;
 
   struct timespec now;
@@ -153,7 +157,7 @@ void Output::render() const {
   float color[4] = {0.0, 0.0, 0.0, 1.0};
   wlr_renderer_clear(renderer, color);
 
-  for (auto it = server_->views_.rbegin(); it != server_->views_.rend(); ++it) {
+  for (auto it = views.rbegin(); it != views.rend(); ++it) {
     auto &view = (*it);
     if (!view->mapped) {
       continue;

@@ -14,13 +14,18 @@ View::View(Server *server_, wlr_xdg_surface *surface)
   , x(0)
   , y(0)
   , state(WM_WINDOW_STATE_WINDOW)
-  , old_width(DEFAULT_MINIMUM_WIDTH)
-  , old_height(DEFAULT_MINIMUM_HEIGHT)
-  , old_x(0)
-  , old_y(0)
+  , saved_state_({
+    .width = DEFAULT_MINIMUM_WIDTH,
+    .height = DEFAULT_MINIMUM_HEIGHT,
+    .x = 0,
+    .y = 0 })
   , server(server_)
   , xdg_surface(surface)
 { }
+
+void View::destroyed() {
+  server->destroy_view(this);
+}
 
 uint View::min_width() const {
   return xdg_surface->toplevel->current.min_width;
@@ -28,31 +33,6 @@ uint View::min_width() const {
 
 uint View::min_height() const {
   return xdg_surface->toplevel->current.min_height;
-}
-
-void View::focus_view(wlr_surface *surface) {
-  wlr_seat *seat = server->seat;
-  wlr_surface *prev_surface = seat->keyboard_state.focused_surface;
-
-  if (prev_surface == surface) {
-    return;
-  }
-
-  if (prev_surface) {
-    View *view = server->view_from_surface(seat->keyboard_state.focused_surface);
-    view->unfocus();
-  }
-
-  auto condition = [this](auto &view) { return view.get() == this; };
-  auto result = std::find_if(server->views_.begin(), server->views_.end(), condition);
-  if (result != server->views_.end()) {
-    auto resultValue = *result;
-    server->views_.erase(result);
-    server->views_.insert(server->views_.begin(), resultValue);
-  }
-
-  activate();
-  notify_keyboard_enter();
 }
 
 bool View::windowed() const {
@@ -152,39 +132,7 @@ void View::tile_right() {
 }
 
 void View::begin_interactive(enum CursorMode mode, uint32_t edges) {
-  /* This function sets up an interactive move or resize operation, where the
-   * compositor stops propegating pointer events to clients and instead
-   * consumes them itself, to move or resize windows. */
-  wlr_surface *focused_surface = server->seat->pointer_state.focused_surface;
-
-  if (surface() != focused_surface) {
-    /* Deny move/resize requests from unfocused clients. */
-    return;
-  }
-
-  server->grab_x = 0;
-  server->grab_y = 0;
-
-  server->grabbed_view = this;
-  server->CursorMode = mode;
-
-  wlr_box geo_box;
-  extents(&geo_box);
-
-  if (mode == WM_CURSOR_MOVE) {
-    server->grab_x = server->cursor_->x - x;
-    server->grab_y = server->cursor_->y - y;
-  } else {
-    server->grab_x = x;
-    server->grab_y = y;
-    server->grab_cursor_x = server->cursor_->x;
-    server->grab_cursor_y = server->cursor_->y;
-  }
-
-  server->grab_width = geo_box.width;
-  server->grab_height = geo_box.height;
-
-  server->resize_edges = edges;
+  server->begin_interactive(this, mode, edges);
 }
 
 void View::map_view() {
@@ -212,7 +160,7 @@ void View::for_each_surface(wlr_surface_iterator_func_t iterator, void *data) co
 }
 
 void View::focus() {
-  focus_view(xdg_surface->surface);
+  server->focus_view(this);
 }
 
 void View::unfocus() {
@@ -239,12 +187,12 @@ void View::save_geometry() {
     extents(&geometry);
 
     if (geometry.width != 0) {
-      old_width = geometry.width;
-      old_height = geometry.height;
+      saved_state_.width = geometry.width;
+      saved_state_.height = geometry.height;
     }
 
-    old_x = x;
-    old_y = y;
+    saved_state_.x = x;
+    saved_state_.y = y;
   }
 }
 
@@ -302,18 +250,18 @@ void View::window(bool restore_position) {
     wlr_xdg_toplevel_set_maximized(xdg_surface, false);
   }
 
-  wlr_xdg_toplevel_set_size(xdg_surface, old_width, old_height);
+  wlr_xdg_toplevel_set_size(xdg_surface, saved_state_.width, saved_state_.height);
 
   if (restore_position) {
-    x = old_x;
-    y = old_y;
+    x = saved_state_.x;
+    y = saved_state_.y;
   } else {
     wlr_box geometry;
     extents(&geometry);
 
     float surface_x = server->cursor_->x - x;
     float x_percentage = surface_x / geometry.width;
-    float desired_x = old_width * x_percentage;
+    float desired_x = saved_state_.width * x_percentage;
     x = server->cursor_->x - desired_x;
   }
 

@@ -3,6 +3,9 @@
 
 #include <wayland-server-core.h>
 
+#include <memory>
+#include <vector>
+
 class View;
 class Server;
 struct wlr_output_damage;
@@ -34,9 +37,11 @@ class Output {
 
  public:
   void destroy();
-  void render() const;
+  void render(const std::vector<std::shared_ptr<View>>& views) const;
   void take_damage(const View *view);
   void take_whole_damage();
+
+  void frame();
 
  public:
   struct wlr_output *output_;

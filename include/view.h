@@ -27,6 +27,8 @@ class View {
   View(Server *server, wlr_xdg_surface *surface);
 
  public:
+  void destroyed();
+
   void map_view();
   void unmap_view();
 
@@ -69,8 +71,9 @@ class View {
   void for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const;
   wlr_surface* surface_at(double sx, double sy, double *sub_x, double *sub_y);
 
- private:
   void activate();
+
+ private:
   void save_geometry();
 
  public:
@@ -85,20 +88,21 @@ class View {
   wl_listener new_popup;
 
  public:
-  wl_list link;
   bool mapped;
   double x, y;
 
  protected:
   WindowState state;
 
-  int old_width, old_height;
-  int old_x, old_y;
+  struct {
+    int width, height;
+    int x, y;
+  } saved_state_;
 
  public:
   Server *server;
 
-//  private:
+ private:
   wlr_xdg_surface *xdg_surface;
 };
 

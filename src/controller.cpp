@@ -17,7 +17,17 @@
 #include "key_bindings/key_binding_maximize.h"
 
 Server::Server()
-  : CursorMode(WM_CURSOR_NONE) {
+  : grab_state_({
+    .view = NULL,
+    .cursor_x = 0,
+    .cursor_y = 0,
+    .x = 0,
+    .y = 0,
+    .width = 0,
+    .height = 0,
+    .resize_edges = 0,
+    .CursorMode = WM_CURSOR_NONE
+    }) {
 }
 
 void Server::quit() {
@@ -70,8 +80,6 @@ static void new_input_notify(wl_listener *listener, void *data) {
   Server *server = wl_container_of(listener, server, new_input);
   auto device = static_cast<struct wlr_input_device *>(data);
 
-  std::clog << device->name << std::endl;
-
   switch (device->type) {
   case WLR_INPUT_DEVICE_KEYBOARD:
     server->new_keyboard(device);
@@ -88,13 +96,6 @@ static void new_input_notify(wl_listener *listener, void *data) {
   default:
     break;
   }
-
-  uint32_t caps = WL_SEAT_CAPABILITY_POINTER;
-  if (!server->keyboards_.empty()) {
-    caps |= WL_SEAT_CAPABILITY_KEYBOARD;
-  }
-
-  wlr_seat_set_capabilities(server->seat, caps);
 }
 
 static void seat_request_cursor_notify(wl_listener *listener, void *data) {
@@ -126,20 +127,36 @@ static void cursor_motion_absolute_notify(wl_listener *listener, void *data) {
 static void cursor_button_notify(wl_listener *listener, void *data) {
   Server *server = wl_container_of(listener, server, cursor_button);
   auto event = static_cast<struct wlr_event_pointer_button*>(data);
-  wlr_seat_pointer_notify_button(server->seat, event->time_msec, event->button, event->state);
+  server->button(event);
+}
 
-  double sx, sy;
-  wlr_surface *surface;
-  View *view = server->desktop_view_at(server->cursor_->x, server->cursor_->y, &surface, &sx, &sy);
+void Server::focus_view(View *view) {
+  wlr_surface *prev_surface = seat->keyboard_state.focused_surface;
+  const wlr_surface *surface = view->surface();
 
-  if (event->state == WLR_BUTTON_RELEASED) {
-    server->CursorMode = WM_CURSOR_PASSTHROUGH;
+  if (prev_surface == surface) {
     return;
   }
 
-  if (view != NULL) {
-    view->focus_view(surface);
+  if (prev_surface) {
+    View *previous_view = view_from_surface(seat->keyboard_state.focused_surface);
+    previous_view->unfocus();
   }
+
+  auto condition = [view](auto &el) { return el.get() == view; };
+  auto result = std::find_if(views_.begin(), views_.end(), condition);
+  if (result != views_.end()) {
+    auto resultValue = *result;
+    views_.erase(result);
+    views_.insert(views_.begin(), resultValue);
+  }
+
+  view->activate();
+  view->notify_keyboard_enter();
+}
+
+void Server::render_output(const Output *output) const {
+  output->render(views_);
 }
 
 static void cursor_axis_notify(wl_listener *listener, void *data) {
@@ -157,9 +174,7 @@ static void cursor_frame_notify(wl_listener *listener, void *data) {
 
 static void output_frame_notify(wl_listener *listener, void *data) {
   Output *output = wl_container_of(listener, output, frame_);
-  if (output->output_->enabled) {
-    output->render();
-  }
+  output->frame();
 }
 
 static void output_destroy_notify(wl_listener *listener, void *data) {
@@ -169,6 +184,43 @@ static void output_destroy_notify(wl_listener *listener, void *data) {
 
 void Server::add_output(std::shared_ptr<Output>& output) {
   outputs_.push_back(output);
+}
+
+void Server::add_view(std::shared_ptr<View>& view) {
+  views_.push_back(view);
+}
+
+void Server::begin_interactive(View *view, CursorMode mode, unsigned int edges) {
+  wlr_surface *focused_surface = seat->pointer_state.focused_surface;
+
+  if (view->surface() != focused_surface) {
+    /* Deny move/resize requests from unfocused clients. */
+    return;
+  }
+
+  grab_state_.x = 0;
+  grab_state_.y = 0;
+
+  grab_state_.view = view;
+  grab_state_.CursorMode = mode;
+
+  wlr_box geo_box;
+  view->extents(&geo_box);
+
+  if (mode == WM_CURSOR_MOVE) {
+    grab_state_.x = cursor_->x - view->x;
+    grab_state_.y = cursor_->y - view->y;
+  } else {
+    grab_state_.x = view->x;
+    grab_state_.y = view->y;
+    grab_state_.cursor_x = cursor_->x;
+    grab_state_.cursor_y = cursor_->y;
+  }
+
+  grab_state_.width = geo_box.width;
+  grab_state_.height = geo_box.height;
+
+  grab_state_.resize_edges = edges;
 }
 
 static void new_output_notify(wl_listener *listener, void *data) {
@@ -246,15 +298,34 @@ static void xdg_surface_unmap_notify(wl_listener *listener, void *data) {
   view->unmap_view();
 }
 
+void Server::button(wlr_event_pointer_button *event) {
+  wlr_seat_pointer_notify_button(seat, event->time_msec, event->button, event->state);
+
+  double sx, sy;
+  wlr_surface *surface;
+  View *view = desktop_view_at(cursor_->x, cursor_->y, &surface, &sx, &sy);
+
+  if (event->state == WLR_BUTTON_RELEASED) {
+    grab_state_.CursorMode = WM_CURSOR_PASSTHROUGH;
+    return;
+  }
+
+  if (view != NULL) {
+    focus_view(view);
+  }
+}
+
+void Server::destroy_view(View *view) {
+  auto condition = [view](auto &el) { return el.get() == view; };
+  auto result = std::find_if(views_.begin(), views_.end(), condition);
+  if (result != views_.end()) {
+    views_.erase(result);
+  }
+}
+
 static void xdg_surface_destroy_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, destroy);
-  Server *server = view->server;
-
-  auto condition = [view](auto &el) { return el.get() == view; };
-  auto result = std::find_if(server->views_.begin(), server->views_.end(), condition);
-  if (result != server->views_.end()) {
-    server->views_.erase(result);
-  }
+  view->destroyed();
 }
 
 static void xdg_popup_subsurface_commit_notify(wl_listener *listener, void *data) {
@@ -403,7 +474,7 @@ static void new_xdg_surface_notify(wl_listener *listener, void *data) {
   view->request_maximize.notify = xdg_toplevel_request_maximize_notify;
   wl_signal_add(&toplevel->events.request_maximize, &view->request_maximize);
 
-  server->views_.push_back(view);
+  server->add_view(view);
 }
 
 void Server::toggle_maximize() {
@@ -665,6 +736,9 @@ void Server::new_keyboard(wlr_input_device *device) {
   wlr_seat_set_keyboard(seat, device);
 
   keyboards_.push_back(keyboard);
+
+  capabilities_ |= WL_SEAT_CAPABILITY_KEYBOARD;
+  wlr_seat_set_capabilities(seat, capabilities_);
 }
 
 void Server::new_pointer(wlr_input_device *device) {
@@ -678,6 +752,8 @@ void Server::new_pointer(wlr_input_device *device) {
   }
 
   wlr_cursor_attach_input_device(cursor_, device);
+  capabilities_ |= WL_SEAT_CAPABILITY_POINTER;
+  wlr_seat_set_capabilities(seat, capabilities_);
 }
 
 void Server::new_switch(wlr_input_device *device) {
@@ -697,33 +773,33 @@ View* Server::desktop_view_at(double lx, double ly,
 }
 
 void Server::process_cursor_move(uint32_t time) {
-  grabbed_view->x = cursor_->x - grab_x;
-  grabbed_view->y = cursor_->y - grab_y;
+  grab_state_.view->x = cursor_->x - grab_state_.x;
+  grab_state_.view->y = cursor_->y - grab_state_.y;
 }
 
 void Server::process_cursor_resize(uint32_t time) {
-  View *view = grabbed_view;
+  View *view = grab_state_.view;
 
-  double dx = cursor_->x - grab_cursor_x;
-  double dy = cursor_->y - grab_cursor_y;
+  double dx = cursor_->x - grab_state_.cursor_x;
+  double dy = cursor_->y - grab_state_.cursor_y;
 
   double x = view->x;
   double y = view->y;
 
-  double width = grab_width;
-  double height = grab_height;
+  double width = grab_state_.width;
+  double height = grab_state_.height;
 
-  if (resize_edges & WLR_EDGE_TOP) {
-    y = grab_y + dy;
-    height = grab_height - dy;
-  } else if (resize_edges & WLR_EDGE_BOTTOM) {
+  if (grab_state_.resize_edges & WLR_EDGE_TOP) {
+    y = grab_state_.y + dy;
+    height = grab_state_.height - dy;
+  } else if (grab_state_.resize_edges & WLR_EDGE_BOTTOM) {
     height += dy;
   }
 
-  if (resize_edges & WLR_EDGE_LEFT) {
-    x = grab_x + dx;
+  if (grab_state_.resize_edges & WLR_EDGE_LEFT) {
+    x = grab_state_.x + dx;
     width -= dx;
-  } else if (resize_edges & WLR_EDGE_RIGHT) {
+  } else if (grab_state_.resize_edges & WLR_EDGE_RIGHT) {
     width += dx;
   }
 
@@ -742,11 +818,11 @@ void Server::process_cursor_resize(uint32_t time) {
 
 void Server::process_cursor_motion(uint32_t time) {
   /* If the mode is non-passthrough, delegate to those functions. */
-  if (CursorMode == WM_CURSOR_MOVE) {
+  if (grab_state_.CursorMode == WM_CURSOR_MOVE) {
     process_cursor_move(time);
     damage_outputs();
     return;
-  } else if (CursorMode == WM_CURSOR_RESIZE) {
+  } else if (grab_state_.CursorMode == WM_CURSOR_RESIZE) {
     process_cursor_resize(time);
     return;
   }
