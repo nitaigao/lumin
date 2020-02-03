@@ -1,6 +1,6 @@
 #include "key_bindings/key_binding_quit.h"
 
-#include "controller.h"
+#include "server.h"
 
 key_binding_quit::key_binding_quit(Server *server_)
   : KeyBinding()

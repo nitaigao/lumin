@@ -1,6 +1,6 @@
 #include "key_bindings/key_binding_maximize.h"
 
-#include "controller.h"
+#include "server.h"
 
 key_binding_maximize::key_binding_maximize(Server *server_)
   : KeyBinding()

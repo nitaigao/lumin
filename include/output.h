@@ -7,11 +7,12 @@
 #include <string>
 #include <vector>
 
-class View;
-class Server;
 struct wlr_output_damage;
 struct wlr_output_layout;
 struct wlr_renderer;
+
+class View;
+class Server;
 
 class Output {
  public:

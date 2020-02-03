@@ -1,6 +1,6 @@
 #include "key_bindings/key_binding_dock_right.h"
 
-#include "controller.h"
+#include "server.h"
 
 key_binding_dock_right::key_binding_dock_right(Server *server_)
   : KeyBinding()

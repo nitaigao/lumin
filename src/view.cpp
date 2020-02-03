@@ -2,7 +2,7 @@
 
 #include "wlroots.h"
 
-#include "controller.h"
+#include "server.h"
 #include "output.h"
 #include "cursor_mode.h"
 

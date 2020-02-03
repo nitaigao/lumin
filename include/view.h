@@ -90,17 +90,16 @@ class View {
   bool mapped;
   double x, y;
 
- protected:
+
+ private:
   WindowState state;
 
   struct {
     int width, height;
     int x, y;
   } saved_state_;
-
  public:
   Server *server;
-
  private:
   wlr_xdg_surface *xdg_surface;
 };

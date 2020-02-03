@@ -3,7 +3,7 @@
 #include "wlroots.h"
 
 #include "view.h"
-#include "controller.h"
+#include "server.h"
 
 struct render_data {
   wlr_output *output;
