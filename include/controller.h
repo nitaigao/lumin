@@ -1,5 +1,5 @@
-#ifndef CONTROLLER_H_
-#define CONTROLLER_H_
+#ifndef SERVER_H_
+#define SERVER_H_
 
 #include <xkbcommon/xkbcommon.h>
 #include <wayland-server-core.h>
@@ -25,9 +25,9 @@ class View;
 class KeyBinding;
 class Output;
 
-class Controller {
+class Server {
  public:
-  Controller();
+  Server();
 
   struct wl_display *wl_display;
   wlr_backend *backend;
@@ -113,4 +113,4 @@ class Controller {
   std::vector<std::shared_ptr<KeyBinding>> key_bindings;
 };
 
-#endif  // CONTROLLER_H_
+#endif  // SERVER_H_

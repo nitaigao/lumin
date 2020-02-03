@@ -16,15 +16,15 @@
 #include "key_bindings/key_binding_dock_left.h"
 #include "key_bindings/key_binding_maximize.h"
 
-Controller::Controller()
+Server::Server()
   : CursorMode(WM_CURSOR_NONE) {
 }
 
-void Controller::quit() {
+void Server::quit() {
   wl_display_terminate(wl_display);
 }
 
-void Controller::remove_output(const Output *output) {
+void Server::remove_output(const Output *output) {
   wlr_output_layout_remove(output_layout, output->output());
 
   auto condition = [output](auto &el) { return el.get() == output; };
@@ -34,7 +34,7 @@ void Controller::remove_output(const Output *output) {
   }
 }
 
-void Controller::damage_outputs() {
+void Server::damage_outputs() {
   for (auto &output : outputs_) {
     output->take_whole_damage();
   }
@@ -49,7 +49,7 @@ bool layout_intersects(wlr_output_layout *layout, const Output *output, const Vi
   return intersects;
 }
 
-bool Controller::handle_key(uint32_t keycode, const xkb_keysym_t *syms,
+bool Server::handle_key(uint32_t keycode, const xkb_keysym_t *syms,
   int nsyms, uint32_t modifiers, int state) {
   bool handled = false;
 
@@ -67,7 +67,7 @@ bool Controller::handle_key(uint32_t keycode, const xkb_keysym_t *syms,
 }
 
 static void new_input_notify(wl_listener *listener, void *data) {
-  Controller *server = wl_container_of(listener, server, new_input);
+  Server *server = wl_container_of(listener, server, new_input);
   auto device = static_cast<struct wlr_input_device *>(data);
 
   std::clog << device->name << std::endl;
@@ -98,7 +98,7 @@ static void new_input_notify(wl_listener *listener, void *data) {
 }
 
 static void seat_request_cursor_notify(wl_listener *listener, void *data) {
-  Controller *server = wl_container_of(listener, server, request_cursor);
+  Server *server = wl_container_of(listener, server, request_cursor);
 
   auto event = static_cast<wlr_seat_pointer_request_set_cursor_event*>(data);
   wlr_seat_client *focused_client = server->seat->pointer_state.focused_client;
@@ -109,14 +109,14 @@ static void seat_request_cursor_notify(wl_listener *listener, void *data) {
 }
 
 static void cursor_motion_notify(wl_listener *listener, void *data) {
-  Controller *server = wl_container_of(listener, server, cursor_motion);
+  Server *server = wl_container_of(listener, server, cursor_motion);
   auto event = static_cast<struct wlr_event_pointer_motion*>(data);
   wlr_cursor_move(server->cursor, event->device, event->delta_x, event->delta_y);
   server->process_cursor_motion(event->time_msec);
 }
 
 static void cursor_motion_absolute_notify(wl_listener *listener, void *data) {
-  Controller *server = wl_container_of(listener, server, cursor_motion_absolute);
+  Server *server = wl_container_of(listener, server, cursor_motion_absolute);
   auto event = static_cast<struct wlr_event_pointer_motion_absolute*>(data);
   wlr_cursor_warp_absolute(server->cursor, event->device, event->x, event->y);
 
@@ -124,7 +124,7 @@ static void cursor_motion_absolute_notify(wl_listener *listener, void *data) {
 }
 
 static void cursor_button_notify(wl_listener *listener, void *data) {
-  Controller *server = wl_container_of(listener, server, cursor_button);
+  Server *server = wl_container_of(listener, server, cursor_button);
   auto event = static_cast<struct wlr_event_pointer_button*>(data);
   wlr_seat_pointer_notify_button(server->seat, event->time_msec, event->button, event->state);
 
@@ -143,7 +143,7 @@ static void cursor_button_notify(wl_listener *listener, void *data) {
 }
 
 static void cursor_axis_notify(wl_listener *listener, void *data) {
-  Controller *server = wl_container_of(listener, server, cursor_axis);
+  Server *server = wl_container_of(listener, server, cursor_axis);
   auto event = static_cast<wlr_event_pointer_axis*>(data);
   /* Notify the client with pointer focus of the axis event. */
   wlr_seat_pointer_notify_axis(server->seat, event->time_msec, event->orientation,
@@ -151,7 +151,7 @@ static void cursor_axis_notify(wl_listener *listener, void *data) {
 }
 
 static void cursor_frame_notify(wl_listener *listener, void *data) {
-  Controller *server = wl_container_of(listener, server, cursor_frame);
+  Server *server = wl_container_of(listener, server, cursor_frame);
   wlr_seat_pointer_notify_frame(server->seat);
 }
 
@@ -167,12 +167,12 @@ static void output_destroy_notify(wl_listener *listener, void *data) {
   output->destroy();
 }
 
-void Controller::add_output(std::shared_ptr<Output>& output) {
+void Server::add_output(std::shared_ptr<Output>& output) {
   outputs_.push_back(output);
 }
 
 static void new_output_notify(wl_listener *listener, void *data) {
-  Controller *server = wl_container_of(listener, server, new_output);
+  Server *server = wl_container_of(listener, server, new_output);
   auto wlr_output = static_cast<struct wlr_output*>(data);
 
   // wlr_log(WLR_ERROR, "%s connected", wlr_output->name);
@@ -248,7 +248,7 @@ static void xdg_surface_unmap_notify(wl_listener *listener, void *data) {
 
 static void xdg_surface_destroy_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, destroy);
-  Controller *server = view->server;
+  Server *server = view->server;
 
   auto condition = [view](auto &el) { return el.get() == view; };
   auto result = std::find_if(server->views_.begin(), server->views_.end(), condition);
@@ -370,7 +370,7 @@ static void new_xdg_surface_notify(wl_listener *listener, void *data) {
     return;
   }
 
-  Controller *server = wl_container_of(listener, server, new_xdg_surface);
+  Server *server = wl_container_of(listener, server, new_xdg_surface);
 
   auto view = std::make_shared<View>(server, xdg_surface);
 
@@ -406,14 +406,14 @@ static void new_xdg_surface_notify(wl_listener *listener, void *data) {
   server->views_.push_back(view);
 }
 
-void Controller::toggle_maximize() {
+void Server::toggle_maximize() {
   if (views_.empty()) return;
 
   auto &view = views_.front();
   view->toggle_maximized();
 }
 
-void Controller::dock_left() {
+void Server::dock_left() {
   if (views_.empty()) return;
 
   auto &view = views_.front();
@@ -421,7 +421,7 @@ void Controller::dock_left() {
   damage_outputs();
 }
 
-void Controller::dock_right() {
+void Server::dock_right() {
   if (views_.empty()) return;
 
   auto &view = views_.front();
@@ -429,7 +429,7 @@ void Controller::dock_right() {
   damage_outputs();
 }
 
-void Controller::init_keybindings() {
+void Server::init_keybindings() {
   auto terminal = std::make_shared<key_binding_cmd>();
   terminal->ctrl = true;
   terminal->key = XKB_KEY_Return;
@@ -464,18 +464,18 @@ void Controller::init_keybindings() {
 }
 
 static void handle_request_set_primary_selection(struct wl_listener *listener, void *data) {
-  Controller *controller = wl_container_of(listener, controller, request_set_primary_selection);
+  Server *controller = wl_container_of(listener, controller, request_set_primary_selection);
   auto event = static_cast<wlr_seat_request_set_primary_selection_event*>(data);
   wlr_seat_set_primary_selection(controller->seat, event->source, event->serial);
 }
 
 static void handle_request_set_selection(struct wl_listener *listener, void *data) {
-  Controller *controller = wl_container_of(listener, controller, request_set_selection);
+  Server *controller = wl_container_of(listener, controller, request_set_selection);
   auto event = static_cast<wlr_seat_request_set_selection_event*>(data);
   wlr_seat_set_selection(controller->seat, event->source, event->serial);
 }
 
-void Controller::run() {
+void Server::run() {
   // wlr_log_init(WLR_DEBUG, NULL);
 
   init_keybindings();
@@ -556,7 +556,7 @@ void Controller::run() {
   wl_display_run(wl_display);
 }
 
-void Controller::destroy() {
+void Server::destroy() {
   std::clog << "Quitting!" << std::endl;
   // wlr_log(WLR_ERROR, "Quitting!");
 
@@ -573,7 +573,7 @@ void Controller::destroy() {
 
 static void lid_notify(wl_listener *listener, void *data) {
   auto event = static_cast<wlr_event_switch_toggle *>(data);
-  Controller *server = wl_container_of(listener, server, lid);
+  Server *server = wl_container_of(listener, server, lid);
 
   std::clog << "lid_notify" << std::endl;
 
@@ -592,7 +592,7 @@ static void lid_notify(wl_listener *listener, void *data) {
   }
 }
 
-void Controller::disconnect_output(const std::string& name, bool enabled) {
+void Server::disconnect_output(const std::string& name, bool enabled) {
   auto lambda = [name](auto &output) -> bool { return (name.compare(output->output_->name) == 0); };
   auto it = std::find_if(outputs_.begin(), outputs_.end(), lambda);
   if (it == outputs_.end()) {
@@ -621,7 +621,7 @@ static void keyboard_modifiers_notify(wl_listener *listener, void *data) {
 static void keyboard_key_notify(wl_listener *listener, void *data) {
   /* This event is raised when a key is pressed or released. */
   Keyboard *keyboard = wl_container_of(listener, keyboard, key);
-  Controller *server = keyboard->server;
+  Server *server = keyboard->server;
   auto event = static_cast<struct wlr_event_keyboard_key *>(data);
   wlr_seat *seat = server->seat;
 
@@ -638,7 +638,7 @@ static void keyboard_key_notify(wl_listener *listener, void *data) {
   }
 }
 
-void Controller::new_keyboard(wlr_input_device *device) {
+void Server::new_keyboard(wlr_input_device *device) {
   auto keyboard = std::make_shared<Keyboard>();
   keyboard->server = this;
   keyboard->device = device;
@@ -667,7 +667,7 @@ void Controller::new_keyboard(wlr_input_device *device) {
   keyboards_.push_back(keyboard);
 }
 
-void Controller::new_pointer(wlr_input_device *device) {
+void Server::new_pointer(wlr_input_device *device) {
   bool is_libinput = wlr_input_device_is_libinput(device);
   if (is_libinput) {
     libinput_device *libinput_device = wlr_libinput_get_device_handle(device);
@@ -680,13 +680,13 @@ void Controller::new_pointer(wlr_input_device *device) {
   wlr_cursor_attach_input_device(cursor, device);
 }
 
-void Controller::new_switch(wlr_input_device *device) {
+void Server::new_switch(wlr_input_device *device) {
   std::clog << "new_switch" << std::endl;
   lid.notify = lid_notify;
   wl_signal_add(&device->switch_device->events.toggle, &lid);
 }
 
-View* Controller::desktop_view_at(double lx, double ly,
+View* Server::desktop_view_at(double lx, double ly,
   wlr_surface **surface, double *sx, double *sy) {
   for (auto &view : views_) {
     if (view->view_at(lx, ly, surface, sx, sy)) {
@@ -696,12 +696,12 @@ View* Controller::desktop_view_at(double lx, double ly,
   return NULL;
 }
 
-void Controller::process_cursor_move(uint32_t time) {
+void Server::process_cursor_move(uint32_t time) {
   grabbed_view->x = cursor->x - grab_x;
   grabbed_view->y = cursor->y - grab_y;
 }
 
-void Controller::process_cursor_resize(uint32_t time) {
+void Server::process_cursor_resize(uint32_t time) {
   View *view = grabbed_view;
 
   double dx = cursor->x - grab_cursor_x;
@@ -740,7 +740,7 @@ void Controller::process_cursor_resize(uint32_t time) {
   view->resize(width, height);
 }
 
-void Controller::process_cursor_motion(uint32_t time) {
+void Server::process_cursor_motion(uint32_t time) {
   /* If the mode is non-passthrough, delegate to those functions. */
   if (CursorMode == WM_CURSOR_MOVE) {
     process_cursor_move(time);
@@ -788,7 +788,7 @@ void Controller::process_cursor_motion(uint32_t time) {
   }
 }
 
-View* Controller::view_from_surface(wlr_surface *surface) {
+View* Server::view_from_surface(wlr_surface *surface) {
   for (auto &view : views_) {
     if (view->surface() == surface) {
       return view.get();
@@ -797,7 +797,7 @@ View* Controller::view_from_surface(wlr_surface *surface) {
   return NULL;
 }
 
-void Controller::position_view(View *view) {
+void Server::position_view(View *view) {
   bool is_child = view->is_child();
 
   wlr_box geometry;
@@ -825,7 +825,7 @@ void Controller::position_view(View *view) {
   view->y = parent_view->y + inside_y;
 }
 
-void Controller::focus_top() {
+void Server::focus_top() {
   for (auto &view : views_) {
     if (view->mapped) {
       view->focus();

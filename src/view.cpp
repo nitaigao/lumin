@@ -9,7 +9,7 @@
 const int DEFAULT_MINIMUM_WIDTH = 800;
 const int DEFAULT_MINIMUM_HEIGHT = 600;
 
-View::View(Controller *server_, wlr_xdg_surface *surface)
+View::View(Server *server_, wlr_xdg_surface *surface)
   : mapped(false)
   , x(0)
   , y(0)

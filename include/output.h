@@ -4,7 +4,7 @@
 #include <wayland-server-core.h>
 
 class View;
-class Controller;
+class Server;
 struct wlr_output_damage;
 struct wlr_output_layout;
 
@@ -12,7 +12,7 @@ class Output {
  public:
   ~Output();
 
-  explicit Output(Controller *server,
+  explicit Output(Server *server,
                   struct wlr_output *output,
                   wlr_output_damage *damage,
                   wlr_output_layout *layout);
@@ -42,7 +42,7 @@ class Output {
   struct wlr_output *output_;
 
  private:
-  Controller *server_;
+  Server *server_;
   wlr_output_damage *damage_;
   wlr_output_layout *layout_;
 };

@@ -2,7 +2,7 @@
 
 #include "controller.h"
 
-key_binding_quit::key_binding_quit(Controller *server_)
+key_binding_quit::key_binding_quit(Server *server_)
   : KeyBinding()
   , server(server_)
   { }

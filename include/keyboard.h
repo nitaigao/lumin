@@ -4,11 +4,11 @@
 #include <wayland-server-core.h>
 
 struct wlr_input_device;
-class Controller;
+class Server;
 
 struct Keyboard {
   wl_list link;
-  Controller *server;
+  Server *server;
   wlr_input_device *device;
 
   wl_listener modifiers;

@@ -11,7 +11,7 @@ struct wlr_surface;
 struct wlr_box;
 struct wlr_output;
 
-class Controller;
+class Server;
 
 enum WindowState {
   WM_WINDOW_STATE_WINDOW = 0,
@@ -24,7 +24,7 @@ typedef void (*wlr_surface_iterator_func_t)(struct wlr_surface *surface,
 
 class View {
  public:
-  View(Controller *server, wlr_xdg_surface *surface);
+  View(Server *server, wlr_xdg_surface *surface);
 
  public:
   void map_view();
@@ -96,7 +96,7 @@ class View {
   int old_x, old_y;
 
  public:
-  Controller *server;
+  Server *server;
 
 //  private:
   wlr_xdg_surface *xdg_surface;
@@ -104,7 +104,7 @@ class View {
 
 struct Subsurface {
   wl_listener commit;
-  Controller *server;
+  Server *server;
 };
 
 struct Popup {
@@ -112,7 +112,7 @@ struct Popup {
   wl_listener destroy;
   wl_listener new_subsurface;
   wl_listener new_popup;
-  Controller *server;
+  Server *server;
 };
 
 #endif  // VIEW_H_

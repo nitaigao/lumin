@@ -1,7 +1,7 @@
 #include "controller.h"
 
 int main(int argc, char *argv[]) {
-  Controller server;
+  Server server;
   server.run();
   server.destroy();
 

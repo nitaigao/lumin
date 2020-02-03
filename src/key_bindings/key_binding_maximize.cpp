@@ -2,7 +2,7 @@
 
 #include "controller.h"
 
-key_binding_maximize::key_binding_maximize(Controller *server_)
+key_binding_maximize::key_binding_maximize(Server *server_)
   : KeyBinding()
   , server(server_)
   { }

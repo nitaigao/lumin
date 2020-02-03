@@ -2,7 +2,7 @@
 
 #include "controller.h"
 
-key_binding_dock_left::key_binding_dock_left(Controller *server_)
+key_binding_dock_left::key_binding_dock_left(Server *server_)
   : KeyBinding()
   , server(server_)
   { }

@@ -26,7 +26,7 @@ Output::~Output() {
   wl_list_remove(&destroy_.link);
 }
 
-Output::Output(Controller *server, struct wlr_output *output,
+Output::Output(Server *server, struct wlr_output *output,
   wlr_output_damage *damage, wlr_output_layout *layout)
   : output_(output)
   , server_(server)
