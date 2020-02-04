@@ -117,15 +117,10 @@ bool View::view_at(double lx, double ly, wlr_surface **surface, double *sx, doub
 
 void View::map_view() {
   mapped = true;
-  server->position_view(this);
-  server->focus_view(this);
-  server->damage_outputs();
 }
 
 void View::unmap_view() {
   mapped = false;
-  server->focus_top();
-  server->damage_outputs();
 }
 
 void View::for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const {
@@ -154,8 +149,8 @@ void View::geometry(struct wlr_box *box) const {
   wlr_box_intersection(&xdg_surface->geometry, box, box);
 }
 
-const wlr_surface* View::surface() const {
-  return xdg_surface->surface;
+bool View::has_surface(const wlr_surface *surface) const {
+  return xdg_surface->surface == surface;
 }
 
 void View::save_geometry() {
@@ -457,9 +452,14 @@ void View::new_popup_notify(wl_listener *listener, void *data) {
 void View::xdg_surface_map_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, map);
   view->map_view();
+  view->server->position_view(view);
+  view->server->focus_view(view);
+  view->server->damage_outputs();
 }
 
 void View::xdg_surface_unmap_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, unmap);
   view->unmap_view();
+  view->server->focus_top();
+  view->server->damage_outputs();
 }

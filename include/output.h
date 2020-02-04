@@ -36,12 +36,16 @@ class Output {
  public:
   bool is_named(const std::string& name) const;
   void enable(bool enabled);
-  void destroy();
+
   void render(const std::vector<std::shared_ptr<View>>& views) const;
+
   void take_damage(const View *view);
   void take_whole_damage();
 
-  void frame();
+ private:
+
+  static void output_frame_notify(wl_listener *listener, void *data);
+  static void output_destroy_notify(wl_listener *listener, void *data);
 
  private:
   struct wlr_output *output_;

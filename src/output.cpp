@@ -36,10 +36,12 @@ Output::Output(Server *server,
   , server_(server)
   , damage_(damage)
   , layout_(layout)
-  { }
+{
+  frame_.notify = Output::output_frame_notify;
+  wl_signal_add(&damage->events.frame, &frame_);
 
-void Output::destroy() {
-  server_->remove_output(this);
+  destroy_.notify = Output::output_destroy_notify;
+  wl_signal_add(&output_->events.destroy, &destroy_);
 }
 
 static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
@@ -143,10 +145,6 @@ void Output::enable(bool enabled) {
   }
 }
 
-void Output::frame() {
-  server_->render_output(this);
-}
-
 void Output::render(const std::vector<std::shared_ptr<View>>& views) const {
   struct timespec now;
   clock_gettime(CLOCK_MONOTONIC, &now);
@@ -214,4 +212,14 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const {
   wlr_renderer_end(renderer_);
 
   pixman_region32_fini(&frame_damage);
+}
+
+void Output::output_frame_notify(wl_listener *listener, void *data) {
+  Output *output = wl_container_of(listener, output, frame_);
+  output->server_->render_output(output);
+}
+
+void Output::output_destroy_notify(wl_listener *listener, void *data) {
+  Output *output = wl_container_of(listener, output, destroy_);
+  output->server_->remove_output(output);
 }

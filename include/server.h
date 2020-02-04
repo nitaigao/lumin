@@ -17,7 +17,6 @@ struct wlr_renderer;
 struct wlr_seat;
 struct wlr_input_device;
 struct wlr_surface;
-struct wlr_xwayland;
 struct wlr_backend;
 struct wlr_xdg_shell;
 struct wlr_cursor;
@@ -40,24 +39,32 @@ class Server {
   Server();
 
  public:
-  wl_listener new_input;
-  wl_listener new_xdg_surface;
-  wl_listener new_xwayland_surface;
-  wl_listener cursor_motion;
-  wl_listener cursor_motion_absolute;
-  wl_listener cursor_button;
-  wl_listener cursor_axis;
-  wl_listener cursor_frame;
-  wl_listener request_cursor;
-  wl_listener request_set_primary_selection;
-  wl_listener request_set_selection;
-  wl_listener lid;
-  wl_listener output_frame;
-  wl_listener new_output;
+  void focus_top();
+  void focus_view(View *view);
 
-  wl_listener view_request_maximized;
+  void run();
+  void destroy();
+  void quit();
+
+  void add_output(const std::shared_ptr<Output>& output);
+  void disconnect_output(const std::string& name, bool enabled);
+  void render_output(const Output *output) const;
+  void remove_output(const Output *output);
+
+  void dock_right();
+  void dock_left();
+  void toggle_maximize();
+
+  void damage_outputs();
 
  public:
+  View* view_from_surface(wlr_surface *surface);
+  void maximize_view(View *view);
+  void begin_interactive(View *view, CursorMode mode, unsigned int edges);
+  void destroy_view(View *view);
+  void position_view(View* view);
+
+ private:
   void new_keyboard(wlr_input_device *device);
   void new_pointer(wlr_input_device *device);
   void new_switch(wlr_input_device *device);
@@ -66,64 +73,49 @@ class Server {
   void process_cursor_resize(uint32_t time);
   void process_cursor_motion(uint32_t time);
 
-  void render_output(const Output *output) const;
-
-  View* view_from_surface(wlr_surface *surface);
-
-  void position_view(View* view);
-
-  void focus_top();
-  void focus_view(View *view);
-
-  void quit();
-
-  void run();
-  void destroy();
-
-  void disconnect_output(const std::string& name, bool enabled);
-
-  void dock_right();
-  void dock_left();
-  void toggle_maximize();
-
-  void remove_output(const Output *output);
-
- public:  // Signals
-  void maximize_view(View *view);
-  void begin_interactive(View *view, CursorMode mode, unsigned int edges);
-  void destroy_view(View *view);
-  void toggle_maximize_view(View *view);
-
- public:  // Events
-  void on_button(wlr_event_pointer_button *event);
-  void on_set_cursor(wlr_seat_pointer_request_set_cursor_event *event);
-  void on_axis(wlr_event_pointer_axis *event);
-  void on_cursor_frame();
-  void on_set_primary_selection(wlr_seat_request_set_primary_selection_event *event);
-  void on_set_selection(wlr_seat_request_set_selection_event *event);
-  void on_new_xdg_surface(wlr_xdg_surface *xdg_surface);
-  void on_new_output(wlr_output* output);
-  void on_cursor_motion(wlr_event_pointer_motion* event);
-
- public:  // Handlers
-  static void cursor_motion_absolute_notify(wl_listener *listener, void *data);
-  static void cursor_motion_notify(wl_listener *listener, void *data);
-  static void new_xdg_surface_notify(wl_listener *listener, void *data);
-
-  static void on_view_request_maxmized(wl_listener *listener, void *data);
-
   bool handle_key(uint32_t keycode, const xkb_keysym_t *syms, int nsyms,
     uint32_t modifiers, int state);
 
-  void add_output(const std::shared_ptr<Output>& output);
-
- public:
-  void damage_outputs();
-
- private:
   View* desktop_view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
 
   void init_keybindings();
+
+ private:
+  wl_listener new_input;
+  wl_listener new_output;
+  wl_listener new_surface;
+
+  wl_listener cursor_motion;
+  wl_listener cursor_motion_absolute;
+  wl_listener cursor_button;
+  wl_listener cursor_axis;
+  wl_listener cursor_frame;
+
+  wl_listener request_cursor;
+  wl_listener request_set_primary_selection;
+  wl_listener request_set_selection;
+
+  wl_listener lid;
+
+ private:
+  static void cursor_motion_absolute_notify(wl_listener *listener, void *data);
+  static void cursor_motion_notify(wl_listener *listener, void *data);
+  static void cursor_button_notify(wl_listener *listener, void *data);
+  static void cursor_axis_notify(wl_listener *listener, void *data);
+  static void cursor_frame_notify(wl_listener *listener, void *data);
+
+  static void new_input_notify(wl_listener *listener, void *data);
+  static void new_output_notify(wl_listener *listener, void *data);
+  static void new_surface_notify(wl_listener *listener, void *data);
+
+  static void keyboard_modifiers_notify(wl_listener *listener, void *data);
+  static void keyboard_key_notify(wl_listener *listener, void *data);
+
+  static void handle_request_set_primary_selection(struct wl_listener *listener, void *data);
+  static void handle_request_set_selection(struct wl_listener *listener, void *data);
+
+  static void lid_notify(wl_listener *listener, void *data);
+  static void seat_request_cursor_notify(wl_listener *listener, void *data);
 
  private:
   std::vector<std::shared_ptr<KeyBinding>> key_bindings;

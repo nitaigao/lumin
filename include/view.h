@@ -54,23 +54,26 @@ class View {
   bool is_child() const;
   View* parent() const;
 
-  const wlr_surface* surface() const;
-
   bool view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
 
+  bool has_surface(const wlr_surface *surface) const;
   void for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const;
   wlr_surface* surface_at(double sx, double sy, double *sub_x, double *sub_y);
 
  private:
   void save_geometry();
+  void grab();
   void tile(int edges);
   bool tiled() const;
-  void grab();
   bool windowed() const;
   void map_view();
   void unmap_view();
   void activate();
   void notify_keyboard_enter(wlr_seat *seat);
+
+ public:
+  bool mapped;
+  double x, y;
 
  public:
   wl_listener map;
@@ -82,10 +85,6 @@ class View {
   wl_listener request_maximize;
   wl_listener new_subsurface;
   wl_listener new_popup;
-
- public:
-  bool mapped;
-  double x, y;
 
  private:
   static void xdg_toplevel_request_move_notify(wl_listener *listener, void *data);
@@ -110,17 +109,14 @@ class View {
  private:
   WindowState state;
 
-  void on_request_move();
-
   struct {
     int width, height;
     int x, y;
   } saved_state_;
 
- public:
+ private:
   Server *server;
 
- private:
   wlr_xdg_surface *xdg_surface;
   wlr_cursor *cursor_;
   wlr_output_layout *layout_;
