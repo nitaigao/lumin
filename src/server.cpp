@@ -176,7 +176,7 @@ void Server::add_output(const std::shared_ptr<Output>& output) {
 void Server::begin_interactive(View *view, CursorMode mode, unsigned int edges) {
   wlr_surface *focused_surface = seat_->pointer_state.focused_surface;
 
-  if (view->has_surface(focused_surface)) {
+  if (!view->has_surface(focused_surface)) {
     return;
   }
 
