@@ -9,7 +9,7 @@
 const int DEFAULT_MINIMUM_WIDTH = 800;
 const int DEFAULT_MINIMUM_HEIGHT = 600;
 
-View::View(Server *server_, wlr_xdg_surface *surface)
+View::View(Server *server_, wlr_xdg_surface *surface, wlr_cursor *cursor, wlr_output_layout *layout, wlr_seat *seat)
   : mapped(false)
   , x(0)
   , y(0)
@@ -21,10 +21,38 @@ View::View(Server *server_, wlr_xdg_surface *surface)
     .y = 0 })
   , server(server_)
   , xdg_surface(surface)
-{ }
+  , cursor_(cursor)
+  , layout_(layout)
+  , seat_(seat)
+{
+  map.notify = View::xdg_surface_map_notify;
+  wl_signal_add(&xdg_surface->events.map, &map);
 
-void View::destroyed() {
-  server->destroy_view(this);
+  unmap.notify = View::xdg_surface_unmap_notify;
+  wl_signal_add(&xdg_surface->events.unmap, &unmap);
+
+  destroy.notify = View::xdg_surface_destroy_notify;
+  wl_signal_add(&xdg_surface->events.destroy, &destroy);
+
+  commit.notify = View::xdg_surface_commit_notify;
+  wl_signal_add(&xdg_surface->surface->events.commit, &commit);
+
+  new_subsurface.notify = View::new_subsurface_notify;
+  wl_signal_add(&xdg_surface->surface->events.new_subsurface, &new_subsurface);
+
+  new_popup.notify = View::new_popup_notify;
+  wl_signal_add(&xdg_surface->events.new_popup, &new_popup);
+
+  struct wlr_xdg_toplevel *toplevel = xdg_surface->toplevel;
+
+  request_move.notify = View::xdg_toplevel_request_move_notify;
+  wl_signal_add(&toplevel->events.request_move, &request_move);
+
+  request_resize.notify = View::xdg_toplevel_request_resize_notify;
+  wl_signal_add(&toplevel->events.request_resize, &request_resize);
+
+  request_maximize.notify = View::xdg_toplevel_request_maximize_notify;
+  wl_signal_add(&toplevel->events.request_maximize, &request_maximize);
 }
 
 uint View::min_width() const {
@@ -87,24 +115,16 @@ bool View::view_at(double lx, double ly, wlr_surface **surface, double *sx, doub
   return false;
 }
 
-void View::begin_interactive(enum CursorMode mode, uint32_t edges) {
-  server->begin_interactive(this, mode, edges);
-}
-
 void View::map_view() {
   mapped = true;
   server->position_view(this);
-  focus();
+  server->focus_view(this);
   server->damage_outputs();
 }
 
 void View::unmap_view() {
   mapped = false;
   server->focus_top();
-  server->damage_outputs();
-}
-
-void View::committed() {
   server->damage_outputs();
 }
 
@@ -116,7 +136,8 @@ void View::for_each_surface(wlr_surface_iterator_func_t iterator, void *data) co
 }
 
 void View::focus() {
-  server->focus_view(this);
+  activate();
+  notify_keyboard_enter(seat_);
 }
 
 void View::unfocus() {
@@ -152,6 +173,53 @@ void View::save_geometry() {
   }
 }
 
+void View::tile_left() {
+  tile(WLR_EDGE_LEFT);
+
+  wlr_box box;
+  extents(&box);
+
+  int corner_x = x + box.x + (box.width / 2.0f);
+  int corner_y = y + box.y + (box.height / 2.0f);
+  wlr_output* output = wlr_output_layout_output_at(layout_, corner_x, corner_y);
+
+  int width = (output->width / 2.0f) / output->scale;
+  int height = output->height / output->scale;
+  resize(width, height);
+
+  x = 0;
+  y = 0;
+
+  wlr_output_layout_output_coords(layout_, output, &x, &y);
+
+  server->damage_outputs();
+}
+
+void View::tile_right() {
+  tile(WLR_EDGE_RIGHT);
+
+  wlr_box box;
+  extents(&box);
+
+  int corner_x = x + box.x + (box.width / 2.0f);
+  int corner_y = y + box.y + (box.height / 2.0f);
+  wlr_output* output = wlr_output_layout_output_at(layout_, corner_x, corner_y);
+
+  y = 0;
+  x = 0;
+
+  wlr_output_layout_output_coords(layout_, output, &x, &y);
+
+  // middle of the screen
+  x += (output->width / 2.0f) / output->scale;
+
+  int width = (output->width / 2.0f) / output->scale;
+  int height = output->height / output->scale;
+
+  resize(width, height);
+  server->damage_outputs();
+}
+
 void View::tile(int edges) {
   if (tiled()) {
     return;
@@ -173,10 +241,6 @@ void View::maximize() {
     return;
   }
 
-  server->maximize_view(this);
-}
-
-void View::maxi() {
   save_geometry();
 
   bool is_tiled = tiled();
@@ -186,10 +250,19 @@ void View::maxi() {
 
   wlr_xdg_toplevel_set_maximized(xdg_surface, true);
 
+  wlr_output* output = wlr_output_layout_output_at(layout_,
+    cursor_->x, cursor_->y);
+
+  wlr_box *output_box = wlr_output_layout_get_box(layout_, output);
+  resize(output_box->width, output_box->height);
+
+  x = output_box->x;
+  y = output_box->y;
+
   state = WM_WINDOW_STATE_MAXIMIZED;
 }
 
-void View::grabi(int grab_x) {
+void View::grab() {
   if (windowed()) {
     return;
   }
@@ -207,17 +280,13 @@ void View::grabi(int grab_x) {
   wlr_box geometry;
   extents(&geometry);
 
-  float surface_x = grab_x - x;
+  float surface_x = cursor_->x - x;
   float x_percentage = surface_x / geometry.width;
   float desired_x = saved_state_.width * x_percentage;
-  x = grab_x - desired_x;
+  x = cursor_->x - desired_x;
 
   server->damage_outputs();
   state = WM_WINDOW_STATE_WINDOW;
-}
-
-void View::grab() {
-  server->view_grabbed(this);
 }
 
 void View::window() {
@@ -271,4 +340,126 @@ View* View::parent() const {
 bool View::is_child() const {
   bool is_child = xdg_surface->toplevel->parent != NULL;
   return is_child;
+}
+
+void View::xdg_toplevel_request_move_notify(wl_listener *listener, void *data) {
+  View *view = wl_container_of(listener, view, request_move);
+  view->grab();
+  view->server->begin_interactive(view, WM_CURSOR_MOVE, WLR_EDGE_NONE);
+}
+
+void View::xdg_toplevel_request_resize_notify(wl_listener *listener, void *data) {
+  auto event = static_cast<wlr_xdg_toplevel_resize_event*>(data);
+  View *view = wl_container_of(listener, view, request_resize);
+  view->server->begin_interactive(view, WM_CURSOR_RESIZE, event->edges);
+}
+
+void View::xdg_toplevel_request_maximize_notify(wl_listener *listener, void *data) {
+  View *view = wl_container_of(listener, view, request_maximize);
+  view->toggle_maximized();
+}
+
+void View::xdg_surface_destroy_notify(wl_listener *listener, void *data) {
+  View *view = wl_container_of(listener, view, destroy);
+  view->server->destroy_view(view);
+}
+
+void View::xdg_popup_subsurface_commit_notify(wl_listener *listener, void *data) {
+  Subsurface *subsurface = wl_container_of(listener, subsurface, commit);
+  subsurface->server->damage_outputs();
+}
+
+void View::xdg_subsurface_commit_notify(wl_listener *listener, void *data) {
+  Subsurface *subsurface = wl_container_of(listener, subsurface, commit);
+  subsurface->server->damage_outputs();
+}
+
+void View::xdg_popup_destroy_notify(wl_listener *listener, void *data) {
+  Popup *popup = wl_container_of(listener, popup, destroy);
+  popup->server->damage_outputs();
+}
+
+void View::xdg_popup_commit_notify(wl_listener *listener, void *data) {
+  Popup *popup = wl_container_of(listener, popup, commit);
+  popup->server->damage_outputs();
+}
+
+void View::xdg_surface_commit_notify(wl_listener *listener, void *data) {
+  View *view = wl_container_of(listener, view, commit);
+  if (view->mapped) {
+    view->server->damage_outputs();
+  }
+}
+
+void View::new_popup_subsurface_notify(wl_listener *listener, void *data) {
+  auto *wlr_subsurface_ = static_cast<wlr_subsurface*>(data);
+  Popup *popup = wl_container_of(listener, popup, new_subsurface);
+
+  auto subsurface = new Subsurface();
+  subsurface->server = popup->server;
+
+  subsurface->commit.notify = xdg_popup_subsurface_commit_notify;
+  wl_signal_add(&wlr_subsurface_->surface->events.commit, &subsurface->commit);
+}
+
+void View::new_subsurface_notify(wl_listener *listener, void *data) {
+  auto *wlr_subsurface_ = static_cast<wlr_subsurface*>(data);
+  View *view = wl_container_of(listener, view, new_subsurface);
+
+  auto subsurface = new Subsurface();
+  subsurface->server = view->server;
+
+  subsurface->commit.notify = xdg_subsurface_commit_notify;
+  wl_signal_add(&wlr_subsurface_->surface->events.commit, &subsurface->commit);
+}
+
+void View::new_popup_popup_notify(wl_listener *listener, void *data) {
+  auto *xdg_popup = static_cast<wlr_xdg_popup*>(data);
+  Popup *parent_popup = wl_container_of(listener, parent_popup, new_popup);
+
+  auto popup = new Popup();
+  popup->server = parent_popup->server;
+
+  popup->commit.notify = xdg_popup_commit_notify;
+  wl_signal_add(&xdg_popup->base->surface->events.commit, &popup->commit);
+
+  popup->destroy.notify = xdg_popup_destroy_notify;
+  wl_signal_add(&xdg_popup->base->surface->events.destroy, &popup->destroy);
+
+  popup->new_subsurface.notify = new_popup_subsurface_notify;
+  wl_signal_add(&xdg_popup->base->surface->events.new_subsurface, &popup->new_subsurface);
+
+  popup->new_popup.notify = new_popup_popup_notify;
+  wl_signal_add(&xdg_popup->base->events.new_popup, &popup->new_popup);
+}
+
+void View::new_popup_notify(wl_listener *listener, void *data) {
+  auto *xdg_popup = static_cast<wlr_xdg_popup*>(data);
+
+  View *view = wl_container_of(listener, view, new_popup);
+
+  auto popup = new Popup();
+  popup->server = view->server;
+
+  popup->commit.notify = xdg_popup_commit_notify;
+  wl_signal_add(&xdg_popup->base->surface->events.commit, &popup->commit);
+
+  popup->destroy.notify = xdg_popup_destroy_notify;
+  wl_signal_add(&xdg_popup->base->surface->events.destroy, &popup->destroy);
+
+  popup->new_subsurface.notify = new_popup_subsurface_notify;
+  wl_signal_add(&xdg_popup->base->surface->events.new_subsurface, &popup->new_subsurface);
+
+  popup->new_popup.notify = new_popup_popup_notify;
+  wl_signal_add(&xdg_popup->base->events.new_popup, &popup->new_popup);
+}
+
+void View::xdg_surface_map_notify(wl_listener *listener, void *data) {
+  View *view = wl_container_of(listener, view, map);
+  view->map_view();
+}
+
+void View::xdg_surface_unmap_notify(wl_listener *listener, void *data) {
+  View *view = wl_container_of(listener, view, unmap);
+  view->unmap_view();
 }

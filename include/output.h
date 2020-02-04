@@ -34,10 +34,6 @@ class Output {
   }
 
  public:
-  wl_listener frame_;
-  wl_listener destroy_;
-
- public:
   bool is_named(const std::string& name) const;
   void enable(bool enabled);
   void destroy();
@@ -54,6 +50,10 @@ class Output {
   Server *server_;
   wlr_output_damage *damage_;
   wlr_output_layout *layout_;
+
+ public:
+  wl_listener frame_;
+  wl_listener destroy_;
 };
 
 #endif  // OUTPUT_H_

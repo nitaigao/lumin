@@ -55,6 +55,8 @@ class Server {
   wl_listener output_frame;
   wl_listener new_output;
 
+  wl_listener view_request_maximized;
+
  public:
   void new_keyboard(wlr_input_device *device);
   void new_pointer(wlr_input_device *device);
@@ -86,13 +88,13 @@ class Server {
 
   void remove_output(const Output *output);
 
- public: // Signals
-   void maximize_view(View *view);
-   void begin_interactive(View *view, CursorMode mode, unsigned int edges);
-   void destroy_view(View *view);
-   void view_grabbed(View *view);
+ public:  // Signals
+  void maximize_view(View *view);
+  void begin_interactive(View *view, CursorMode mode, unsigned int edges);
+  void destroy_view(View *view);
+  void toggle_maximize_view(View *view);
 
- public: // Events
+ public:  // Events
   void on_button(wlr_event_pointer_button *event);
   void on_set_cursor(wlr_seat_pointer_request_set_cursor_event *event);
   void on_axis(wlr_event_pointer_axis *event);
@@ -103,8 +105,12 @@ class Server {
   void on_new_output(wlr_output* output);
   void on_cursor_motion(wlr_event_pointer_motion* event);
 
+ public:  // Handlers
   static void cursor_motion_absolute_notify(wl_listener *listener, void *data);
   static void cursor_motion_notify(wl_listener *listener, void *data);
+  static void new_xdg_surface_notify(wl_listener *listener, void *data);
+
+  static void on_view_request_maxmized(wl_listener *listener, void *data);
 
   bool handle_key(uint32_t keycode, const xkb_keysym_t *syms, int nsyms,
     uint32_t modifiers, int state);

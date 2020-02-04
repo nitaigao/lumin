@@ -11,6 +11,8 @@ struct wlr_surface;
 struct wlr_box;
 struct wlr_output;
 struct wlr_seat;
+struct wlr_cursor;
+struct wlr_output_layout;
 
 class Server;
 
@@ -25,29 +27,23 @@ typedef void (*wlr_surface_iterator_func_t)(struct wlr_surface *surface,
 
 class View {
  public:
-  View(Server *server, wlr_xdg_surface *surface);
+  View(Server *server, wlr_xdg_surface *surface, wlr_cursor *cursor,
+     wlr_output_layout *layout, wlr_seat *seat);
 
  public:
-  void destroyed();
-
-  void map_view();
-  void unmap_view();
+  void geometry(wlr_box *box) const;
+  void extents(wlr_box *box) const;
 
   void resize(double width, double height);
 
   void toggle_maximized();
   void maximize();
   bool maximized() const;
-  void maxi();
 
-  void tile(int edges);
-  bool tiled() const;
-
-  void grab();
-  void grabi(int cursor_x);
+  void tile_left();
+  void tile_right();
 
   void window();
-  bool windowed() const;
 
   void focus();
   void unfocus();
@@ -58,25 +54,23 @@ class View {
   bool is_child() const;
   View* parent() const;
 
-  void geometry(wlr_box *box) const;
-  void extents(wlr_box *box) const;
-
   const wlr_surface* surface() const;
 
-  void focus_view(wlr_surface *surface);
   bool view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
-
-  void committed();
-  void begin_interactive(enum CursorMode mode, uint32_t edges);
-  void notify_keyboard_enter(wlr_seat *seat);
 
   void for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const;
   wlr_surface* surface_at(double sx, double sy, double *sub_x, double *sub_y);
 
-  void activate();
-
  private:
   void save_geometry();
+  void tile(int edges);
+  bool tiled() const;
+  void grab();
+  bool windowed() const;
+  void map_view();
+  void unmap_view();
+  void activate();
+  void notify_keyboard_enter(wlr_seat *seat);
 
  public:
   wl_listener map;
@@ -93,18 +87,44 @@ class View {
   bool mapped;
   double x, y;
 
+ private:
+  static void xdg_toplevel_request_move_notify(wl_listener *listener, void *data);
+  static void xdg_toplevel_request_resize_notify(wl_listener *listener, void *data);
+  static void xdg_toplevel_request_maximize_notify(wl_listener *listener, void *data);
+
+  static void xdg_surface_destroy_notify(wl_listener *listener, void *data);
+  static void xdg_popup_subsurface_commit_notify(wl_listener *listener, void *data);
+  static void xdg_subsurface_commit_notify(wl_listener *listener, void *data);
+  static void xdg_popup_destroy_notify(wl_listener *listener, void *data);
+  static void xdg_popup_commit_notify(wl_listener *listener, void *data);
+  static void xdg_surface_commit_notify(wl_listener *listener, void *data);
+
+  static void new_popup_subsurface_notify(wl_listener *listener, void *data);
+  static void new_subsurface_notify(wl_listener *listener, void *data);
+  static void new_popup_popup_notify(wl_listener *listener, void *data);
+  static void new_popup_notify(wl_listener *listener, void *data);
+
+  static void xdg_surface_map_notify(wl_listener *listener, void *data);
+  static void xdg_surface_unmap_notify(wl_listener *listener, void *data);
 
  private:
   WindowState state;
+
+  void on_request_move();
 
   struct {
     int width, height;
     int x, y;
   } saved_state_;
+
  public:
   Server *server;
+
  private:
   wlr_xdg_surface *xdg_surface;
+  wlr_cursor *cursor_;
+  wlr_output_layout *layout_;
+  wlr_seat *seat_;
 };
 
 struct Subsurface {
