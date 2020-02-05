@@ -12,6 +12,7 @@
 #include "output.h"
 #include "keyboard.h"
 #include "view.h"
+#include "settings.h"
 
 struct wlr_renderer;
 struct wlr_seat;
@@ -33,6 +34,7 @@ struct wlr_output;
 class View;
 class KeyBinding;
 class Output;
+class Settings;
 
 class Server {
  public:
@@ -143,6 +145,8 @@ class Server {
   wlr_renderer *renderer_;
   wlr_xcursor_manager *cursor_manager_;
   wlr_cursor *cursor_;
+
+  std::unique_ptr<Settings> settings_;
 };
 
 #endif  // SERVER_H_

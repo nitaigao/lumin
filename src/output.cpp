@@ -1,5 +1,7 @@
 #include "output.h"
 
+#include <sstream>
+
 #include "wlroots.h"
 
 #include "view.h"
@@ -31,7 +33,7 @@ Output::Output(Server *server,
   wlr_renderer *renderer,
   wlr_output_damage *damage,
   wlr_output_layout *layout)
-  : output_(output)
+  : wlr_output(output)
   , renderer_(renderer)
   , server_(server)
   , damage_(damage)
@@ -41,7 +43,22 @@ Output::Output(Server *server,
   wl_signal_add(&damage->events.frame, &frame_);
 
   destroy_.notify = Output::output_destroy_notify;
-  wl_signal_add(&output_->events.destroy, &destroy_);
+  wl_signal_add(&wlr_output->events.destroy, &destroy_);
+}
+
+std::string Output::id() const {
+  std::stringstream id;
+  id
+    << wlr_output->make << " "
+    << wlr_output->model << " "
+    << wlr_output->phys_width << " "
+    << wlr_output->phys_height << " "
+    << wlr_output->serial;
+
+  std::hash<std::string> hasher;
+  size_t hash = hasher(id.str());
+
+  return std::to_string(hash);
 }
 
 static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
@@ -117,7 +134,7 @@ void surface_damage_output(wlr_surface *surface, int sx, int sy, void *data) {
 }
 
 bool Output::is_named(const std::string& name) const {
-  bool match = name.compare(output_->name) == 0;
+  bool match = name.compare(wlr_output->name) == 0;
   return match;
 }
 
@@ -128,28 +145,22 @@ void Output::take_whole_damage() {
 void Output::take_damage(const View *view) {
   damage_iterator_data data = {
     .view = view,
-    .output = output_,
+    .output = wlr_output,
     .output_damage = damage_,
     .output_layout = layout_
   };
   view->for_each_surface(surface_damage_output, &data);
 }
 
-void Output::enable(bool enabled) {
-  wlr_output_enable(output_, enabled);
-  if (enabled) {
-    wlr_output_layout_add_auto(layout_, output_);
-    wlr_output_set_scale(output_, output_->scale);
-  } else {
-    wlr_output_layout_remove(layout_, output_);
-  }
+void Output::set_enabled(bool enabled) {
+  wlr_output_enable(wlr_output, enabled);
 }
 
 void Output::render(const std::vector<std::shared_ptr<View>>& views) const {
   struct timespec now;
   clock_gettime(CLOCK_MONOTONIC, &now);
 
-  if (!wlr_output_attach_render(output_, NULL)) {
+  if (!wlr_output_attach_render(wlr_output, NULL)) {
     return;
   }
 
@@ -167,7 +178,7 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const {
   // wlr_output_effective_resolution(wlr_output, &width, &height);
 
   /* Begin the renderer (calls glViewport and some other GL sanity checks) */
-  wlr_renderer_begin(renderer_, output_->width, output_->height);
+  wlr_renderer_begin(renderer_, wlr_output->width, wlr_output->height);
 
   float color[4] = {0.0, 0.0, 0.0, 1.0};
   wlr_renderer_clear(renderer_, color);
@@ -179,7 +190,7 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const {
     }
 
     struct render_data render_data = {
-      .output = output_,
+      .output = wlr_output,
       .renderer = renderer_,
       .view = view.get(),
       .when = &now,
@@ -199,7 +210,7 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const {
    * reason, wlroots provides a software fallback, which we ask it to render
    * here. wlr_cursor handles configuring hardware vs software cursors for you,
    * and this function is a no-op when hardware cursors are in use. */
-  wlr_output_render_software_cursors(output_, NULL);
+  wlr_output_render_software_cursors(wlr_output, NULL);
 
   /* Conclude rendering and swap the buffers, showing the final frame
    * on-screen. */
@@ -207,8 +218,8 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const {
   pixman_region32_t frame_damage;
   pixman_region32_init(&frame_damage);
 
-  wlr_output_set_damage(output_, &frame_damage);
-  wlr_output_commit(output_);
+  wlr_output_set_damage(wlr_output, &frame_damage);
+  wlr_output_commit(wlr_output);
   wlr_renderer_end(renderer_);
 
   pixman_region32_fini(&frame_damage);
@@ -222,4 +233,12 @@ void Output::output_frame_notify(wl_listener *listener, void *data) {
 void Output::output_destroy_notify(wl_listener *listener, void *data) {
   Output *output = wl_container_of(listener, output, destroy_);
   output->server_->remove_output(output);
+}
+
+void Output::set_scale(int scale) {
+  wlr_output_set_scale(wlr_output, scale);
+}
+
+void Output::set_position(int x, int y) {
+  wlr_output_layout_add(layout_, wlr_output, x, y);
 }

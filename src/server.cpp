@@ -9,6 +9,7 @@
 #include "keyboard.h"
 #include "view.h"
 #include "output.h"
+#include "settings.h"
 
 #include "key_bindings/key_binding_cmd.h"
 #include "key_bindings/key_binding_quit.h"
@@ -28,6 +29,7 @@ Server::Server()
     .resize_edges = 0,
     .CursorMode = WM_CURSOR_NONE
     })
+  , settings_(new Settings())
   { }
 
 void Server::quit() {
@@ -171,6 +173,35 @@ void Server::cursor_frame_notify(wl_listener *listener, void *data) {
 
 void Server::add_output(const std::shared_ptr<Output>& output) {
   outputs_.push_back(output);
+
+  std::vector<std::string> output_names;
+  for (auto &output : outputs_) {
+    output_names.push_back(output->id());
+  }
+
+  auto layout = settings_->display_find_layout(output_names);
+
+  for (auto &output : outputs_) {
+    if (!layout.contains(output->id())) {
+      std::cerr << "no config for " << output->id() << std::endl;
+      continue;
+    }
+
+    DisplaySetting display = layout[output->id()];
+    output->set_enabled(display.enabled);
+    output->set_scale(display.scale);
+    output->set_position(display.x, display.y);
+
+    wlr_xcursor_manager_load(cursor_manager_, display.scale);
+
+    if (display.primary) {
+      int cursor_x = display.x + (output->wlr_output->width / 2.0f) / display.scale;
+      int cursor_y = display.y + (output->wlr_output->height / 2.0f) / display.scale;
+
+      wlr_cursor_warp(cursor_, NULL, cursor_x, cursor_y);
+      wlr_seat_pointer_notify_frame(seat_);
+    }
+  }
 }
 
 void Server::begin_interactive(View *view, CursorMode mode, unsigned int edges) {
@@ -219,23 +250,7 @@ void Server::new_output_notify(wl_listener *listener, void *data) {
     }
   }
 
-  int scale = 1;
-
-  if (strcmp(wlr_output->name, "X11-1") == 0) {
-    scale = 2;
-  }
-
-  if (strcmp(wlr_output->name, "eDP-1") == 0) {
-    scale = 3;
-  }
-
-  if (strcmp(wlr_output->name, "DP-0") == 0 ||
-      strcmp(wlr_output->name, "DP-1") == 0 ||
-      strcmp(wlr_output->name, "DP-2") == 0) {
-    scale = 2;
-  }
-
-  wlr_output_set_scale(wlr_output, scale);
+  wlr_output_create_global(wlr_output);
 
   auto damage = wlr_output_damage_create(wlr_output);
   auto output = std::make_shared<Output>(server, wlr_output,
@@ -243,12 +258,7 @@ void Server::new_output_notify(wl_listener *listener, void *data) {
 
   wlr_output_layout_add_auto(server->layout_, wlr_output);
 
-  wlr_output_create_global(wlr_output);
-
   server->add_output(output);
-
-  wlr_xcursor_manager_load(server->cursor_manager_, scale);
-  wlr_xcursor_manager_set_cursor_image(server->cursor_manager_, "left_ptr", server->cursor_);
 }
 
 void Server::destroy_view(View *view) {
@@ -266,7 +276,10 @@ void Server::new_surface_notify(wl_listener *listener, void *data) {
   }
 
   Server *server = wl_container_of(listener, server, new_surface);
-  auto view = std::make_shared<View>(server, xdg_surface, server->cursor_, server->layout_, server->seat_);
+
+  auto view = std::make_shared<View>(server, xdg_surface,
+    server->cursor_, server->layout_, server->seat_);
+
   server->views_.push_back(view);
 }
 
@@ -374,6 +387,7 @@ void Server::run() {
   wlr_cursor_attach_output_layout(cursor_, layout_);
 
   cursor_manager_ = wlr_xcursor_manager_create(NULL, 24);
+  wlr_xcursor_manager_load(cursor_manager_, 1);
 
   cursor_motion.notify = Server::cursor_motion_notify;
   wl_signal_add(&cursor_->events.motion, &cursor_motion);
@@ -466,7 +480,7 @@ void Server::disconnect_output(const std::string& name, bool enabled) {
   }
 
   auto &output = (*it);
-  output->enable(enabled);
+  output->set_enabled(enabled);
 }
 
 void Server::keyboard_modifiers_notify(wl_listener *listener, void *data) {
