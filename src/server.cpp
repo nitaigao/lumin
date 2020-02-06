@@ -19,9 +19,9 @@
 
 namespace lumin {
 
-Server::Server()
-  : settings_(new Settings())
-  { }
+Server::Server() {
+  settings_ = std::make_unique<Settings>();
+}
 
 void Server::quit() {
   wl_display_terminate(display_);
