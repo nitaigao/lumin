@@ -9,10 +9,13 @@
 
 struct wlr_output_damage;
 struct wlr_output_layout;
+struct wlr_output;
 struct wlr_renderer;
 
-class View;
+namespace lumin {
+
 class Server;
+class View;
 
 class Output {
  public:
@@ -32,7 +35,6 @@ class Output {
   struct wlr_output* output() const {
     return wlr_output;
   }
-
 
  public:
   std::string id() const;
@@ -64,5 +66,7 @@ class Output {
   wl_listener frame_;
   wl_listener destroy_;
 };
+
+}  // namespace lumin
 
 #endif  // OUTPUT_H_

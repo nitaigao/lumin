@@ -5,6 +5,8 @@
 
 #include <string>
 
+namespace lumin {
+
 class Server;
 
 struct key_binding_quit : KeyBinding {
@@ -14,5 +16,7 @@ struct key_binding_quit : KeyBinding {
 
   Server *server;
 };
+
+}  // namespace lumin
 
 #endif  // KEY_BINDINGS_KEY_BINDING_QUIT_H_

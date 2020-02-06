@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+namespace lumin {
+
 struct DisplaySetting {
   int x;
   int y;
@@ -19,5 +21,7 @@ class Settings {
  public:
   LayoutConfig display_find_layout(const std::vector<std::string>& output_names);
 };
+
+}  // namespace lumin
 
 #endif  // SETTINGS_H_

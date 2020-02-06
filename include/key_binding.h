@@ -3,6 +3,8 @@
 
 #include <wlr/types/wlr_keyboard.h>
 
+namespace lumin {
+
 class KeyBinding {
  public:
   virtual ~KeyBinding() { }
@@ -21,6 +23,8 @@ class KeyBinding {
 
   virtual void run() = 0;
 };
+
+}  // namespace lumin
 
 
 #endif  // KEY_BINDING_H_

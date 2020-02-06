@@ -11,9 +11,12 @@ struct wlr_surface;
 struct wlr_box;
 struct wlr_output;
 struct wlr_seat;
-struct wlr_cursor;
 struct wlr_output_layout;
 
+namespace lumin {
+
+class Cursor;
+class Seat;
 class Server;
 
 enum WindowState {
@@ -27,8 +30,8 @@ typedef void (*wlr_surface_iterator_func_t)(struct wlr_surface *surface,
 
 class View {
  public:
-  View(Server *server, wlr_xdg_surface *surface, wlr_cursor *cursor,
-     wlr_output_layout *layout, wlr_seat *seat);
+  View(Server *server, wlr_xdg_surface *surface, Cursor *cursor,
+     wlr_output_layout *layout, Seat *seat);
 
  public:
   void geometry(wlr_box *box) const;
@@ -118,9 +121,9 @@ class View {
   Server *server;
 
   wlr_xdg_surface *xdg_surface;
-  wlr_cursor *cursor_;
+  Cursor *cursor_;
   wlr_output_layout *layout_;
-  wlr_seat *seat_;
+  Seat *seat_;
 };
 
 struct Subsurface {
@@ -135,5 +138,7 @@ struct Popup {
   wl_listener new_popup;
   Server *server;
 };
+
+}  // namespace lumin
 
 #endif  // VIEW_H_

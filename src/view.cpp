@@ -1,15 +1,20 @@
 #include "view.h"
 
-#include "wlroots.h"
+#include <wlroots.h>
 
-#include "server.h"
-#include "output.h"
 #include "cursor_mode.h"
+#include "cursor.h"
+#include "output.h"
+#include "seat.h"
+#include "server.h"
 
 const int DEFAULT_MINIMUM_WIDTH = 800;
 const int DEFAULT_MINIMUM_HEIGHT = 600;
 
-View::View(Server *server_, wlr_xdg_surface *surface, wlr_cursor *cursor, wlr_output_layout *layout, wlr_seat *seat)
+namespace lumin {
+
+View::View(Server *server_, wlr_xdg_surface *surface, Cursor *cursor,
+  wlr_output_layout *layout, Seat *seat)
   : mapped(false)
   , x(0)
   , y(0)
@@ -132,7 +137,7 @@ void View::for_each_surface(wlr_surface_iterator_func_t iterator, void *data) co
 
 void View::focus() {
   activate();
-  notify_keyboard_enter(seat_);
+  seat_->keyboard_notify_enter(xdg_surface->surface);
 }
 
 void View::unfocus() {
@@ -246,7 +251,7 @@ void View::maximize() {
   wlr_xdg_toplevel_set_maximized(xdg_surface, true);
 
   wlr_output* output = wlr_output_layout_output_at(layout_,
-    cursor_->x, cursor_->y);
+    cursor_->x(), cursor_->y());
 
   wlr_box *output_box = wlr_output_layout_get_box(layout_, output);
   resize(output_box->width, output_box->height);
@@ -275,10 +280,10 @@ void View::grab() {
   wlr_box geometry;
   extents(&geometry);
 
-  float surface_x = cursor_->x - x;
+  float surface_x = cursor_->x() - x;
   float x_percentage = surface_x / geometry.width;
   float desired_x = saved_state_.width * x_percentage;
-  x = cursor_->x - desired_x;
+  x = cursor_->x() - desired_x;
 
   server->damage_outputs();
   state = WM_WINDOW_STATE_WINDOW;
@@ -314,12 +319,6 @@ void View::activate() {
   wlr_xdg_toplevel_set_activated(xdg_surface, true);
 }
 
-void View::notify_keyboard_enter(wlr_seat *seat) {
-  wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat);
-  wlr_seat_keyboard_notify_enter(seat, xdg_surface->surface,
-    keyboard->keycodes, keyboard->num_keycodes, &keyboard->modifiers);
-}
-
 void View::resize(double width, double height) {
   wlr_xdg_toplevel_set_size(xdg_surface, width, height);
 }
@@ -340,13 +339,13 @@ bool View::is_child() const {
 void View::xdg_toplevel_request_move_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, request_move);
   view->grab();
-  view->server->begin_interactive(view, WM_CURSOR_MOVE, WLR_EDGE_NONE);
+  view->cursor_->begin_interactive(view, WM_CURSOR_MOVE, WLR_EDGE_NONE);
 }
 
 void View::xdg_toplevel_request_resize_notify(wl_listener *listener, void *data) {
   auto event = static_cast<wlr_xdg_toplevel_resize_event*>(data);
   View *view = wl_container_of(listener, view, request_resize);
-  view->server->begin_interactive(view, WM_CURSOR_RESIZE, event->edges);
+  view->cursor_->begin_interactive(view, WM_CURSOR_RESIZE, event->edges);
 }
 
 void View::xdg_toplevel_request_maximize_notify(wl_listener *listener, void *data) {
@@ -463,3 +462,5 @@ void View::xdg_surface_unmap_notify(wl_listener *listener, void *data) {
   view->server->focus_top();
   view->server->damage_outputs();
 }
+
+}  // namespace lumin

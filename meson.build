@@ -8,36 +8,39 @@ project('lumin', 'cpp', default_options : [
 add_global_arguments('-Wno-unused-parameter', language : 'cpp')
 add_project_arguments(['-DWLR_USE_UNSTABLE'], language: 'cpp')
 
+libinput = dependency('libinput')
+pixman = dependency('pixman-1')
+wayland_protocols = dependency('wayland-protocols', version: '>=1.17')
 wayland_server = dependency('wayland-server')
 wlroots = dependency('wlroots')
-pixman = dependency('pixman-1')
 xkbcommon = dependency('xkbcommon')
-libinput = dependency('libinput')
-wayland_protocols = dependency('wayland-protocols', version: '>=1.17')
 
 dependencies = [
+  libinput,
   pixman,
-  wlroots,
-  wayland_server,
-  xkbcommon,
   wayland_protocols,
-  libinput
+  wayland_server,
+  wlroots,
+  xkbcommon,
 ]
 
-includes = include_directories(['include', 'protocols'])
+includes = include_directories(['include', 'protocols', 'vendor'])
 
 sources = [
+  'src/cursor.cpp',
   'src/key_binding.cpp',
-  'src/key_bindings/key_binding_dock_right.cpp',
-  'src/key_bindings/key_binding_dock_left.cpp',
-  'src/key_bindings/key_binding_maximize.cpp',
   'src/key_bindings/key_binding_cmd.cpp',
+  'src/key_bindings/key_binding_dock_left.cpp',
+  'src/key_bindings/key_binding_dock_right.cpp',
+  'src/key_bindings/key_binding_maximize.cpp',
   'src/key_bindings/key_binding_quit.cpp',
-  'src/output.cpp',
-  'src/view.cpp',
-  'src/settings.cpp',
-  'src/server.cpp',
+  'src/keyboard.cpp',
   'src/main.cpp',
+  'src/output.cpp',
+  'src/seat.cpp',
+  'src/server.cpp',
+  'src/settings.cpp',
+  'src/view.cpp',
 ]
 
 executable(

@@ -2,10 +2,12 @@
 
 #include <sstream>
 
-#include "wlroots.h"
+#include <wlroots.h>
 
 #include "view.h"
 #include "server.h"
+
+namespace lumin {
 
 struct render_data {
   wlr_output *output;
@@ -242,3 +244,5 @@ void Output::set_scale(int scale) {
 void Output::set_position(int x, int y) {
   wlr_output_layout_add(layout_, wlr_output, x, y);
 }
+
+}  // namespace lumin

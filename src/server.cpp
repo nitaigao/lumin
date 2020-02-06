@@ -4,7 +4,7 @@
 #include <memory>
 #include <vector>
 
-#include "wlroots.h"
+#include <wlroots.h>
 
 #include "keyboard.h"
 #include "view.h"
@@ -17,19 +17,10 @@
 #include "key_bindings/key_binding_dock_left.h"
 #include "key_bindings/key_binding_maximize.h"
 
+namespace lumin {
+
 Server::Server()
-  : grab_state_({
-    .view = NULL,
-    .cursor_x = 0,
-    .cursor_y = 0,
-    .x = 0,
-    .y = 0,
-    .width = 0,
-    .height = 0,
-    .resize_edges = 0,
-    .CursorMode = WM_CURSOR_NONE
-    })
-  , settings_(new Settings())
+  : settings_(new Settings())
   { }
 
 void Server::quit() {
@@ -78,7 +69,7 @@ void Server::new_input_notify(wl_listener *listener, void *data) {
       server->new_keyboard(device);
       break;
     case WLR_INPUT_DEVICE_POINTER:
-      server->new_pointer(device);
+      server->cursor_->add_device(device);
       break;
     case WLR_INPUT_DEVICE_SWITCH:
       server->new_switch(device);
@@ -88,59 +79,15 @@ void Server::new_input_notify(wl_listener *listener, void *data) {
   }
 }
 
-void Server::seat_request_cursor_notify(wl_listener *listener, void *data) {
-  Server *server = wl_container_of(listener, server, request_cursor);
-  auto event = static_cast<wlr_seat_pointer_request_set_cursor_event*>(data);
-  wlr_seat_client *focused_client = server->seat_->pointer_state.focused_client;
-
-  if (focused_client == event->seat_client) {
-    wlr_cursor_set_surface(server->cursor_, event->surface, event->hotspot_x, event->hotspot_y);
-  }
-}
-
-void Server::cursor_motion_notify(wl_listener *listener, void *data) {
-  Server *server = wl_container_of(listener, server, cursor_motion);
-  auto event = static_cast<struct wlr_event_pointer_motion*>(data);
-  wlr_cursor_move(server->cursor_, event->device, event->delta_x, event->delta_y);
-  server->process_cursor_motion(event->time_msec);
-}
-
-void Server::cursor_motion_absolute_notify(wl_listener *listener, void *data) {
-  Server *server = wl_container_of(listener, server, cursor_motion_absolute);
-  auto event = static_cast<struct wlr_event_pointer_motion_absolute*>(data);
-  wlr_cursor_warp_absolute(server->cursor_, event->device, event->x, event->y);
-  server->process_cursor_motion(event->time_msec);
-}
-
-void Server::cursor_button_notify(wl_listener *listener, void *data) {
-  Server *server = wl_container_of(listener, server, cursor_button);
-  auto event = static_cast<struct wlr_event_pointer_button*>(data);
-
-  wlr_seat_pointer_notify_button(server->seat_, event->time_msec, event->button, event->state);
-
-  double sx, sy;
-  wlr_surface *surface;
-  View *view = server->desktop_view_at(server->cursor_->x, server->cursor_->y, &surface, &sx, &sy);
-
-  if (event->state == WLR_BUTTON_RELEASED) {
-    server->grab_state_.CursorMode = WM_CURSOR_PASSTHROUGH;
-    return;
-  }
-
-  if (view != NULL) {
-    server->focus_view(view);
-  }
-}
-
 void Server::focus_view(View *view) {
-  wlr_surface *prev_surface = seat_->keyboard_state.focused_surface;
+  wlr_surface *prev_surface = seat_->keyboard_focused_surface();
 
   if (view->has_surface(prev_surface)) {
     return;
   }
 
   if (prev_surface) {
-    View *previous_view = view_from_surface(seat_->keyboard_state.focused_surface);
+    View *previous_view = view_from_surface(prev_surface);
     previous_view->unfocus();
   }
 
@@ -157,18 +104,6 @@ void Server::focus_view(View *view) {
 
 void Server::render_output(const Output *output) const {
   output->render(views_);
-}
-
-void Server::cursor_axis_notify(wl_listener *listener, void *data) {
-  Server *server = wl_container_of(listener, server, cursor_axis);
-  auto event = static_cast<wlr_event_pointer_axis*>(data);
-  wlr_seat_pointer_notify_axis(server->seat_, event->time_msec, event->orientation,
-    event->delta, event->delta_discrete, event->source);
-}
-
-void Server::cursor_frame_notify(wl_listener *listener, void *data) {
-  Server *server = wl_container_of(listener, server, cursor_frame);
-  wlr_seat_pointer_notify_frame(server->seat_);
 }
 
 void Server::add_output(const std::shared_ptr<Output>& output) {
@@ -192,48 +127,15 @@ void Server::add_output(const std::shared_ptr<Output>& output) {
     output->set_scale(display.scale);
     output->set_position(display.x, display.y);
 
-    wlr_xcursor_manager_load(cursor_manager_, display.scale);
+    cursor_->load_scale(display.scale);
 
     if (display.primary) {
       int cursor_x = display.x + (output->wlr_output->width / 2.0f) / display.scale;
       int cursor_y = display.y + (output->wlr_output->height / 2.0f) / display.scale;
 
-      wlr_cursor_warp(cursor_, NULL, cursor_x, cursor_y);
-      wlr_seat_pointer_notify_frame(seat_);
+      cursor_->warp(cursor_x, cursor_y);
     }
   }
-}
-
-void Server::begin_interactive(View *view, CursorMode mode, unsigned int edges) {
-  wlr_surface *focused_surface = seat_->pointer_state.focused_surface;
-
-  if (!view->has_surface(focused_surface)) {
-    return;
-  }
-
-  grab_state_.x = 0;
-  grab_state_.y = 0;
-
-  grab_state_.view = view;
-  grab_state_.CursorMode = mode;
-
-  wlr_box geo_box;
-  view->extents(&geo_box);
-
-  if (mode == WM_CURSOR_MOVE) {
-    grab_state_.x = cursor_->x - view->x;
-    grab_state_.y = cursor_->y - view->y;
-  } else {
-    grab_state_.x = view->x;
-    grab_state_.y = view->y;
-    grab_state_.cursor_x = cursor_->x;
-    grab_state_.cursor_y = cursor_->y;
-  }
-
-  grab_state_.width = geo_box.width;
-  grab_state_.height = geo_box.height;
-
-  grab_state_.resize_edges = edges;
 }
 
 void Server::new_output_notify(wl_listener *listener, void *data) {
@@ -278,7 +180,7 @@ void Server::new_surface_notify(wl_listener *listener, void *data) {
   Server *server = wl_container_of(listener, server, new_surface);
 
   auto view = std::make_shared<View>(server, xdg_surface,
-    server->cursor_, server->layout_, server->seat_);
+    server->cursor_.get(), server->layout_, server->seat_.get());
 
   server->views_.push_back(view);
 }
@@ -287,7 +189,7 @@ void Server::maximize_view(View *view) {
   view->maximize();
 
   wlr_output* output = wlr_output_layout_output_at(layout_,
-    cursor_->x, cursor_->y);
+    cursor_->x(), cursor_->y());
 
   wlr_box *output_box = wlr_output_layout_get_box(layout_, output);
   view->resize(output_box->width, output_box->height);
@@ -351,18 +253,6 @@ void Server::init_keybindings() {
   key_bindings.push_back(maximize);
 }
 
-void Server::handle_request_set_primary_selection(struct wl_listener *listener, void *data) {
-  Server *server = wl_container_of(listener, server, request_set_primary_selection);
-  auto event = static_cast<wlr_seat_request_set_primary_selection_event*>(data);
-  wlr_seat_set_primary_selection(server->seat_, event->source, event->serial);
-}
-
-void Server::handle_request_set_selection(struct wl_listener *listener, void *data) {
-  Server *server = wl_container_of(listener, server, request_set_selection);
-  auto event = static_cast<wlr_seat_request_set_selection_event*>(data);
-  wlr_seat_set_selection(server->seat_, event->source, event->serial);
-}
-
 void Server::run() {
   init_keybindings();
 
@@ -380,46 +270,20 @@ void Server::run() {
   wl_signal_add(&backend_->events.new_output, &new_output);
 
   xdg_shell_ = wlr_xdg_shell_create(display_);
+
   new_surface.notify = new_surface_notify;
   wl_signal_add(&xdg_shell_->events.new_surface, &new_surface);
-
-  cursor_ = wlr_cursor_create();
-  wlr_cursor_attach_output_layout(cursor_, layout_);
-
-  cursor_manager_ = wlr_xcursor_manager_create(NULL, 24);
-  wlr_xcursor_manager_load(cursor_manager_, 1);
-
-  cursor_motion.notify = Server::cursor_motion_notify;
-  wl_signal_add(&cursor_->events.motion, &cursor_motion);
-
-  cursor_motion_absolute.notify = Server::cursor_motion_absolute_notify;
-  wl_signal_add(&cursor_->events.motion_absolute, &cursor_motion_absolute);
-
-  cursor_button.notify = cursor_button_notify;
-  wl_signal_add(&cursor_->events.button, &cursor_button);
-
-  cursor_axis.notify = cursor_axis_notify;
-  wl_signal_add(&cursor_->events.axis, &cursor_axis);
-
-  cursor_frame.notify = cursor_frame_notify;
-  wl_signal_add(&cursor_->events.frame, &cursor_frame);
 
   new_input.notify = new_input_notify;
   wl_signal_add(&backend_->events.new_input, &new_input);
 
-  seat_ = wlr_seat_create(display_, "seat0");
-
-  request_cursor.notify = seat_request_cursor_notify;
-  wl_signal_add(&seat_->events.request_set_cursor, &request_cursor);
+  wlr_seat *seat = wlr_seat_create(display_, "seat0");
+  seat_ = std::make_unique<Seat>(this, seat);
+  cursor_ = std::make_unique<Cursor>(this, layout_, seat_.get());
+  seat_->set_pointer(cursor_.get());
 
   wlr_data_control_manager_v1_create(display_);
   wlr_primary_selection_v1_device_manager_create(display_);
-
-  request_set_selection.notify = handle_request_set_selection;
-  wl_signal_add(&seat_->events.request_set_selection, &request_set_selection);
-
-  request_set_primary_selection.notify = handle_request_set_primary_selection;
-  wl_signal_add(&seat_->events.request_set_primary_selection, &request_set_primary_selection);
 
   const char *socket = wl_display_add_socket_auto(display_);
   if (!socket) {
@@ -443,8 +307,6 @@ void Server::run() {
 void Server::destroy() {
   std::clog << "Quitting!" << std::endl;
 
-  wlr_xcursor_manager_destroy(cursor_manager_);
-  wlr_cursor_destroy(cursor_);
   wl_display_destroy_clients(display_);
   wlr_backend_destroy(backend_);
   wlr_output_layout_destroy(layout_);
@@ -483,77 +345,10 @@ void Server::disconnect_output(const std::string& name, bool enabled) {
   output->set_enabled(enabled);
 }
 
-void Server::keyboard_modifiers_notify(wl_listener *listener, void *data) {
-  Keyboard *keyboard = wl_container_of(listener, keyboard, modifiers);
-  wlr_seat_set_keyboard(keyboard->seat, keyboard->device);
-  wlr_seat_keyboard_notify_modifiers(keyboard->seat,
-    &keyboard->device->keyboard->modifiers);
-}
-
-void Server::keyboard_key_notify(wl_listener *listener, void *data) {
-  Keyboard *keyboard = wl_container_of(listener, keyboard, key);
-  Server *server = keyboard->server;
-  auto event = static_cast<struct wlr_event_keyboard_key *>(data);
-
-  uint32_t keycode = event->keycode + 8;
-  const xkb_keysym_t *syms;
-  int nsyms = xkb_state_key_get_syms(keyboard->device->keyboard->xkb_state, keycode, &syms);
-  uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->device->keyboard);
-
-  bool handled = server->handle_key(keycode, syms, nsyms, modifiers, event->state);
-
-  if (!handled) {
-    wlr_seat_set_keyboard(keyboard->seat, keyboard->device);
-    wlr_seat_keyboard_notify_key(keyboard->seat, event->time_msec, event->keycode, event->state);
-  }
-}
-
 void Server::new_keyboard(wlr_input_device *device) {
-  auto keyboard = std::make_shared<Keyboard>();
-  keyboard->server = this;
-  keyboard->device = device;
-  keyboard->seat = seat_;
-
-  /* We need to prepare an XKB keymap and assign it to the keyboard. This
-   * assumes the defaults (e.g. layout = "us"). */
-  xkb_rule_names rules;
-  memset(&rules, 0, sizeof(xkb_rule_names));
-  xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-  xkb_keymap *keymap = xkb_map_new_from_names(context, &rules, XKB_KEYMAP_COMPILE_NO_FLAGS);
-
-  wlr_keyboard_set_keymap(device->keyboard, keymap);
-  xkb_keymap_unref(keymap);
-  xkb_context_unref(context);
-  wlr_keyboard_set_repeat_info(device->keyboard, 25, 200);
-
-  /* Here we set up listeners for keyboard events. */
-  keyboard->modifiers.notify = keyboard_modifiers_notify;
-  wl_signal_add(&device->keyboard->events.modifiers, &keyboard->modifiers);
-
-  keyboard->key.notify = keyboard_key_notify;
-  wl_signal_add(&device->keyboard->events.key, &keyboard->key);
-
-  wlr_seat_set_keyboard(seat_, device);
-
+  auto keyboard = std::make_shared<Keyboard>(this, device, seat_.get());
+  keyboard->setup();
   keyboards_.push_back(keyboard);
-
-  capabilities_ |= WL_SEAT_CAPABILITY_KEYBOARD;
-  wlr_seat_set_capabilities(seat_, capabilities_);
-}
-
-void Server::new_pointer(wlr_input_device *device) {
-  bool is_libinput = wlr_input_device_is_libinput(device);
-  if (is_libinput) {
-    libinput_device *libinput_device = wlr_libinput_get_device_handle(device);
-    libinput_device_config_tap_set_enabled(libinput_device, LIBINPUT_CONFIG_TAP_ENABLED);
-    libinput_device_config_scroll_set_natural_scroll_enabled(libinput_device, 1);
-    libinput_device_config_accel_set_profile(libinput_device, LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT);
-    libinput_device_config_accel_set_speed(libinput_device, -0.5);
-  }
-
-  wlr_cursor_attach_input_device(cursor_, device);
-  capabilities_ |= WL_SEAT_CAPABILITY_POINTER;
-  wlr_seat_set_capabilities(seat_, capabilities_);
 }
 
 void Server::new_switch(wlr_input_device *device) {
@@ -572,98 +367,6 @@ View* Server::desktop_view_at(double lx, double ly,
   return NULL;
 }
 
-void Server::process_cursor_move(uint32_t time) {
-  grab_state_.view->x = cursor_->x - grab_state_.x;
-  grab_state_.view->y = cursor_->y - grab_state_.y;
-}
-
-void Server::process_cursor_resize(uint32_t time) {
-  View *view = grab_state_.view;
-
-  double dx = cursor_->x - grab_state_.cursor_x;
-  double dy = cursor_->y - grab_state_.cursor_y;
-
-  double x = view->x;
-  double y = view->y;
-
-  double width = grab_state_.width;
-  double height = grab_state_.height;
-
-  if (grab_state_.resize_edges & WLR_EDGE_TOP) {
-    y = grab_state_.y + dy;
-    height = grab_state_.height - dy;
-  } else if (grab_state_.resize_edges & WLR_EDGE_BOTTOM) {
-    height += dy;
-  }
-
-  if (grab_state_.resize_edges & WLR_EDGE_LEFT) {
-    x = grab_state_.x + dx;
-    width -= dx;
-  } else if (grab_state_.resize_edges & WLR_EDGE_RIGHT) {
-    width += dx;
-  }
-
-  uint min_width = view->min_width();
-  if (width > min_width) {
-    view->x = x;
-  }
-
-  uint min_height = view->min_height();
-  if (height > min_height) {
-    view->y = y;
-  }
-
-  view->resize(width, height);
-}
-
-void Server::process_cursor_motion(uint32_t time) {
-  /* If the mode is non-passthrough, delegate to those functions. */
-  if (grab_state_.CursorMode == WM_CURSOR_MOVE) {
-    process_cursor_move(time);
-    damage_outputs();
-    return;
-  } else if (grab_state_.CursorMode == WM_CURSOR_RESIZE) {
-    process_cursor_resize(time);
-    return;
-  }
-
-  /* Otherwise, find the view under the pointer and send the event along. */
-  double sx, sy;
-  wlr_surface *surface = NULL;
-  View *view = desktop_view_at(cursor_->x, cursor_->y, &surface, &sx, &sy);
-
-  if (!view) {
-    /* If there's no view under the cursor, set the cursor image to a
-     * default. This is what makes the cursor image appear when you move it
-     * around the screen, not over any views. */
-    wlr_xcursor_manager_set_cursor_image(cursor_manager_, "left_ptr", cursor_);
-  }
-
-  if (surface) {
-    bool focus_changed = seat_->pointer_state.focused_surface != surface;
-    /*
-     * "Enter" the surface if necessary. This lets the client know that the
-     * cursor has entered one of its surfaces.
-     *
-     * Note that this gives the surface "pointer focus", which is distinct
-     * from keyboard focus. You get pointer focus by moving the pointer over
-     * a window.
-     */
-
-    wlr_seat_pointer_notify_enter(seat_, surface, sx, sy);
-
-    if (!focus_changed) {
-      /* The enter event contains coordinates, so we only need to notify
-       * on motion if the focus did not change. */
-      wlr_seat_pointer_notify_motion(seat_, time, sx, sy);
-    }
-  } else {
-    /* Clear pointer focus so future button events and such are not sent to
-     * the last client to have the cursor over it. */
-    wlr_seat_pointer_clear_focus(seat_);
-  }
-}
-
 View* Server::view_from_surface(wlr_surface *surface) {
   for (auto &view : views_) {
     if (view->has_surface(surface)) {
@@ -680,7 +383,7 @@ void Server::position_view(View *view) {
   view->geometry(&geometry);
 
   if (!is_child) {
-    wlr_output* output = wlr_output_layout_output_at(layout_, cursor_->x, cursor_->y);
+    wlr_output* output = wlr_output_layout_output_at(layout_, cursor_->x(), cursor_->y());
     int inside_x = ((output->width  / output->scale) - geometry.width) / 2.0;
     int inside_y = ((output->height / output->scale) - geometry.height) / 2.0;
 
@@ -710,3 +413,4 @@ void Server::focus_top() {
   }
 }
 
+}  // namespace lumin

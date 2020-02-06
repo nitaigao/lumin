@@ -5,6 +5,8 @@
 
 #include <string>
 
+namespace lumin {
+
 class Server;
 
 struct key_binding_dock_left : KeyBinding {
@@ -14,5 +16,7 @@ struct key_binding_dock_left : KeyBinding {
 
   Server *server;
 };
+
+}  // namespace lumin
 
 #endif  // KEY_BINDINGS_KEY_BINDING_DOCK_LEFT_H_
