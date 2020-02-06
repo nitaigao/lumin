@@ -25,30 +25,30 @@ View::View(Server *server_, wlr_xdg_surface *surface, Cursor *cursor,
     .x = 0,
     .y = 0 })
   , server(server_)
-  , xdg_surface(surface)
+  , xdg_surface_(surface)
   , cursor_(cursor)
   , layout_(layout)
   , seat_(seat)
 {
   map.notify = View::xdg_surface_map_notify;
-  wl_signal_add(&xdg_surface->events.map, &map);
+  wl_signal_add(&xdg_surface_->events.map, &map);
 
   unmap.notify = View::xdg_surface_unmap_notify;
-  wl_signal_add(&xdg_surface->events.unmap, &unmap);
+  wl_signal_add(&xdg_surface_->events.unmap, &unmap);
 
   destroy.notify = View::xdg_surface_destroy_notify;
-  wl_signal_add(&xdg_surface->events.destroy, &destroy);
+  wl_signal_add(&xdg_surface_->events.destroy, &destroy);
 
   commit.notify = View::xdg_surface_commit_notify;
-  wl_signal_add(&xdg_surface->surface->events.commit, &commit);
+  wl_signal_add(&xdg_surface_->surface->events.commit, &commit);
 
   new_subsurface.notify = View::new_subsurface_notify;
-  wl_signal_add(&xdg_surface->surface->events.new_subsurface, &new_subsurface);
+  wl_signal_add(&xdg_surface_->surface->events.new_subsurface, &new_subsurface);
 
   new_popup.notify = View::new_popup_notify;
-  wl_signal_add(&xdg_surface->events.new_popup, &new_popup);
+  wl_signal_add(&xdg_surface_->events.new_popup, &new_popup);
 
-  struct wlr_xdg_toplevel *toplevel = xdg_surface->toplevel;
+  struct wlr_xdg_toplevel *toplevel = xdg_surface_->toplevel;
 
   request_move.notify = View::xdg_toplevel_request_move_notify;
   wl_signal_add(&toplevel->events.request_move, &request_move);
@@ -61,11 +61,11 @@ View::View(Server *server_, wlr_xdg_surface *surface, Cursor *cursor,
 }
 
 uint View::min_width() const {
-  return xdg_surface->toplevel->current.min_width;
+  return xdg_surface_->toplevel->current.min_width;
 }
 
 uint View::min_height() const {
-  return xdg_surface->toplevel->current.min_height;
+  return xdg_surface_->toplevel->current.min_height;
 }
 
 bool View::windowed() const {
@@ -129,33 +129,33 @@ void View::unmap_view() {
 }
 
 void View::for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const {
-  if (xdg_surface->surface == NULL) {
+  if (xdg_surface_->surface == NULL) {
     return;
   }
-  wlr_xdg_surface_for_each_surface(xdg_surface, iterator, data);
+  wlr_xdg_surface_for_each_surface(xdg_surface_, iterator, data);
 }
 
 void View::focus() {
   activate();
-  seat_->keyboard_notify_enter(xdg_surface->surface);
+  seat_->keyboard_notify_enter(xdg_surface_->surface);
 }
 
 void View::unfocus() {
-  wlr_xdg_toplevel_set_activated(xdg_surface, false);
+  wlr_xdg_toplevel_set_activated(xdg_surface_, false);
 }
 
 void View::geometry(struct wlr_box *box) const {
-  wlr_surface_get_extends(xdg_surface->surface, box);
+  wlr_surface_get_extends(xdg_surface_->surface, box);
 
-  if (!xdg_surface->geometry.width) {
+  if (!xdg_surface_->geometry.width) {
     return;
   }
 
-  wlr_box_intersection(&xdg_surface->geometry, box, box);
+  wlr_box_intersection(&xdg_surface_->geometry, box, box);
 }
 
 bool View::has_surface(const wlr_surface *surface) const {
-  return xdg_surface->surface == surface;
+  return xdg_surface_->surface == surface;
 }
 
 void View::save_geometry() {
@@ -229,10 +229,10 @@ void View::tile(int edges) {
 
   bool is_maximized = maximized();
   if (is_maximized) {
-    wlr_xdg_toplevel_set_maximized(xdg_surface, false);
+    wlr_xdg_toplevel_set_maximized(xdg_surface_, false);
   }
 
-  wlr_xdg_toplevel_set_tiled(xdg_surface, edges);
+  wlr_xdg_toplevel_set_tiled(xdg_surface_, edges);
   state = WM_WINDOW_STATE_TILED;
 }
 
@@ -245,10 +245,10 @@ void View::maximize() {
 
   bool is_tiled = tiled();
   if (is_tiled) {
-    wlr_xdg_toplevel_set_tiled(xdg_surface, WLR_EDGE_NONE);
+    wlr_xdg_toplevel_set_tiled(xdg_surface_, WLR_EDGE_NONE);
   }
 
-  wlr_xdg_toplevel_set_maximized(xdg_surface, true);
+  wlr_xdg_toplevel_set_maximized(xdg_surface_, true);
 
   wlr_output* output = wlr_output_layout_output_at(layout_,
     cursor_->x(), cursor_->y());
@@ -268,14 +268,14 @@ void View::grab() {
   }
 
   if (tiled()) {
-    wlr_xdg_toplevel_set_tiled(xdg_surface, WLR_EDGE_NONE);
+    wlr_xdg_toplevel_set_tiled(xdg_surface_, WLR_EDGE_NONE);
   }
 
   if (maximized()) {
-    wlr_xdg_toplevel_set_maximized(xdg_surface, false);
+    wlr_xdg_toplevel_set_maximized(xdg_surface_, false);
   }
 
-  wlr_xdg_toplevel_set_size(xdg_surface, saved_state_.width, saved_state_.height);
+  wlr_xdg_toplevel_set_size(xdg_surface_, saved_state_.width, saved_state_.height);
 
   wlr_box geometry;
   extents(&geometry);
@@ -295,14 +295,14 @@ void View::window() {
   }
 
   if (tiled()) {
-    wlr_xdg_toplevel_set_tiled(xdg_surface, WLR_EDGE_NONE);
+    wlr_xdg_toplevel_set_tiled(xdg_surface_, WLR_EDGE_NONE);
   }
 
   if (maximized()) {
-    wlr_xdg_toplevel_set_maximized(xdg_surface, false);
+    wlr_xdg_toplevel_set_maximized(xdg_surface_, false);
   }
 
-  wlr_xdg_toplevel_set_size(xdg_surface, saved_state_.width, saved_state_.height);
+  wlr_xdg_toplevel_set_size(xdg_surface_, saved_state_.width, saved_state_.height);
 
   x = saved_state_.x;
   y = saved_state_.y;
@@ -312,27 +312,27 @@ void View::window() {
 }
 
 void View::extents(wlr_box *box) const {
-  wlr_xdg_surface_get_geometry(xdg_surface, box);
+  wlr_xdg_surface_get_geometry(xdg_surface_, box);
 }
 
 void View::activate() {
-  wlr_xdg_toplevel_set_activated(xdg_surface, true);
+  wlr_xdg_toplevel_set_activated(xdg_surface_, true);
 }
 
 void View::resize(double width, double height) {
-  wlr_xdg_toplevel_set_size(xdg_surface, width, height);
+  wlr_xdg_toplevel_set_size(xdg_surface_, width, height);
 }
 
 wlr_surface* View::surface_at(double sx, double sy, double *sub_x, double *sub_y) {
-  return wlr_xdg_surface_surface_at(xdg_surface, sx, sy, sub_x, sub_y);
+  return wlr_xdg_surface_surface_at(xdg_surface_, sx, sy, sub_x, sub_y);
 }
 
 View* View::parent() const {
-  return server->view_from_surface(xdg_surface->toplevel->parent->surface);
+  return server->view_from_surface(xdg_surface_->toplevel->parent->surface);
 }
 
 bool View::is_child() const {
-  bool is_child = xdg_surface->toplevel->parent != NULL;
+  bool is_child = xdg_surface_->toplevel->parent != NULL;
   return is_child;
 }
 

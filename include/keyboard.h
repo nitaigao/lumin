@@ -18,8 +18,8 @@ class Keyboard {
   void setup();
 
  private:
-  static void keyboard_modifiers_notify(wl_listener *listener, void *data);
   static void keyboard_key_notify(wl_listener *listener, void *data);
+  static void keyboard_modifiers_notify(wl_listener *listener, void *data);
 
  public:
   wl_listener modifiers;

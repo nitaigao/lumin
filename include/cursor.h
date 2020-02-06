@@ -34,11 +34,11 @@ class Cursor {
   int y() const;
 
  public:
-  wl_listener cursor_motion;
-  wl_listener cursor_motion_absolute;
-  wl_listener cursor_button;
   wl_listener cursor_axis;
+  wl_listener cursor_button;
   wl_listener cursor_frame;
+  wl_listener cursor_motion_absolute;
+  wl_listener cursor_motion;
 
  private:
   void process_cursor_motion(uint32_t time);

@@ -1,12 +1,12 @@
 #ifndef SERVER_H_
 #define SERVER_H_
 
-#include <xkbcommon/xkbcommon.h>
 #include <wayland-server-core.h>
+#include <xkbcommon/xkbcommon.h>
 
-#include <vector>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "cursor_mode.h"
 #include "cursor.h"
@@ -51,13 +51,13 @@ class Server {
   void dock_left();
   void toggle_maximize();
 
-  View* desktop_view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
-
   bool handle_key(uint32_t keycode, const xkb_keysym_t *syms, int nsyms,
     uint32_t modifiers, int state);
 
  public:
+  View* desktop_view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
   View* view_from_surface(wlr_surface *surface);
+
   void maximize_view(View *view);
   void destroy_view(View *view);
   void position_view(View* view);
@@ -81,7 +81,6 @@ class Server {
   static void new_surface_notify(wl_listener *listener, void *data);
 
   static void lid_notify(wl_listener *listener, void *data);
-  static void seat_request_cursor_notify(wl_listener *listener, void *data);
 
  private:
   std::vector<std::shared_ptr<KeyBinding>> key_bindings;

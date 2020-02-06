@@ -40,9 +40,10 @@ class Output {
   std::string id() const;
 
   bool is_named(const std::string& name) const;
+
   void set_enabled(bool enabled);
-  void set_scale(int scale);
   void set_position(int x, int y);
+  void set_scale(int scale);
 
   void render(const std::vector<std::shared_ptr<View>>& views) const;
 
@@ -50,8 +51,8 @@ class Output {
   void take_whole_damage();
 
  private:
-  static void output_frame_notify(wl_listener *listener, void *data);
   static void output_destroy_notify(wl_listener *listener, void *data);
+  static void output_frame_notify(wl_listener *listener, void *data);
 
  public:
   struct wlr_output *wlr_output;

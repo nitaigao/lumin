@@ -90,24 +90,23 @@ class View {
   wl_listener new_popup;
 
  private:
+  static void xdg_toplevel_request_maximize_notify(wl_listener *listener, void *data);
   static void xdg_toplevel_request_move_notify(wl_listener *listener, void *data);
   static void xdg_toplevel_request_resize_notify(wl_listener *listener, void *data);
-  static void xdg_toplevel_request_maximize_notify(wl_listener *listener, void *data);
 
-  static void xdg_surface_destroy_notify(wl_listener *listener, void *data);
+  static void xdg_popup_commit_notify(wl_listener *listener, void *data);
+  static void xdg_popup_destroy_notify(wl_listener *listener, void *data);
   static void xdg_popup_subsurface_commit_notify(wl_listener *listener, void *data);
   static void xdg_subsurface_commit_notify(wl_listener *listener, void *data);
-  static void xdg_popup_destroy_notify(wl_listener *listener, void *data);
-  static void xdg_popup_commit_notify(wl_listener *listener, void *data);
   static void xdg_surface_commit_notify(wl_listener *listener, void *data);
-
-  static void new_popup_subsurface_notify(wl_listener *listener, void *data);
-  static void new_subsurface_notify(wl_listener *listener, void *data);
-  static void new_popup_popup_notify(wl_listener *listener, void *data);
-  static void new_popup_notify(wl_listener *listener, void *data);
-
+  static void xdg_surface_destroy_notify(wl_listener *listener, void *data);
   static void xdg_surface_map_notify(wl_listener *listener, void *data);
   static void xdg_surface_unmap_notify(wl_listener *listener, void *data);
+
+  static void new_popup_notify(wl_listener *listener, void *data);
+  static void new_popup_popup_notify(wl_listener *listener, void *data);
+  static void new_popup_subsurface_notify(wl_listener *listener, void *data);
+  static void new_subsurface_notify(wl_listener *listener, void *data);
 
  private:
   WindowState state;
@@ -117,10 +116,8 @@ class View {
     int x, y;
   } saved_state_;
 
- private:
   Server *server;
-
-  wlr_xdg_surface *xdg_surface;
+  wlr_xdg_surface *xdg_surface_;
   Cursor *cursor_;
   wlr_output_layout *layout_;
   Seat *seat_;
