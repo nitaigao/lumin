@@ -1,6 +1,8 @@
 #include "key_binding.h"
 
-#include "wlroots.h"
+#include <wlroots.h>
+
+namespace lumin {
 
 KeyBinding::KeyBinding()
     : ctrl(false)
@@ -28,3 +30,5 @@ bool KeyBinding::matches(int modifiers, unsigned int sym, wlr_key_state key_stat
   bool match = (mods() & modifiers && sym == key && state == key_state);
   return match;
 }
+
+}  // namespace lumin

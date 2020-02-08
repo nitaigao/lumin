@@ -5,14 +5,18 @@
 
 #include <string>
 
-struct Controller;
+namespace lumin {
+
+class Server;
 
 struct key_binding_dock_right : KeyBinding {
-  explicit key_binding_dock_right(Controller *server_);
+  explicit key_binding_dock_right(Server *server_);
 
   void run();
 
-  Controller *server;
+  Server *server;
 };
+
+}  // namespace lumin
 
 #endif  // KEY_BINDINGS_KEY_BINDING_DOCK_RIGHT_H_

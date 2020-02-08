@@ -3,17 +3,27 @@
 
 #include <wayland-server-core.h>
 
-struct View;
-struct Controller;
+#include <memory>
+#include <string>
+#include <vector>
+
 struct wlr_output_damage;
 struct wlr_output_layout;
+struct wlr_output;
+struct wlr_renderer;
+
+namespace lumin {
+
+class Server;
+class View;
 
 class Output {
  public:
   ~Output();
 
-  explicit Output(Controller *server,
+  explicit Output(Server *server,
                   struct wlr_output *output,
+                  wlr_renderer *renderer,
                   wlr_output_damage *damage,
                   wlr_output_layout *layout);
 
@@ -23,28 +33,44 @@ class Output {
   }
 
   struct wlr_output* output() const {
-    return output_;
+    return wlr_output;
   }
+
+ public:
+  std::string id() const;
+  int width() const;
+  int height() const;
+
+  bool is_named(const std::string& name) const;
+
+  void set_enabled(bool enabled);
+  void set_position(int x, int y);
+  void set_scale(int scale);
+
+  void render(const std::vector<std::shared_ptr<View>>& views) const;
+
+  void take_damage(const View *view);
+  void take_whole_damage();
+
+ private:
+  static void output_destroy_notify(wl_listener *listener, void *data);
+  static void output_frame_notify(wl_listener *listener, void *data);
+
+ public:
+
+  struct wlr_output *wlr_output;
+
+ private:
+  wlr_renderer *renderer_;
+  Server *server_;
+  wlr_output_damage *damage_;
+  wlr_output_layout *layout_;
 
  public:
   wl_listener frame_;
   wl_listener destroy_;
-
-  wl_list link;
-
- public:
-  void destroy();
-  void render() const;
-  void take_damage(const View *view);
-  void take_whole_damage();
-
- public:
-  struct wlr_output *output_;
-
- private:
-  Controller *server_;
-  wlr_output_damage *damage_;
-  wlr_output_layout *layout_;
 };
+
+}  // namespace lumin
 
 #endif  // OUTPUT_H_

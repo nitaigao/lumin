@@ -5,14 +5,18 @@
 
 #include <string>
 
-struct Controller;
+namespace lumin {
+
+class Server;
 
 struct key_binding_quit : KeyBinding {
-  explicit key_binding_quit(Controller *server_);
+  explicit key_binding_quit(Server *server_);
 
   void run();
 
-  Controller *server;
+  Server *server;
 };
+
+}  // namespace lumin
 
 #endif  // KEY_BINDINGS_KEY_BINDING_QUIT_H_

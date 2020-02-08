@@ -1,8 +1,10 @@
 #include "key_bindings/key_binding_quit.h"
 
-#include "controller.h"
+#include "server.h"
 
-key_binding_quit::key_binding_quit(Controller *server_)
+namespace lumin {
+
+key_binding_quit::key_binding_quit(Server *server_)
   : KeyBinding()
   , server(server_)
   { }
@@ -10,3 +12,5 @@ key_binding_quit::key_binding_quit(Controller *server_)
 void key_binding_quit::run() {
   server->quit();
 }
+
+}  // namespace lumin

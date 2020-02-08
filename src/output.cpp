@@ -1,9 +1,13 @@
 #include "output.h"
 
-#include "wlroots.h"
+#include <sstream>
+
+#include <wlroots.h>
 
 #include "view.h"
-#include "controller.h"
+#include "server.h"
+
+namespace lumin {
 
 struct render_data {
   wlr_output *output;
@@ -22,22 +26,40 @@ struct damage_iterator_data {
 };
 
 Output::~Output() {
-  wl_list_init(&frame_.link);
   wl_list_remove(&frame_.link);
-  wl_list_init(&destroy_.link);
   wl_list_remove(&destroy_.link);
 }
 
-Output::Output(Controller *server, struct wlr_output *output,
-  wlr_output_damage *damage, wlr_output_layout *layout)
-  : output_(output)
+Output::Output(Server *server,
+  struct wlr_output *output,
+  wlr_renderer *renderer,
+  wlr_output_damage *damage,
+  wlr_output_layout *layout)
+  : wlr_output(output)
+  , renderer_(renderer)
   , server_(server)
   , damage_(damage)
   , layout_(layout)
-  { }
+{
+  frame_.notify = Output::output_frame_notify;
+  wl_signal_add(&damage->events.frame, &frame_);
 
-void Output::destroy() {
-  server_->remove_output(this);
+  destroy_.notify = Output::output_destroy_notify;
+  wl_signal_add(&wlr_output->events.destroy, &destroy_);
+}
+
+std::string Output::id() const {
+  std::stringstream id;
+  id << wlr_output->make << " " << wlr_output->model;
+  return id.str();
+}
+
+int Output::width() const {
+  return wlr_output->width;
+}
+
+int Output::height() const {
+  return wlr_output->height;
 }
 
 static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
@@ -112,6 +134,11 @@ void surface_damage_output(wlr_surface *surface, int sx, int sy, void *data) {
   pixman_region32_fini(&damage);
 }
 
+bool Output::is_named(const std::string& name) const {
+  bool match = name.compare(wlr_output->name) == 0;
+  return match;
+}
+
 void Output::take_whole_damage() {
   wlr_output_damage_add_whole(damage_);
 }
@@ -119,20 +146,22 @@ void Output::take_whole_damage() {
 void Output::take_damage(const View *view) {
   damage_iterator_data data = {
     .view = view,
-    .output = output_,
+    .output = wlr_output,
     .output_damage = damage_,
     .output_layout = layout_
   };
   view->for_each_surface(surface_damage_output, &data);
 }
 
-void Output::render() const {
-  wlr_renderer *renderer = server_->renderer;
+void Output::set_enabled(bool enabled) {
+  wlr_output_enable(wlr_output, enabled);
+}
 
+void Output::render(const std::vector<std::shared_ptr<View>>& views) const {
   struct timespec now;
   clock_gettime(CLOCK_MONOTONIC, &now);
 
-  if (!wlr_output_attach_render(output_, NULL)) {
+  if (!wlr_output_attach_render(wlr_output, NULL)) {
     return;
   }
 
@@ -150,28 +179,29 @@ void Output::render() const {
   // wlr_output_effective_resolution(wlr_output, &width, &height);
 
   /* Begin the renderer (calls glViewport and some other GL sanity checks) */
-  wlr_renderer_begin(renderer, output_->width, output_->height);
+  wlr_renderer_begin(renderer_, wlr_output->width, wlr_output->height);
 
   float color[4] = {0.0, 0.0, 0.0, 1.0};
-  wlr_renderer_clear(renderer, color);
+  wlr_renderer_clear(renderer_, color);
 
-  View *view;
-  wl_list_for_each_reverse(view, &server_->views, link) {
+  for (auto it = views.rbegin(); it != views.rend(); ++it) {
+    auto &view = (*it);
     if (!view->mapped) {
       continue;
     }
 
     struct render_data render_data = {
-      .output = output_,
-      .renderer = renderer,
-      .view = view,
+      .output = wlr_output,
+      .renderer = renderer_,
+      .view = view.get(),
       .when = &now,
-      .layout = server_->output_layout,
+      .layout = layout_,
       .buffer_damage = &buffer_damage
     };
 
     view->for_each_surface(render_surface, &render_data);
   }
+
 
   pixman_region32_fini(&buffer_damage);
 
@@ -181,7 +211,7 @@ void Output::render() const {
    * reason, wlroots provides a software fallback, which we ask it to render
    * here. wlr_cursor handles configuring hardware vs software cursors for you,
    * and this function is a no-op when hardware cursors are in use. */
-  wlr_output_render_software_cursors(output_, NULL);
+  wlr_output_render_software_cursors(wlr_output, NULL);
 
   /* Conclude rendering and swap the buffers, showing the final frame
    * on-screen. */
@@ -189,9 +219,29 @@ void Output::render() const {
   pixman_region32_t frame_damage;
   pixman_region32_init(&frame_damage);
 
-  wlr_output_set_damage(output_, &frame_damage);
-  wlr_output_commit(output_);
-  wlr_renderer_end(renderer);
+  wlr_output_set_damage(wlr_output, &frame_damage);
+  wlr_output_commit(wlr_output);
+  wlr_renderer_end(renderer_);
 
   pixman_region32_fini(&frame_damage);
 }
+
+void Output::output_frame_notify(wl_listener *listener, void *data) {
+  Output *output = wl_container_of(listener, output, frame_);
+  output->server_->render_output(output);
+}
+
+void Output::output_destroy_notify(wl_listener *listener, void *data) {
+  Output *output = wl_container_of(listener, output, destroy_);
+  output->server_->remove_output(output);
+}
+
+void Output::set_scale(int scale) {
+  wlr_output_set_scale(wlr_output, scale);
+}
+
+void Output::set_position(int x, int y) {
+  wlr_output_layout_add(layout_, wlr_output, x, y);
+}
+
+}  // namespace lumin

@@ -1,8 +1,10 @@
 #include "key_bindings/key_binding_maximize.h"
 
-#include "controller.h"
+#include "server.h"
 
-key_binding_maximize::key_binding_maximize(Controller *server_)
+namespace lumin {
+
+key_binding_maximize::key_binding_maximize(Server *server_)
   : KeyBinding()
   , server(server_)
   { }
@@ -10,3 +12,5 @@ key_binding_maximize::key_binding_maximize(Controller *server_)
 void key_binding_maximize::run() {
   server->toggle_maximize();
 }
+
+}  // namespace lumin

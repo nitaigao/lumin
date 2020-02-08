@@ -1,7 +1,7 @@
-#include "controller.h"
+#include "server.h"
 
 int main(int argc, char *argv[]) {
-  Controller server;
+  lumin::Server server;
   server.run();
   server.destroy();
 
