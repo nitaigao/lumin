@@ -34,8 +34,8 @@ void Server::quit() {
   wl_display_terminate(display_);
 }
 
-void Server::remove_output(const Output *output) {
-  wlr_output_layout_remove(layout_, output->output());
+void Server::remove_output(Output *output) {
+  output->destroy();
 
   auto condition = [output](auto &el) { return el.get() == output; };
   auto result = std::find_if(outputs_.begin(), outputs_.end(), condition);
@@ -116,6 +116,8 @@ void Server::render_output(const Output *output) const {
 void Server::add_output(const std::shared_ptr<Output>& output) {
   outputs_.push_back(output);
 
+  output->init();
+
   auto layout = settings_->display_find_layout(outputs_);
 
   for (auto &output : outputs_) {
@@ -125,11 +127,18 @@ void Server::add_output(const std::shared_ptr<Output>& output) {
     }
 
     DisplaySetting display = layout[output->id()];
-    output->set_enabled(display.enabled);
-    output->set_scale(display.scale);
-    output->set_position(display.x, display.y);
 
     cursor_->load_scale(display.scale);
+
+    output->set_enabled(display.enabled);
+
+    if (!display.enabled) {
+      continue;
+    }
+
+    output->set_scale(display.scale);
+    output->set_position(display.x, display.y);
+    output->set_mode();
 
     if (display.primary) {
       int cursor_x = display.x + (output->wlr_output->width / 2.0f) / display.scale;
@@ -141,26 +150,13 @@ void Server::add_output(const std::shared_ptr<Output>& output) {
 }
 
 void Server::new_output_notify(wl_listener *listener, void *data) {
+  std::clog << "new_output_notify" << std::endl;
   Server *server = wl_container_of(listener, server, new_output);
   auto wlr_output = static_cast<struct wlr_output*>(data);
-
-  if (!wl_list_empty(&wlr_output->modes)) {
-    struct wlr_output_mode *mode = wlr_output_preferred_mode(wlr_output);
-    wlr_output_set_mode(wlr_output, mode);
-    wlr_output_enable(wlr_output, true);
-    if (!wlr_output_commit(wlr_output)) {
-      std::cerr << "Failed to commit output" << std::endl;
-      return;
-    }
-  }
-
-  wlr_output_create_global(wlr_output);
 
   auto damage = wlr_output_damage_create(wlr_output);
   auto output = std::make_shared<Output>(server, wlr_output,
     server->renderer_, damage, server->layout_);
-
-  // wlr_output_layout_add_auto(server->layout_, wlr_output);
 
   server->add_output(output);
 }
@@ -300,6 +296,7 @@ void Server::run() {
   }
 
   setenv("WAYLAND_DISPLAY", socket, true);
+  setenv("WLR_DRM_NO_MODIFIERS", "1", true);
 
   std::clog << "Wayland WAYLAND_DISPLAY=" << socket << std::endl;
 

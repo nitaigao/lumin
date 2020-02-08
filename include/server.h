@@ -45,7 +45,7 @@ class Server {
   void add_output(const std::shared_ptr<Output>& output);
   void disconnect_output(const std::string& name, bool enabled);
   void render_output(const Output *output) const;
-  void remove_output(const Output *output);
+  void remove_output(Output *output);
   void damage_outputs();
 
   void dock_right();

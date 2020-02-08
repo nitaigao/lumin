@@ -1,5 +1,6 @@
 #include "output.h"
 
+#include <iostream>
 #include <sstream>
 
 #include <wlroots.h>
@@ -46,6 +47,25 @@ Output::Output(Server *server,
 
   destroy_.notify = Output::output_destroy_notify;
   wl_signal_add(&wlr_output->events.destroy, &destroy_);
+}
+
+void Output::init() {
+  wlr_output_create_global(wlr_output);
+}
+
+void Output::set_mode() {
+  if (!wl_list_empty(&wlr_output->modes)) {
+    struct wlr_output_mode *mode = wlr_output_preferred_mode(wlr_output);
+    wlr_output_set_mode(wlr_output, mode);
+    if (!wlr_output_commit(wlr_output)) {
+      std::cerr << "Failed to commit output" << std::endl;
+    }
+  }
+}
+
+void Output::destroy() {
+  wlr_output_layout_remove(layout_, wlr_output);
+  wlr_output_destroy_global(wlr_output);
 }
 
 std::string Output::id() const {
@@ -158,6 +178,10 @@ void Output::set_enabled(bool enabled) {
 }
 
 void Output::render(const std::vector<std::shared_ptr<View>>& views) const {
+  if (!wlr_output->enabled) {
+    return;
+  }
+
   struct timespec now;
   clock_gettime(CLOCK_MONOTONIC, &now);
 
@@ -232,6 +256,7 @@ void Output::output_frame_notify(wl_listener *listener, void *data) {
 }
 
 void Output::output_destroy_notify(wl_listener *listener, void *data) {
+  std::clog << "output_destroy_notify" << std::endl;
   Output *output = wl_container_of(listener, output, destroy_);
   output->server_->remove_output(output);
 }

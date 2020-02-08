@@ -43,9 +43,13 @@ class Output {
 
   bool is_named(const std::string& name) const;
 
+  void init();
+  void destroy();
+
   void set_enabled(bool enabled);
   void set_position(int x, int y);
   void set_scale(int scale);
+  void set_mode();
 
   void render(const std::vector<std::shared_ptr<View>>& views) const;
 
