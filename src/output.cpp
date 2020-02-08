@@ -50,17 +50,7 @@ Output::Output(Server *server,
 
 std::string Output::id() const {
   std::stringstream id;
-  id
-    << wlr_output->make;
-    // << " "
-    // << wlr_output->model << " "
-    // << wlr_output->phys_width << " "
-    // << wlr_output->phys_height << " "
-    // << wlr_output->serial;
-
-  // std::hash<std::string> hasher;
-  // size_t hash = hasher(id.str());
-
+  id << wlr_output->make << " " << wlr_output->model;
   return id.str();
 }
 
