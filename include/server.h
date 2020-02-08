@@ -2,35 +2,36 @@
 #define SERVER_H_
 
 #include <wayland-server-core.h>
-#include <xkbcommon/xkbcommon.h>
 
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "cursor_mode.h"
-#include "cursor.h"
-#include "keyboard.h"
-#include "output.h"
-#include "seat.h"
-#include "settings.h"
-#include "view.h"
+
+typedef uint32_t xkb_keysym_t;
 
 struct wlr_backend;
 struct wlr_display;
 struct wlr_output_layout;
 struct wlr_renderer;
 struct wlr_xdg_shell;
+struct wlr_surface;
+struct wlr_input_device;
 
 namespace lumin {
 
+class Cursor;
 class View;
 class KeyBinding;
+class Keyboard;
 class Output;
+class Seat;
 class Settings;
 
 class Server {
  public:
+  ~Server();
   Server();
 
  public:

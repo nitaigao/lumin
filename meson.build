@@ -14,8 +14,10 @@ wayland_protocols = dependency('wayland-protocols', version: '>=1.17')
 wayland_server = dependency('wayland-server')
 wlroots = dependency('wlroots')
 xkbcommon = dependency('xkbcommon')
+dbuscpp = dependency('dbus-c++-1')
 
 dependencies = [
+  dbuscpp,
   libinput,
   pixman,
   wayland_protocols,
@@ -24,7 +26,7 @@ dependencies = [
   xkbcommon,
 ]
 
-includes = include_directories(['include', 'protocols', 'vendor'])
+includes = include_directories(['include', 'protocols', 'vendor', 'dbus'])
 
 sources = [
   'src/cursor.cpp',
@@ -39,6 +41,7 @@ sources = [
   'src/output.cpp',
   'src/seat.cpp',
   'src/server.cpp',
+  'src/services/settings_service.cpp',
   'src/settings.cpp',
   'src/view.cpp',
 ]

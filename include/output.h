@@ -38,6 +38,8 @@ class Output {
 
  public:
   std::string id() const;
+  int width() const;
+  int height() const;
 
   bool is_named(const std::string& name) const;
 
@@ -55,6 +57,7 @@ class Output {
   static void output_frame_notify(wl_listener *listener, void *data);
 
  public:
+
   struct wlr_output *wlr_output;
 
  private:

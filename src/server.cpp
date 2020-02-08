@@ -5,11 +5,14 @@
 #include <vector>
 
 #include <wlroots.h>
+#include <xkbcommon/xkbcommon.h>
 
+#include "cursor.h"
 #include "keyboard.h"
-#include "view.h"
 #include "output.h"
+#include "seat.h"
 #include "settings.h"
+#include "view.h"
 
 #include "key_bindings/key_binding_cmd.h"
 #include "key_bindings/key_binding_quit.h"
@@ -18,6 +21,10 @@
 #include "key_bindings/key_binding_maximize.h"
 
 namespace lumin {
+
+Server::~Server() {
+
+}
 
 Server::Server() {
   settings_ = std::make_unique<Settings>();
@@ -109,12 +116,7 @@ void Server::render_output(const Output *output) const {
 void Server::add_output(const std::shared_ptr<Output>& output) {
   outputs_.push_back(output);
 
-  std::vector<std::string> output_names;
-  for (auto &output : outputs_) {
-    output_names.push_back(output->id());
-  }
-
-  auto layout = settings_->display_find_layout(output_names);
+  auto layout = settings_->display_find_layout(outputs_);
 
   for (auto &output : outputs_) {
     if (!layout.contains(output->id())) {
@@ -158,7 +160,7 @@ void Server::new_output_notify(wl_listener *listener, void *data) {
   auto output = std::make_shared<Output>(server, wlr_output,
     server->renderer_, damage, server->layout_);
 
-  wlr_output_layout_add_auto(server->layout_, wlr_output);
+  // wlr_output_layout_add_auto(server->layout_, wlr_output);
 
   server->add_output(output);
 }

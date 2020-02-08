@@ -51,16 +51,25 @@ Output::Output(Server *server,
 std::string Output::id() const {
   std::stringstream id;
   id
-    << wlr_output->make << " "
-    << wlr_output->model << " "
-    << wlr_output->phys_width << " "
-    << wlr_output->phys_height << " "
-    << wlr_output->serial;
+    << wlr_output->make;
+    // << " "
+    // << wlr_output->model << " "
+    // << wlr_output->phys_width << " "
+    // << wlr_output->phys_height << " "
+    // << wlr_output->serial;
 
-  std::hash<std::string> hasher;
-  size_t hash = hasher(id.str());
+  // std::hash<std::string> hasher;
+  // size_t hash = hasher(id.str());
 
-  return std::to_string(hash);
+  return id.str();
+}
+
+int Output::width() const {
+  return wlr_output->width;
+}
+
+int Output::height() const {
+  return wlr_output->height;
 }
 
 static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {

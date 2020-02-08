@@ -1,46 +1,23 @@
 #include "settings.h"
 
+#include <iostream>
 #include <string>
 #include <vector>
 
+#include "services/settings_service.h"
+
+#include "output.h"
+
 namespace lumin {
 
+Settings::Settings() {
+  service_ = std::make_shared<SettingsService>();
+}
+
 LayoutConfig Settings::display_find_layout(
-  const std::vector<std::string>& output_names)
-{
-  LayoutConfig displays;
-
-  DisplaySetting x11 = {
-    .x = 0,
-    .y = 0,
-    .scale = 2,
-    .enabled = true,
-    .primary = true
-  };
-
-  displays["5502022416387535785"] = x11;
-
-  DisplaySetting laptop = {
-    .x = 320,
-    .y = 1080,
-    .scale = 3,
-    .enabled = true,
-    .primary = false
-  };
-
-  displays["13070870624578860264"] = laptop;
-
-  DisplaySetting lg = {
-    .x = 0,
-    .y = 0,
-    .scale = 2,
-    .enabled = true,
-    .primary = true
-  };
-
-  displays["10714521508828164035"] = lg;
-
-  return displays;
+  const std::vector<std::shared_ptr<Output>>& outputs) {
+  auto results = service_->display_find_layout(outputs);
+  return results;
 }
 
 }  // namespace lumin
