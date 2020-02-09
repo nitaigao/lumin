@@ -51,6 +51,9 @@ class Output {
   void set_scale(int scale);
   void set_mode();
 
+  void add_layout(int x, int y);
+  void remove_layout();
+
   void commit();
 
   void render(const std::vector<std::shared_ptr<View>>& views) const;

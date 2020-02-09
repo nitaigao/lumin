@@ -3,6 +3,8 @@
 #include <iostream>
 #include <sstream>
 
+#include <spdlog/spdlog.h>
+
 #include <wlroots.h>
 
 #include "view.h"
@@ -57,6 +59,7 @@ void Output::init() {
 void Output::set_mode() {
   if (!wl_list_empty(&wlr_output->modes)) {
     struct wlr_output_mode *mode = wlr_output_preferred_mode(wlr_output);
+    spdlog::debug("{} mode:{}x{}@{}", id(), mode->width, mode->height, mode->refresh * 0.001);
     wlr_output_set_mode(wlr_output, mode);
   }
 }
@@ -68,7 +71,6 @@ void Output::commit() {
 }
 
 void Output::destroy() {
-  wlr_output_layout_remove(layout_, wlr_output);
   wlr_output_destroy_global(wlr_output);
 }
 
@@ -178,7 +180,9 @@ void Output::take_damage(const View *view) {
 }
 
 void Output::set_enabled(bool enabled) {
-  wlr_output_rollback(wlr_output);
+  if (!enabled) {
+    wlr_output_rollback(wlr_output);
+  }
   wlr_output_enable(wlr_output, enabled);
   enabled_ = enabled;
 }
@@ -271,6 +275,14 @@ void Output::set_scale(int scale) {
 }
 
 void Output::set_position(int x, int y) {
+  wlr_output_layout_move(layout_, wlr_output, x, y);
+}
+
+void Output::remove_layout() {
+  wlr_output_layout_remove(layout_, wlr_output);
+}
+
+void Output::add_layout(int x, int y) {
   wlr_output_layout_add(layout_, wlr_output, x, y);
 }
 

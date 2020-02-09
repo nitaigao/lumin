@@ -8,17 +8,19 @@ project('lumin', 'cpp', default_options : [
 add_global_arguments('-Wno-unused-parameter', language : 'cpp')
 add_project_arguments(['-DWLR_USE_UNSTABLE'], language: 'cpp')
 
+dbuscpp = dependency('dbus-c++-1')
 libinput = dependency('libinput')
 pixman = dependency('pixman-1')
+spdlog = dependency('spdlog')
 wayland_protocols = dependency('wayland-protocols', version: '>=1.17')
 wayland_server = dependency('wayland-server')
 wlroots = dependency('wlroots')
 xkbcommon = dependency('xkbcommon')
-dbuscpp = dependency('dbus-c++-1')
 
 dependencies = [
   dbuscpp,
   libinput,
+  spdlog,
   pixman,
   wayland_protocols,
   wayland_server,

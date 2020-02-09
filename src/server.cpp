@@ -4,6 +4,8 @@
 #include <memory>
 #include <vector>
 
+#include <spdlog/spdlog.h>
+
 #include <wlroots.h>
 #include <xkbcommon/xkbcommon.h>
 
@@ -23,7 +25,6 @@
 namespace lumin {
 
 Server::~Server() {
-
 }
 
 Server::Server() {
@@ -110,6 +111,9 @@ void Server::add_output(const std::shared_ptr<Output>& output) {
 }
 
 void Server::remove_output(Output *output) {
+  spdlog::debug("{} disconnected", output->id());
+
+  output->remove_layout();
   output->destroy();
 
   auto condition = [output](auto &el) { return el.get() == output; };
@@ -124,26 +128,32 @@ void Server::remove_output(Output *output) {
 void Server::apply_layout() {
   auto layout = settings_->display_find_layout(outputs_);
 
+  std::map<Output*, DisplaySetting> enabled_outputs;
+  std::map<Output*, DisplaySetting> disabled_outputs;
+
   for (auto &output : outputs_) {
-    if (!layout.contains(output->id())) {
-      std::cerr << "no config for " << output->id() << std::endl;
-      continue;
-    }
-
     DisplaySetting display = layout[output->id()];
-    output->set_enabled(display.enabled);
 
-    if (!display.enabled) {
-      output->commit();
-      continue;
+    if (display.enabled) {
+      enabled_outputs.insert(std::make_pair(output.get(), display));
+    } else {
+      disabled_outputs.insert(std::make_pair(output.get(), display));
     }
 
+    cursor_->load_scale(display.scale);
+  }
+
+  for (auto& [output, display] : enabled_outputs) {
+    spdlog::debug("{} scale:{} x:{} y:{}", output->id(), display.scale, display.x, display.y);
+
+    output->set_enabled(true);
     output->set_scale(display.scale);
-    output->set_position(display.x, display.y);
     output->set_mode();
     output->commit();
 
-    cursor_->load_scale(display.scale);
+    output->remove_layout();
+
+    output->add_layout(display.x, display.y);
 
     if (display.primary) {
       int cursor_x = display.x + (output->wlr_output->width / 2.0f) / display.scale;
@@ -151,6 +161,13 @@ void Server::apply_layout() {
 
       cursor_->warp(cursor_x, cursor_y);
     }
+  }
+
+  for (auto& [output, display] : disabled_outputs) {
+    output->set_enabled(false);
+    output->commit();
+
+    output->remove_layout();
   }
 }
 
@@ -161,6 +178,8 @@ void Server::new_output_notify(wl_listener *listener, void *data) {
   auto damage = wlr_output_damage_create(wlr_output);
   auto output = std::make_shared<Output>(server, wlr_output,
     server->renderer_, damage, server->layout_);
+
+  spdlog::debug("{} connected", output->id());
 
   server->add_output(output);
 }
@@ -256,6 +275,8 @@ void Server::init_keybindings() {
 }
 
 void Server::run() {
+  spdlog::set_level(spdlog::level::debug);
+
   init_keybindings();
 
   display_ = wl_display_create();
@@ -300,15 +321,13 @@ void Server::run() {
   }
 
   setenv("WAYLAND_DISPLAY", socket, true);
-  setenv("WLR_DRM_NO_MODIFIERS", "1", true);
-
-  std::clog << "Wayland WAYLAND_DISPLAY=" << socket << std::endl;
+  spdlog::info("WAYLAND_DISPLAY={}", socket);
 
   wl_display_run(display_);
 }
 
 void Server::destroy() {
-  std::clog << "Quitting!" << std::endl;
+  spdlog::warn("quitting");
 
   wl_display_destroy_clients(display_);
   wlr_backend_destroy(backend_);
@@ -320,7 +339,7 @@ void Server::lid_notify(wl_listener *listener, void *data) {
   auto event = static_cast<wlr_event_switch_toggle *>(data);
   Server *server = wl_container_of(listener, server, lid);
 
-  std::clog << "lid_notify" << std::endl;
+  spdlog::debug("lid_notify");
 
   if (event->switch_type != WLR_SWITCH_TYPE_LID) {
     return;
@@ -355,7 +374,7 @@ void Server::new_keyboard(wlr_input_device *device) {
 }
 
 void Server::new_switch(wlr_input_device *device) {
-  std::clog << "new_switch" << std::endl;
+  spdlog::debug("new_switch");
   lid.notify = lid_notify;
   wl_signal_add(&device->switch_device->events.toggle, &lid);
 }
