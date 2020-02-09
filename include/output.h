@@ -51,6 +51,8 @@ class Output {
   void set_scale(int scale);
   void set_mode();
 
+  void commit();
+
   void render(const std::vector<std::shared_ptr<View>>& views) const;
 
   void take_damage(const View *view);
@@ -69,6 +71,7 @@ class Output {
   Server *server_;
   wlr_output_damage *damage_;
   wlr_output_layout *layout_;
+  bool enabled_;
 
  public:
   wl_listener frame_;

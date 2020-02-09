@@ -34,16 +34,6 @@ void Server::quit() {
   wl_display_terminate(display_);
 }
 
-void Server::remove_output(Output *output) {
-  output->destroy();
-
-  auto condition = [output](auto &el) { return el.get() == output; };
-  auto result = std::find_if(outputs_.begin(), outputs_.end(), condition);
-  if (result != outputs_.end()) {
-    outputs_.erase(result);
-  }
-}
-
 void Server::damage_outputs() {
   for (auto &output : outputs_) {
     output->take_whole_damage();
@@ -115,9 +105,23 @@ void Server::render_output(const Output *output) const {
 
 void Server::add_output(const std::shared_ptr<Output>& output) {
   outputs_.push_back(output);
-
   output->init();
+  apply_layout();
+}
 
+void Server::remove_output(Output *output) {
+  output->destroy();
+
+  auto condition = [output](auto &el) { return el.get() == output; };
+  auto result = std::find_if(outputs_.begin(), outputs_.end(), condition);
+  if (result != outputs_.end()) {
+    outputs_.erase(result);
+  }
+
+  apply_layout();
+}
+
+void Server::apply_layout() {
   auto layout = settings_->display_find_layout(outputs_);
 
   for (auto &output : outputs_) {
@@ -127,18 +131,19 @@ void Server::add_output(const std::shared_ptr<Output>& output) {
     }
 
     DisplaySetting display = layout[output->id()];
-
-    cursor_->load_scale(display.scale);
-
     output->set_enabled(display.enabled);
 
     if (!display.enabled) {
+      output->commit();
       continue;
     }
 
     output->set_scale(display.scale);
     output->set_position(display.x, display.y);
     output->set_mode();
+    output->commit();
+
+    cursor_->load_scale(display.scale);
 
     if (display.primary) {
       int cursor_x = display.x + (output->wlr_output->width / 2.0f) / display.scale;
@@ -150,7 +155,6 @@ void Server::add_output(const std::shared_ptr<Output>& output) {
 }
 
 void Server::new_output_notify(wl_listener *listener, void *data) {
-  std::clog << "new_output_notify" << std::endl;
   Server *server = wl_container_of(listener, server, new_output);
   auto wlr_output = static_cast<struct wlr_output*>(data);
 

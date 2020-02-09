@@ -68,6 +68,7 @@ class Server {
   void new_switch(wlr_input_device *device);
 
   void init_keybindings();
+  void apply_layout();
 
  private:
   wl_listener new_input;

@@ -41,6 +41,7 @@ Output::Output(Server *server,
   , server_(server)
   , damage_(damage)
   , layout_(layout)
+  , enabled_(false)
 {
   frame_.notify = Output::output_frame_notify;
   wl_signal_add(&damage->events.frame, &frame_);
@@ -57,9 +58,12 @@ void Output::set_mode() {
   if (!wl_list_empty(&wlr_output->modes)) {
     struct wlr_output_mode *mode = wlr_output_preferred_mode(wlr_output);
     wlr_output_set_mode(wlr_output, mode);
-    if (!wlr_output_commit(wlr_output)) {
-      std::cerr << "Failed to commit output" << std::endl;
-    }
+  }
+}
+
+void Output::commit() {
+  if (!wlr_output_commit(wlr_output)) {
+    std::cerr << "Failed to commit output" << std::endl;
   }
 }
 
@@ -174,11 +178,13 @@ void Output::take_damage(const View *view) {
 }
 
 void Output::set_enabled(bool enabled) {
+  wlr_output_rollback(wlr_output);
   wlr_output_enable(wlr_output, enabled);
+  enabled_ = enabled;
 }
 
 void Output::render(const std::vector<std::shared_ptr<View>>& views) const {
-  if (!wlr_output->enabled) {
+  if (!enabled_) {
     return;
   }
 
@@ -256,7 +262,6 @@ void Output::output_frame_notify(wl_listener *listener, void *data) {
 }
 
 void Output::output_destroy_notify(wl_listener *listener, void *data) {
-  std::clog << "output_destroy_notify" << std::endl;
   Output *output = wl_container_of(listener, output, destroy_);
   output->server_->remove_output(output);
 }
