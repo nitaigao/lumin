@@ -51,6 +51,9 @@ class Output {
   void set_scale(int scale);
   void set_mode();
 
+  bool disconnected() const;
+  void set_disconnected(bool disconnected);
+
   void add_layout(int x, int y);
   void remove_layout();
 
@@ -75,6 +78,7 @@ class Output {
   wlr_output_damage *damage_;
   wlr_output_layout *layout_;
   bool enabled_;
+  bool disconnected_;
 
  public:
   wl_listener frame_;

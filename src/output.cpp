@@ -44,6 +44,7 @@ Output::Output(Server *server,
   , damage_(damage)
   , layout_(layout)
   , enabled_(false)
+  , disconnected_(false)
 {
   frame_.notify = Output::output_frame_notify;
   wl_signal_add(&damage->events.frame, &frame_);
@@ -54,6 +55,14 @@ Output::Output(Server *server,
 
 void Output::init() {
   wlr_output_create_global(wlr_output);
+}
+
+bool Output::disconnected() const {
+  return disconnected_;
+}
+
+void Output::set_disconnected(bool disconnected) {
+  disconnected_ = disconnected;
 }
 
 void Output::set_mode() {

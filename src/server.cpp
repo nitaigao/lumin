@@ -133,8 +133,9 @@ void Server::apply_layout() {
 
   for (auto &output : outputs_) {
     DisplaySetting display = layout[output->id()];
+    spdlog::debug("{} scale:{} x:{} y:{} enabled:{}", output->id(), display.scale, display.x, display.y, display.enabled);
 
-    if (display.enabled) {
+    if (!output->disconnected() && display.enabled) {
       enabled_outputs.insert(std::make_pair(output.get(), display));
     } else {
       disabled_outputs.insert(std::make_pair(output.get(), display));
@@ -144,8 +145,6 @@ void Server::apply_layout() {
   }
 
   for (auto& [output, display] : enabled_outputs) {
-    spdlog::debug("{} scale:{} x:{} y:{}", output->id(), display.scale, display.x, display.y);
-
     output->set_enabled(true);
     output->set_scale(display.scale);
     output->set_mode();
@@ -156,8 +155,8 @@ void Server::apply_layout() {
     output->add_layout(display.x, display.y);
 
     if (display.primary) {
-      int cursor_x = display.x + (output->wlr_output->width / 2.0f) / display.scale;
-      int cursor_y = display.y + (output->wlr_output->height / 2.0f) / display.scale;
+      int cursor_x = display.x + (output->wlr_output->width * 0.5f) / display.scale;
+      int cursor_y = display.y + (output->wlr_output->height  * 0.5f) / display.scale;
 
       cursor_->warp(cursor_x, cursor_y);
     }
@@ -339,8 +338,6 @@ void Server::lid_notify(wl_listener *listener, void *data) {
   auto event = static_cast<wlr_event_switch_toggle *>(data);
   Server *server = wl_container_of(listener, server, lid);
 
-  spdlog::debug("lid_notify");
-
   if (event->switch_type != WLR_SWITCH_TYPE_LID) {
     return;
   }
@@ -364,7 +361,8 @@ void Server::disconnect_output(const std::string& name, bool enabled) {
   }
 
   auto &output = (*it);
-  output->set_enabled(enabled);
+  output->set_disconnected(!enabled);
+  apply_layout();
 }
 
 void Server::new_keyboard(wlr_input_device *device) {
