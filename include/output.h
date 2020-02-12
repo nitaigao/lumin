@@ -69,7 +69,6 @@ class Output {
  private:
   static void output_destroy_notify(wl_listener *listener, void *data);
   static void output_frame_notify(wl_listener *listener, void *data);
-  static void output_scale_notify(wl_listener *listener, void *data);
 
  public:
   struct wlr_output *wlr_output;
