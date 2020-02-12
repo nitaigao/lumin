@@ -80,7 +80,7 @@ class Output {
   wlr_output_layout *layout_;
   bool enabled_;
   bool connected_;
-  int enter_queued_;
+  int enter_frames_left_;
 
  public:
   wl_listener destroy_;

@@ -12,6 +12,8 @@
 
 namespace lumin {
 
+const int ENTER_FRAME_REPEAT_COUNT = 2;
+
 struct render_data {
   wlr_output *output;
   wlr_renderer *renderer;
@@ -45,7 +47,7 @@ Output::Output(Server *server,
   , layout_(layout)
   , enabled_(false)
   , connected_(true)
-  , enter_queued_(0)
+  , enter_frames_left_(0)
 {
   destroy_.notify = Output::output_destroy_notify;
   wl_signal_add(&wlr_output->events.destroy, &destroy_);
@@ -81,7 +83,7 @@ void Output::set_mode() {
 }
 
 void Output::send_enter(const std::vector<std::shared_ptr<View>>& views) {
-  if (enter_queued_-- > 0) {
+  if (enter_frames_left_-- > 0) {
     for (auto &view : views) {
       view->enter(this);
     }
@@ -204,7 +206,7 @@ void Output::take_damage(const View *view) {
 }
 
 void Output::set_enabled(bool enabled) {
-  enter_queued_ = 3;
+  enter_frames_left_ = ENTER_FRAME_REPEAT_COUNT;
 
   if (enabled == enabled_) {
     return;
