@@ -75,17 +75,8 @@ bool View::windowed() const {
 }
 
 void surface_send_enter(wlr_surface *surface, int sx, int sy, void *data) {
-  spdlog::warn("surface_send_enter");
-
   auto output = static_cast<wlr_output*>(data);
-
-  // wlr_surface_send_enter(surface, output);
-
-  wl_resource *resource;
-  wl_list_for_each(resource, &output->resources, link) {
-    spdlog::warn("wl_surface_send_enter");
-    wl_surface_send_enter(surface->resource, resource);
-  }
+  wlr_surface_send_enter(surface, output);
 }
 
 void View::enter(const Output* output) {
