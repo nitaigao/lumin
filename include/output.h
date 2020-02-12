@@ -61,7 +61,8 @@ class Output {
 
   void commit();
 
-  void render(const std::vector<std::shared_ptr<View>>& views) const;
+  void render(const std::vector<std::shared_ptr<View>>& views,
+    const std::vector<std::shared_ptr<View>>& overlays) const;
 
   void take_damage(const View *view);
   void take_whole_damage();

@@ -120,7 +120,9 @@ class View {
   } saved_state_;
 
   Server *server;
+ public:
   wlr_xdg_surface *xdg_surface_;
+ private:
   Cursor *cursor_;
   wlr_output_layout *layout_;
   Seat *seat_;

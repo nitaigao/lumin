@@ -471,6 +471,8 @@ void View::xdg_surface_unmap_notify(wl_listener *listener, void *data) {
   view->unmap_view();
   view->server->focus_top();
   view->server->damage_outputs();
+
+  view->server->remove_app(view->xdg_surface_->toplevel->app_id);
 }
 
 }  // namespace lumin

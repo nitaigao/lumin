@@ -38,6 +38,8 @@ sources = [
   'src/key_bindings/key_binding_dock_right.cpp',
   'src/key_bindings/key_binding_maximize.cpp',
   'src/key_bindings/key_binding_quit.cpp',
+  'src/key_bindings/key_binding_switch_app.cpp',
+  'src/key_bindings/key_binding_cancel_activity.cpp',
   'src/keyboard.cpp',
   'src/main.cpp',
   'src/output.cpp',

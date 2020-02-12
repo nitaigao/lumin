@@ -220,7 +220,8 @@ void Output::set_enabled(bool enabled) {
   enabled_ = enabled;
 }
 
-void Output::render(const std::vector<std::shared_ptr<View>>& views) const {
+void Output::render(const std::vector<std::shared_ptr<View>>& views,
+  const std::vector<std::shared_ptr<View>>& overlays) const {
   if (!enabled_) {
     return;
   }

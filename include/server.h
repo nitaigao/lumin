@@ -3,6 +3,7 @@
 
 #include <wayland-server-core.h>
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -42,6 +43,9 @@ class Server {
   void focus_top();
   void focus_view(View *view);
 
+  void add_app(const std::string& app_id);
+  void remove_app(const std::string& app_id);
+
   void add_output(const std::shared_ptr<Output>& output);
   void enable_output(const std::string& name, bool enabled);
   void render_output(Output *output) const;
@@ -63,6 +67,9 @@ class Server {
   void maximize_view(View *view);
   void destroy_view(View *view);
   void position_view(View* view);
+
+  void next_app();
+  void cancel_activity();
 
  private:
   void new_keyboard(wlr_input_device *device);
@@ -88,9 +95,9 @@ class Server {
 
  private:
   std::vector<std::shared_ptr<KeyBinding>> key_bindings;
-
-  std::vector<std::shared_ptr<Output>> outputs_;
   std::vector<std::shared_ptr<Keyboard>> keyboards_;
+  std::vector<std::shared_ptr<Output>> outputs_;
+  std::vector<std::shared_ptr<View>> overlays_;
   std::vector<std::shared_ptr<View>> views_;
 
   uint capabilities_;
@@ -104,6 +111,11 @@ class Server {
   std::unique_ptr<Cursor> cursor_;
   std::unique_ptr<Settings> settings_;
   std::unique_ptr<Seat> seat_;
+
+ public:
+  std::map<std::string, int> running_apps_;
+
+  bool switching_apps_;
 };
 
 }  // namespace lumin

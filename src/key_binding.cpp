@@ -1,5 +1,7 @@
 #include "key_binding.h"
 
+#include <spdlog/spdlog.h>
+
 #include <wlroots.h>
 
 namespace lumin {

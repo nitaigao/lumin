@@ -16,11 +16,13 @@
 #include "settings.h"
 #include "view.h"
 
+#include "key_bindings/key_binding_cancel_activity.h"
 #include "key_bindings/key_binding_cmd.h"
 #include "key_bindings/key_binding_quit.h"
 #include "key_bindings/key_binding_dock_right.h"
 #include "key_bindings/key_binding_dock_left.h"
 #include "key_bindings/key_binding_maximize.h"
+#include "key_bindings/key_binding_switch_app.h"
 
 namespace lumin {
 
@@ -29,6 +31,7 @@ Server::~Server() {
 
 Server::Server() {
   settings_ = std::make_unique<Settings>();
+  switching_apps_ = false;
 }
 
 void Server::quit() {
@@ -102,7 +105,7 @@ void Server::focus_view(View *view) {
 
 void Server::render_output(Output *output) const {
   output->send_enter(views_);
-  output->render(views_);
+  output->render(views_, overlays_);
 }
 
 void Server::add_output(const std::shared_ptr<Output>& output) {
@@ -192,6 +195,26 @@ void Server::destroy_view(View *view) {
   }
 }
 
+void Server::add_app(const std::string& app_id) {
+  if (!running_apps_.contains(app_id)) {
+    running_apps_[app_id] = 0;
+  }
+  running_apps_[app_id] += 1;
+
+  spdlog::debug("{} is now {}", app_id,  running_apps_[app_id]);
+}
+
+void Server::remove_app(const std::string& app_id) {
+  running_apps_[app_id] -= 1;
+
+  spdlog::debug("{} is now {}", app_id,  running_apps_[app_id]);
+
+  if (running_apps_[app_id] <= 0) {
+    running_apps_.erase(app_id);
+    spdlog::debug("removed {}", app_id);
+  }
+}
+
 void Server::new_surface_notify(wl_listener *listener, void *data) {
   auto xdg_surface = static_cast<wlr_xdg_surface*>(data);
   if (xdg_surface->role != WLR_XDG_SURFACE_ROLE_TOPLEVEL) {
@@ -204,6 +227,8 @@ void Server::new_surface_notify(wl_listener *listener, void *data) {
     server->cursor_.get(), server->layout_, server->seat_.get());
 
   server->views_.push_back(view);
+
+  server->add_app(xdg_surface->toplevel->app_id);
 }
 
 void Server::maximize_view(View *view) {
@@ -272,6 +297,31 @@ void Server::init_keybindings() {
   maximize->key = XKB_KEY_Up;
   maximize->state = WLR_KEY_PRESSED;
   key_bindings.push_back(maximize);
+
+  auto switch_app = std::make_shared<key_binding_switch_app>(this);
+  switch_app->ctrl = true;
+  switch_app->key = XKB_KEY_Tab;
+  switch_app->state = WLR_KEY_PRESSED;
+  key_bindings.push_back(switch_app);
+
+  auto cancel_activity = std::make_shared<key_binding_cancel_activity>(this);
+  cancel_activity->ctrl = XKB_KEY_Control_L;
+  cancel_activity->key = XKB_KEY_Control_L;
+  cancel_activity->state = WLR_KEY_RELEASED;
+  key_bindings.push_back(cancel_activity);
+}
+
+void Server::next_app() {
+  if (!switching_apps_) {
+    switching_apps_ = true;
+    spdlog::debug("started next_app");
+  }
+
+  spdlog::debug("next_app");
+}
+
+void Server::cancel_activity() {
+  spdlog::debug("cancel activity");
 }
 
 void Server::run() {
