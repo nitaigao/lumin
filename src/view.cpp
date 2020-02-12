@@ -1,6 +1,7 @@
 #include "view.h"
 
 #include <wlroots.h>
+#include <spdlog/spdlog.h>
 
 #include "cursor_mode.h"
 #include "cursor.h"
@@ -71,6 +72,24 @@ uint View::min_height() const {
 bool View::windowed() const {
   bool windowed = state == WM_WINDOW_STATE_WINDOW;
   return windowed;
+}
+
+void surface_send_enter(wlr_surface *surface, int sx, int sy, void *data) {
+  spdlog::warn("surface_send_enter");
+
+  auto output = static_cast<wlr_output*>(data);
+
+  // wlr_surface_send_enter(surface, output);
+
+  wl_resource *resource;
+  wl_list_for_each(resource, &output->resources, link) {
+    spdlog::warn("wl_surface_send_enter");
+    wl_surface_send_enter(surface->resource, resource);
+  }
+}
+
+void View::enter(const Output* output) {
+  for_each_surface(surface_send_enter, output->wlr_output);
 }
 
 bool View::tiled() const {

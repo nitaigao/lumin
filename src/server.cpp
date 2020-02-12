@@ -100,7 +100,8 @@ void Server::focus_view(View *view) {
   view->focus();
 }
 
-void Server::render_output(const Output *output) const {
+void Server::render_output(Output *output) const {
+  output->send_enter(views_);
   output->render(views_);
 }
 
@@ -135,7 +136,7 @@ void Server::apply_layout() {
     DisplaySetting display = layout[output->id()];
     spdlog::debug("{} scale:{} x:{} y:{} enabled:{}", output->id(), display.scale, display.x, display.y, display.enabled);
 
-    if (!output->disconnected() && display.enabled) {
+    if (output->connected() && display.enabled) {
       enabled_outputs.insert(std::make_pair(output.get(), display));
     } else {
       disabled_outputs.insert(std::make_pair(output.get(), display));
@@ -336,24 +337,25 @@ void Server::destroy() {
 
 void Server::lid_notify(wl_listener *listener, void *data) {
   auto event = static_cast<wlr_event_switch_toggle *>(data);
-  Server *server = wl_container_of(listener, server, lid);
 
   if (event->switch_type != WLR_SWITCH_TYPE_LID) {
     return;
   }
 
+  Server *server = wl_container_of(listener, server, lid);
+
   const std::string laptop_screen_name = "eDP-1";
 
   if (event->switch_state == WLR_SWITCH_STATE_ON) {
-    server->disconnect_output(laptop_screen_name, false);
+    server->enable_output(laptop_screen_name, false);
   }
 
   if (event->switch_state == WLR_SWITCH_STATE_OFF) {
-    server->disconnect_output(laptop_screen_name, true);
+    server->enable_output(laptop_screen_name, true);
   }
 }
 
-void Server::disconnect_output(const std::string& name, bool enabled) {
+void Server::enable_output(const std::string& name, bool enabled) {
   auto lambda = [name](auto &output) -> bool { return output->is_named(name); };
   auto it = std::find_if(outputs_.begin(), outputs_.end(), lambda);
   if (it == outputs_.end()) {
@@ -361,7 +363,7 @@ void Server::disconnect_output(const std::string& name, bool enabled) {
   }
 
   auto &output = (*it);
-  output->set_disconnected(!enabled);
+  output->set_connected(enabled);
   apply_layout();
 }
 

@@ -16,6 +16,7 @@ struct wlr_output_layout;
 namespace lumin {
 
 class Cursor;
+class Output;
 class Seat;
 class Server;
 
@@ -50,6 +51,8 @@ class View {
 
   void focus();
   void unfocus();
+
+  void enter(const Output* output);
 
   uint min_width() const;
   uint min_height() const;
