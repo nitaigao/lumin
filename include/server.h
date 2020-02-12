@@ -47,6 +47,7 @@ class Server {
   void render_output(Output *output) const;
   void remove_output(Output *output);
   void damage_outputs();
+  void enable_builtin_screen(bool enabled);
 
   void dock_right();
   void dock_left();

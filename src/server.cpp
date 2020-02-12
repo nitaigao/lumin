@@ -343,15 +343,15 @@ void Server::lid_notify(wl_listener *listener, void *data) {
   }
 
   Server *server = wl_container_of(listener, server, lid);
+  bool enabled = event->switch_state == WLR_SWITCH_STATE_ON;
+  server->enable_builtin_screen(enabled);
+}
 
-  const std::string laptop_screen_name = "eDP-1";
+void Server::enable_builtin_screen(bool enabled) {
+  const std::vector<std::string> laptop_screen_names = { "eDP-1", "LVDS1" };
 
-  if (event->switch_state == WLR_SWITCH_STATE_ON) {
-    server->enable_output(laptop_screen_name, false);
-  }
-
-  if (event->switch_state == WLR_SWITCH_STATE_OFF) {
-    server->enable_output(laptop_screen_name, true);
+  for (auto &laptop_screen_name : laptop_screen_names) {
+    enable_output(laptop_screen_name, enabled);
   }
 }
 
