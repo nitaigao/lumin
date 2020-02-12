@@ -100,7 +100,8 @@ void Server::focus_view(View *view) {
   view->focus();
 }
 
-void Server::render_output(const Output *output) const {
+void Server::render_output(Output *output) const {
+  output->send_enter(views_);
   output->render(views_);
 }
 
@@ -133,8 +134,9 @@ void Server::apply_layout() {
 
   for (auto &output : outputs_) {
     DisplaySetting display = layout[output->id()];
+    spdlog::debug("{} scale:{} x:{} y:{} enabled:{}", output->id(), display.scale, display.x, display.y, display.enabled);
 
-    if (display.enabled) {
+    if (output->connected() && display.enabled) {
       enabled_outputs.insert(std::make_pair(output.get(), display));
     } else {
       disabled_outputs.insert(std::make_pair(output.get(), display));
@@ -144,8 +146,6 @@ void Server::apply_layout() {
   }
 
   for (auto& [output, display] : enabled_outputs) {
-    spdlog::debug("{} scale:{} x:{} y:{}", output->id(), display.scale, display.x, display.y);
-
     output->set_enabled(true);
     output->set_scale(display.scale);
     output->set_mode();
@@ -156,8 +156,8 @@ void Server::apply_layout() {
     output->add_layout(display.x, display.y);
 
     if (display.primary) {
-      int cursor_x = display.x + (output->wlr_output->width / 2.0f) / display.scale;
-      int cursor_y = display.y + (output->wlr_output->height / 2.0f) / display.scale;
+      int cursor_x = display.x + (output->wlr_output->width * 0.5f) / display.scale;
+      int cursor_y = display.y + (output->wlr_output->height  * 0.5f) / display.scale;
 
       cursor_->warp(cursor_x, cursor_y);
     }
@@ -337,26 +337,25 @@ void Server::destroy() {
 
 void Server::lid_notify(wl_listener *listener, void *data) {
   auto event = static_cast<wlr_event_switch_toggle *>(data);
-  Server *server = wl_container_of(listener, server, lid);
-
-  spdlog::debug("lid_notify");
 
   if (event->switch_type != WLR_SWITCH_TYPE_LID) {
     return;
   }
 
-  const std::string laptop_screen_name = "eDP-1";
+  Server *server = wl_container_of(listener, server, lid);
+  bool enabled = event->switch_state == WLR_SWITCH_STATE_ON;
+  server->enable_builtin_screen(enabled);
+}
 
-  if (event->switch_state == WLR_SWITCH_STATE_ON) {
-    server->disconnect_output(laptop_screen_name, false);
-  }
+void Server::enable_builtin_screen(bool enabled) {
+  const std::vector<std::string> laptop_screen_names = { "eDP-1", "LVDS1" };
 
-  if (event->switch_state == WLR_SWITCH_STATE_OFF) {
-    server->disconnect_output(laptop_screen_name, true);
+  for (auto &laptop_screen_name : laptop_screen_names) {
+    enable_output(laptop_screen_name, enabled);
   }
 }
 
-void Server::disconnect_output(const std::string& name, bool enabled) {
+void Server::enable_output(const std::string& name, bool enabled) {
   auto lambda = [name](auto &output) -> bool { return output->is_named(name); };
   auto it = std::find_if(outputs_.begin(), outputs_.end(), lambda);
   if (it == outputs_.end()) {
@@ -364,7 +363,8 @@ void Server::disconnect_output(const std::string& name, bool enabled) {
   }
 
   auto &output = (*it);
-  output->set_enabled(enabled);
+  output->set_connected(enabled);
+  apply_layout();
 }
 
 void Server::new_keyboard(wlr_input_device *device) {

@@ -51,8 +51,13 @@ class Output {
   void set_scale(int scale);
   void set_mode();
 
+  bool connected() const;
+  void set_connected(bool connected);
+
   void add_layout(int x, int y);
   void remove_layout();
+
+  void send_enter(const std::vector<std::shared_ptr<View>>& views);
 
   void commit();
 
@@ -66,7 +71,6 @@ class Output {
   static void output_frame_notify(wl_listener *listener, void *data);
 
  public:
-
   struct wlr_output *wlr_output;
 
  private:
@@ -75,10 +79,12 @@ class Output {
   wlr_output_damage *damage_;
   wlr_output_layout *layout_;
   bool enabled_;
+  bool connected_;
+  int enter_frames_left_;
 
  public:
-  wl_listener frame_;
   wl_listener destroy_;
+  wl_listener frame_;
 };
 
 }  // namespace lumin

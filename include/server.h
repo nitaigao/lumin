@@ -43,10 +43,11 @@ class Server {
   void focus_view(View *view);
 
   void add_output(const std::shared_ptr<Output>& output);
-  void disconnect_output(const std::string& name, bool enabled);
-  void render_output(const Output *output) const;
+  void enable_output(const std::string& name, bool enabled);
+  void render_output(Output *output) const;
   void remove_output(Output *output);
   void damage_outputs();
+  void enable_builtin_screen(bool enabled);
 
   void dock_right();
   void dock_left();
@@ -78,11 +79,12 @@ class Server {
   wl_listener lid;
 
  private:
+  static void layout_changed_notify(wl_listener *listener, void *data);
+  static void lid_notify(wl_listener *listener, void *data);
+
   static void new_input_notify(wl_listener *listener, void *data);
   static void new_output_notify(wl_listener *listener, void *data);
   static void new_surface_notify(wl_listener *listener, void *data);
-
-  static void lid_notify(wl_listener *listener, void *data);
 
  private:
   std::vector<std::shared_ptr<KeyBinding>> key_bindings;

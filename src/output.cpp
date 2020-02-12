@@ -12,6 +12,8 @@
 
 namespace lumin {
 
+const int ENTER_FRAME_REPEAT_COUNT = 2;
+
 struct render_data {
   wlr_output *output;
   wlr_renderer *renderer;
@@ -44,23 +46,47 @@ Output::Output(Server *server,
   , damage_(damage)
   , layout_(layout)
   , enabled_(false)
+  , connected_(true)
+  , enter_frames_left_(0)
 {
-  frame_.notify = Output::output_frame_notify;
-  wl_signal_add(&damage->events.frame, &frame_);
-
   destroy_.notify = Output::output_destroy_notify;
   wl_signal_add(&wlr_output->events.destroy, &destroy_);
+
+  frame_.notify = Output::output_frame_notify;
+  wl_signal_add(&damage->events.frame, &frame_);
 }
 
 void Output::init() {
   wlr_output_create_global(wlr_output);
 }
 
+bool Output::connected() const {
+  return connected_;
+}
+
+void Output::set_connected(bool connected) {
+  connected_ = connected;
+}
+
 void Output::set_mode() {
-  if (!wl_list_empty(&wlr_output->modes)) {
-    struct wlr_output_mode *mode = wlr_output_preferred_mode(wlr_output);
-    spdlog::debug("{} mode:{}x{}@{}", id(), mode->width, mode->height, mode->refresh * 0.001);
-    wlr_output_set_mode(wlr_output, mode);
+  if (wl_list_empty(&wlr_output->modes)) {
+    return;
+  }
+
+  struct wlr_output_mode *mode = wlr_output_preferred_mode(wlr_output);
+  if (wlr_output->current_mode == mode) {
+    return;
+  }
+
+  spdlog::debug("{} mode:{}x{}@{}", id(), mode->width, mode->height, mode->refresh * 0.001);
+  wlr_output_set_mode(wlr_output, mode);
+}
+
+void Output::send_enter(const std::vector<std::shared_ptr<View>>& views) {
+  if (enter_frames_left_-- > 0) {
+    for (auto &view : views) {
+      view->enter(this);
+    }
   }
 }
 
@@ -180,9 +206,16 @@ void Output::take_damage(const View *view) {
 }
 
 void Output::set_enabled(bool enabled) {
+  enter_frames_left_ = ENTER_FRAME_REPEAT_COUNT;
+
+  if (enabled == enabled_) {
+    return;
+  }
+
   if (!enabled) {
     wlr_output_rollback(wlr_output);
   }
+
   wlr_output_enable(wlr_output, enabled);
   enabled_ = enabled;
 }
