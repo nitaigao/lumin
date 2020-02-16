@@ -10,7 +10,7 @@ key_binding_switch_app::key_binding_switch_app(Server *server_)
   { }
 
 void key_binding_switch_app::run() {
-  server->next_app();
+  server->switch_app();
 }
 
 }  // namespace lumin

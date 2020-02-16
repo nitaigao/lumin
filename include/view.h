@@ -3,6 +3,8 @@
 
 #include <wayland-server-core.h>
 
+#include <string>
+
 #include "cursor_mode.h"
 
 struct wlr_xdg_surface;
@@ -52,6 +54,9 @@ class View {
   void focus();
   void unfocus();
 
+  std::string id() const;
+  std::string title() const;
+
   void enter(const Output* output);
 
   uint min_width() const;
@@ -91,11 +96,13 @@ class View {
   wl_listener request_maximize;
   wl_listener new_subsurface;
   wl_listener new_popup;
+  wl_listener set_app_id;
 
  private:
   static void xdg_toplevel_request_maximize_notify(wl_listener *listener, void *data);
   static void xdg_toplevel_request_move_notify(wl_listener *listener, void *data);
   static void xdg_toplevel_request_resize_notify(wl_listener *listener, void *data);
+  static void xdg_toplevel_set_app_id_notify(wl_listener *listener, void *data);
 
   static void xdg_popup_commit_notify(wl_listener *listener, void *data);
   static void xdg_popup_destroy_notify(wl_listener *listener, void *data);
@@ -120,8 +127,10 @@ class View {
   } saved_state_;
 
   Server *server;
+
  public:
   wlr_xdg_surface *xdg_surface_;
+
  private:
   Cursor *cursor_;
   wlr_output_layout *layout_;

@@ -12,6 +12,7 @@ class KeyBinding {
   KeyBinding();
 
   bool ctrl;
+  bool shift;
   bool alt;
   bool super;
   unsigned int key;

@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <memory>
+#include <set>
 #include <vector>
 
 #include <spdlog/spdlog.h>
@@ -9,12 +10,17 @@
 #include <wlroots.h>
 #include <xkbcommon/xkbcommon.h>
 
+#include <gtk-3.0/gtk/gtk.h>
+
 #include "cursor.h"
 #include "keyboard.h"
 #include "output.h"
 #include "seat.h"
 #include "settings.h"
+#include "shell.h"
+#include "switcher.h"
 #include "view.h"
+#include "gtk_shell.h"
 
 #include "key_bindings/key_binding_cancel_activity.h"
 #include "key_bindings/key_binding_cmd.h"
@@ -23,6 +29,7 @@
 #include "key_bindings/key_binding_dock_left.h"
 #include "key_bindings/key_binding_maximize.h"
 #include "key_bindings/key_binding_switch_app.h"
+#include "key_bindings/key_binding_switch_app_reverse.h"
 
 namespace lumin {
 
@@ -31,11 +38,15 @@ Server::~Server() {
 
 Server::Server() {
   settings_ = std::make_unique<Settings>();
-  switching_apps_ = false;
+  shell_ = std::make_unique<Shell>(this);
 }
 
 void Server::quit() {
   wl_display_terminate(display_);
+}
+
+const std::vector<std::shared_ptr<View>>& Server::views() const {
+  return views_;
 }
 
 void Server::damage_outputs() {
@@ -49,12 +60,19 @@ bool Server::handle_key(uint32_t keycode, const xkb_keysym_t *syms,
   bool handled = false;
 
   for (int i = 0; i < nsyms; i++) {
+    int sym = syms[i];
+
     for (auto &key_binding : key_bindings) {
-      bool matched = key_binding->matches(modifiers, syms[i], (wlr_key_state)state);
+      bool matched = key_binding->matches(modifiers, sym, (wlr_key_state)state);
       if (matched) {
         key_binding->run();
         handled = true;
       }
+    }
+
+    if (sym == XKB_KEY_Alt_L && state == WLR_KEY_RELEASED) {
+      key_binding_cancel_activity cancel_activity(this);
+      cancel_activity.run();
     }
   }
 
@@ -137,7 +155,8 @@ void Server::apply_layout() {
 
   for (auto &output : outputs_) {
     DisplaySetting display = layout[output->id()];
-    spdlog::debug("{} scale:{} x:{} y:{} enabled:{}", output->id(), display.scale, display.x, display.y, display.enabled);
+    spdlog::debug("{} scale:{} x:{} y:{} enabled:{}", output->id(),
+      display.scale, display.x, display.y, display.enabled);
 
     if (output->connected() && display.enabled) {
       enabled_outputs.insert(std::make_pair(output.get(), display));
@@ -195,26 +214,6 @@ void Server::destroy_view(View *view) {
   }
 }
 
-void Server::add_app(const std::string& app_id) {
-  if (!running_apps_.contains(app_id)) {
-    running_apps_[app_id] = 0;
-  }
-  running_apps_[app_id] += 1;
-
-  spdlog::debug("{} is now {}", app_id,  running_apps_[app_id]);
-}
-
-void Server::remove_app(const std::string& app_id) {
-  running_apps_[app_id] -= 1;
-
-  spdlog::debug("{} is now {}", app_id,  running_apps_[app_id]);
-
-  if (running_apps_[app_id] <= 0) {
-    running_apps_.erase(app_id);
-    spdlog::debug("removed {}", app_id);
-  }
-}
-
 void Server::new_surface_notify(wl_listener *listener, void *data) {
   auto xdg_surface = static_cast<wlr_xdg_surface*>(data);
   if (xdg_surface->role != WLR_XDG_SURFACE_ROLE_TOPLEVEL) {
@@ -227,8 +226,6 @@ void Server::new_surface_notify(wl_listener *listener, void *data) {
     server->cursor_.get(), server->layout_, server->seat_.get());
 
   server->views_.push_back(view);
-
-  server->add_app(xdg_surface->toplevel->app_id);
 }
 
 void Server::maximize_view(View *view) {
@@ -281,53 +278,56 @@ void Server::init_keybindings() {
   key_bindings.push_back(quit);
 
   auto dock_left = std::make_shared<key_binding_dock_left>(this);
-  dock_left->super = true;
+  dock_left->alt = true;
   dock_left->key = XKB_KEY_Left;
   dock_left->state = WLR_KEY_PRESSED;
   key_bindings.push_back(dock_left);
 
   auto dock_right = std::make_shared<key_binding_dock_right>(this);
-  dock_right->super = true;
+  dock_right->alt = true;
   dock_right->key = XKB_KEY_Right;
   dock_right->state = WLR_KEY_PRESSED;
   key_bindings.push_back(dock_right);
 
   auto maximize = std::make_shared<key_binding_maximize>(this);
-  maximize->super = true;
+  maximize->alt = true;
   maximize->key = XKB_KEY_Up;
   maximize->state = WLR_KEY_PRESSED;
   key_bindings.push_back(maximize);
 
+  // ctrl
+
+  auto switch_app_x11 = std::make_shared<key_binding_switch_app>(this);
+  switch_app_x11->ctrl = true;
+  switch_app_x11->key = XKB_KEY_Tab;
+  switch_app_x11->state = WLR_KEY_PRESSED;
+  key_bindings.push_back(switch_app_x11);
+
+  auto switch_app_reverse_x11 = std::make_shared<key_binding_switch_app_reverse>(this);
+  switch_app_reverse_x11->ctrl = true;
+  switch_app_reverse_x11->shift = true;
+  switch_app_reverse_x11->key = XKB_KEY_ISO_Left_Tab;
+  switch_app_reverse_x11->state = WLR_KEY_PRESSED;
+  key_bindings.push_back(switch_app_reverse_x11);
+
+  // alt
+
   auto switch_app = std::make_shared<key_binding_switch_app>(this);
-  switch_app->ctrl = true;
+  switch_app->alt = true;
   switch_app->key = XKB_KEY_Tab;
   switch_app->state = WLR_KEY_PRESSED;
   key_bindings.push_back(switch_app);
 
-  auto cancel_activity = std::make_shared<key_binding_cancel_activity>(this);
-  cancel_activity->ctrl = XKB_KEY_Control_L;
-  cancel_activity->key = XKB_KEY_Control_L;
-  cancel_activity->state = WLR_KEY_RELEASED;
-  key_bindings.push_back(cancel_activity);
+  auto switch_app_reverse = std::make_shared<key_binding_switch_app_reverse>(this);
+  switch_app_reverse->alt = true;
+  switch_app_reverse->shift = true;
+  switch_app_reverse->key = XKB_KEY_ISO_Left_Tab;
+  switch_app_reverse->state = WLR_KEY_PRESSED;
+  key_bindings.push_back(switch_app_reverse);
 }
 
-void Server::next_app() {
-  if (!switching_apps_) {
-    switching_apps_ = true;
-    spdlog::debug("started next_app");
-  }
-
-  spdlog::debug("next_app");
-}
-
-void Server::cancel_activity() {
-  spdlog::debug("cancel activity");
-}
-
-void Server::run() {
+void Server::init() {
   spdlog::set_level(spdlog::level::debug);
-
-  init_keybindings();
 
   display_ = wl_display_create();
   backend_ = wlr_backend_autocreate(display_, NULL);
@@ -370,10 +370,31 @@ void Server::run() {
     return;
   }
 
+  gtk_shell_create(display_);
+
   setenv("WAYLAND_DISPLAY", socket, true);
   spdlog::info("WAYLAND_DISPLAY={}", socket);
 
+  init_keybindings();
+
+  shell_->run();
+}
+
+void Server::run() {
+  spdlog::warn("run");
   wl_display_run(display_);
+}
+
+void Server::switch_app() {
+  shell_->switch_app();
+}
+
+void Server::switch_app_reverse() {
+  shell_->switch_app_reverse();
+}
+
+void Server::cancel_activity() {
+  shell_->cancel_activity();
 }
 
 void Server::destroy() {
@@ -446,6 +467,15 @@ View* Server::view_from_surface(wlr_surface *surface) {
     }
   }
   return NULL;
+}
+
+std::vector<std::string> Server::apps() const {
+  std::set<std::string> unique_apps;
+  for (auto &view : views_) {
+    unique_apps.insert(view->title());
+  }
+  std::vector<std::string> apps(unique_apps.begin(), unique_apps.end());
+  return apps;
 }
 
 void Server::position_view(View *view) {

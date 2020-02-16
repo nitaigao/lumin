@@ -1,11 +1,10 @@
 #include "output.h"
 
+#include <spdlog/spdlog.h>
+#include <wlroots.h>
+
 #include <iostream>
 #include <sstream>
-
-#include <spdlog/spdlog.h>
-
-#include <wlroots.h>
 
 #include "view.h"
 #include "server.h"

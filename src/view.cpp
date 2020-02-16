@@ -59,6 +59,17 @@ View::View(Server *server_, wlr_xdg_surface *surface, Cursor *cursor,
 
   request_maximize.notify = View::xdg_toplevel_request_maximize_notify;
   wl_signal_add(&toplevel->events.request_maximize, &request_maximize);
+
+  set_app_id.notify = View::xdg_toplevel_set_app_id_notify;
+  wl_signal_add(&toplevel->events.set_app_id, &set_app_id);
+}
+
+std::string View::id() const {
+  return xdg_surface_->toplevel->app_id;
+}
+
+std::string View::title() const {
+  return xdg_surface_->toplevel->title;
 }
 
 uint View::min_width() const {
@@ -471,8 +482,10 @@ void View::xdg_surface_unmap_notify(wl_listener *listener, void *data) {
   view->unmap_view();
   view->server->focus_top();
   view->server->damage_outputs();
+}
 
-  view->server->remove_app(view->xdg_surface_->toplevel->app_id);
+void View::xdg_toplevel_set_app_id_notify(wl_listener *listener, void *data) {
+  View *view = wl_container_of(listener, view, set_app_id);
 }
 
 }  // namespace lumin

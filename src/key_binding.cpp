@@ -8,6 +8,7 @@ namespace lumin {
 
 KeyBinding::KeyBinding()
     : ctrl(false)
+    , shift(false)
     , alt(false)
     , super(false)
     , key(0)
@@ -19,6 +20,9 @@ int KeyBinding::mods() const {
   if (ctrl) {
     modifiers |= WLR_MODIFIER_CTRL;
   }
+  if (shift) {
+    modifiers |= WLR_MODIFIER_SHIFT;
+  }
   if (alt) {
     modifiers |= WLR_MODIFIER_ALT;
   }
@@ -29,7 +33,8 @@ int KeyBinding::mods() const {
 }
 
 bool KeyBinding::matches(int modifiers, unsigned int sym, wlr_key_state key_state) {
-  bool match = (mods() & modifiers && sym == key && state == key_state);
+  spdlog::debug("{} {} {} {}", mods(), modifiers, sym, key);
+  bool match = (mods() == modifiers && sym == key && state == key_state);
   return match;
 }
 

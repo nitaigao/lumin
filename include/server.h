@@ -23,12 +23,13 @@ struct wlr_input_device;
 namespace lumin {
 
 class Cursor;
-class View;
 class KeyBinding;
 class Keyboard;
 class Output;
 class Seat;
 class Settings;
+class Shell;
+class View;
 
 class Server {
  public:
@@ -36,15 +37,13 @@ class Server {
   Server();
 
  public:
+  void init();
   void run();
   void destroy();
   void quit();
 
   void focus_top();
   void focus_view(View *view);
-
-  void add_app(const std::string& app_id);
-  void remove_app(const std::string& app_id);
 
   void add_output(const std::shared_ptr<Output>& output);
   void enable_output(const std::string& name, bool enabled);
@@ -67,8 +66,12 @@ class Server {
   void maximize_view(View *view);
   void destroy_view(View *view);
   void position_view(View* view);
+  std::vector<std::string> apps() const;
 
-  void next_app();
+  const std::vector<std::shared_ptr<View>>& views() const;
+
+  void switch_app();
+  void switch_app_reverse();
   void cancel_activity();
 
  private:
@@ -102,7 +105,7 @@ class Server {
 
   uint capabilities_;
 
-  struct wl_display *display_;
+  wl_display *display_;
   wlr_xdg_shell *xdg_shell_;
   wlr_output_layout *layout_;
   wlr_backend *backend_;
@@ -111,11 +114,7 @@ class Server {
   std::unique_ptr<Cursor> cursor_;
   std::unique_ptr<Settings> settings_;
   std::unique_ptr<Seat> seat_;
-
- public:
-  std::map<std::string, int> running_apps_;
-
-  bool switching_apps_;
+  std::unique_ptr<Shell> shell_;
 };
 
 }  // namespace lumin
