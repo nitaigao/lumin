@@ -66,13 +66,8 @@ class Server {
   void maximize_view(View *view);
   void destroy_view(View *view);
   void position_view(View* view);
-  std::vector<std::string> apps() const;
 
   const std::vector<std::shared_ptr<View>>& views() const;
-
-  void switch_app();
-  void switch_app_reverse();
-  void cancel_activity();
 
  private:
   void new_keyboard(wlr_input_device *device);
@@ -100,7 +95,6 @@ class Server {
   std::vector<std::shared_ptr<KeyBinding>> key_bindings;
   std::vector<std::shared_ptr<Keyboard>> keyboards_;
   std::vector<std::shared_ptr<Output>> outputs_;
-  std::vector<std::shared_ptr<View>> overlays_;
   std::vector<std::shared_ptr<View>> views_;
 
   uint capabilities_;

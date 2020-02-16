@@ -11,7 +11,7 @@
 
 namespace lumin {
 
-const int ENTER_FRAME_REPEAT_COUNT = 2;
+const int ENTER_FRAME_REPEAT_COUNT = 5;
 
 struct render_data {
   wlr_output *output;
@@ -219,8 +219,7 @@ void Output::set_enabled(bool enabled) {
   enabled_ = enabled;
 }
 
-void Output::render(const std::vector<std::shared_ptr<View>>& views,
-  const std::vector<std::shared_ptr<View>>& overlays) const {
+void Output::render(const std::vector<std::shared_ptr<View>>& views) const {
   if (!enabled_) {
     return;
   }

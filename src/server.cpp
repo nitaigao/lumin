@@ -10,24 +10,22 @@
 #include <wlroots.h>
 #include <xkbcommon/xkbcommon.h>
 
-#include <gtk-3.0/gtk/gtk.h>
-
 #include "cursor.h"
+#include "gtk_shell.h"
 #include "keyboard.h"
 #include "output.h"
 #include "seat.h"
 #include "settings.h"
 #include "shell.h"
-#include "switcher.h"
+#include "shell/switcher/switcher.h"
 #include "view.h"
-#include "gtk_shell.h"
 
 #include "key_bindings/key_binding_cancel_activity.h"
 #include "key_bindings/key_binding_cmd.h"
-#include "key_bindings/key_binding_quit.h"
-#include "key_bindings/key_binding_dock_right.h"
 #include "key_bindings/key_binding_dock_left.h"
+#include "key_bindings/key_binding_dock_right.h"
 #include "key_bindings/key_binding_maximize.h"
+#include "key_bindings/key_binding_quit.h"
 #include "key_bindings/key_binding_switch_app.h"
 #include "key_bindings/key_binding_switch_app_reverse.h"
 
@@ -71,7 +69,7 @@ bool Server::handle_key(uint32_t keycode, const xkb_keysym_t *syms,
     }
 
     if (sym == XKB_KEY_Alt_L && state == WLR_KEY_RELEASED) {
-      key_binding_cancel_activity cancel_activity(this);
+      key_binding_cancel_activity cancel_activity(shell_.get());
       cancel_activity.run();
     }
   }
@@ -123,7 +121,7 @@ void Server::focus_view(View *view) {
 
 void Server::render_output(Output *output) const {
   output->send_enter(views_);
-  output->render(views_, overlays_);
+  output->render(views_);
 }
 
 void Server::add_output(const std::shared_ptr<Output>& output) {
@@ -297,13 +295,13 @@ void Server::init_keybindings() {
 
   // ctrl
 
-  auto switch_app_x11 = std::make_shared<key_binding_switch_app>(this);
+  auto switch_app_x11 = std::make_shared<key_binding_switch_app>(shell_.get());
   switch_app_x11->ctrl = true;
   switch_app_x11->key = XKB_KEY_Tab;
   switch_app_x11->state = WLR_KEY_PRESSED;
   key_bindings.push_back(switch_app_x11);
 
-  auto switch_app_reverse_x11 = std::make_shared<key_binding_switch_app_reverse>(this);
+  auto switch_app_reverse_x11 = std::make_shared<key_binding_switch_app_reverse>(shell_.get());
   switch_app_reverse_x11->ctrl = true;
   switch_app_reverse_x11->shift = true;
   switch_app_reverse_x11->key = XKB_KEY_ISO_Left_Tab;
@@ -312,13 +310,13 @@ void Server::init_keybindings() {
 
   // alt
 
-  auto switch_app = std::make_shared<key_binding_switch_app>(this);
+  auto switch_app = std::make_shared<key_binding_switch_app>(shell_.get());
   switch_app->alt = true;
   switch_app->key = XKB_KEY_Tab;
   switch_app->state = WLR_KEY_PRESSED;
   key_bindings.push_back(switch_app);
 
-  auto switch_app_reverse = std::make_shared<key_binding_switch_app_reverse>(this);
+  auto switch_app_reverse = std::make_shared<key_binding_switch_app_reverse>(shell_.get());
   switch_app_reverse->alt = true;
   switch_app_reverse->shift = true;
   switch_app_reverse->key = XKB_KEY_ISO_Left_Tab;
@@ -381,20 +379,7 @@ void Server::init() {
 }
 
 void Server::run() {
-  spdlog::warn("run");
   wl_display_run(display_);
-}
-
-void Server::switch_app() {
-  shell_->switch_app();
-}
-
-void Server::switch_app_reverse() {
-  shell_->switch_app_reverse();
-}
-
-void Server::cancel_activity() {
-  shell_->cancel_activity();
 }
 
 void Server::destroy() {
@@ -414,7 +399,7 @@ void Server::lid_notify(wl_listener *listener, void *data) {
   }
 
   Server *server = wl_container_of(listener, server, lid);
-  bool enabled = event->switch_state == WLR_SWITCH_STATE_ON;
+  bool enabled = event->switch_state == WLR_SWITCH_STATE_OFF;
   server->enable_builtin_screen(enabled);
 }
 
@@ -467,15 +452,6 @@ View* Server::view_from_surface(wlr_surface *surface) {
     }
   }
   return NULL;
-}
-
-std::vector<std::string> Server::apps() const {
-  std::set<std::string> unique_apps;
-  for (auto &view : views_) {
-    unique_apps.insert(view->title());
-  }
-  std::vector<std::string> apps(unique_apps.begin(), unique_apps.end());
-  return apps;
 }
 
 void Server::position_view(View *view) {

@@ -1,16 +1,16 @@
 #include "key_bindings/key_binding_cancel_activity.h"
 
-#include "server.h"
+#include "shell.h"
 
 namespace lumin {
 
-key_binding_cancel_activity::key_binding_cancel_activity(Server *server_)
+key_binding_cancel_activity::key_binding_cancel_activity(Shell *shell)
   : KeyBinding()
-  , server(server_)
+  , shell_(shell)
   { }
 
 void key_binding_cancel_activity::run() {
-  server->cancel_activity();
+  shell_->cancel_activity();
 }
 
 }  // namespace lumin

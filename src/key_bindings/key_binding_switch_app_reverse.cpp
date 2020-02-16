@@ -1,16 +1,16 @@
 #include "key_bindings/key_binding_switch_app_reverse.h"
 
-#include "server.h"
+#include "shell.h"
 
 namespace lumin {
 
-key_binding_switch_app_reverse::key_binding_switch_app_reverse(Server *server_)
+key_binding_switch_app_reverse::key_binding_switch_app_reverse(Shell *shell)
   : KeyBinding()
-  , server(server_)
+  , shell_(shell)
   { }
 
 void key_binding_switch_app_reverse::run() {
-  server->switch_app_reverse();
+  shell_->switch_app_reverse();
 }
 
 }  // namespace lumin

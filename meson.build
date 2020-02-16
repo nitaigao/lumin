@@ -37,8 +37,8 @@ includes = include_directories(['include', 'protocols', 'vendor', 'dbus'])
 sources = [
   'src/cursor.cpp',
   'src/gtk_shell/gtk_shell.cpp',
-  'src/gtk_shell/gtk_surface.cpp',
   'src/gtk_shell/gtk_shell_wl.cpp',
+  'src/gtk_shell/gtk_surface.cpp',
   'src/key_binding.cpp',
   'src/key_bindings/key_binding_cancel_activity.cpp',
   'src/key_bindings/key_binding_cmd.cpp',
@@ -56,7 +56,8 @@ sources = [
   'src/services/settings_service.cpp',
   'src/settings.cpp',
   'src/shell.cpp',
-  'src/switcher.cpp',
+  'src/shell/switcher/switcher.cpp',
+  'src/shell/switcher/view.cpp',
   'src/view.cpp',
 ]
 

@@ -1,16 +1,16 @@
 #include "key_bindings/key_binding_switch_app.h"
 
-#include "server.h"
+#include "shell.h"
 
 namespace lumin {
 
-key_binding_switch_app::key_binding_switch_app(Server *server_)
+key_binding_switch_app::key_binding_switch_app(Shell *shell)
   : KeyBinding()
-  , server(server_)
+  , shell_(shell)
   { }
 
 void key_binding_switch_app::run() {
-  server->switch_app();
+  shell_->switch_app();
 }
 
 }  // namespace lumin

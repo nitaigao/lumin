@@ -7,14 +7,14 @@
 
 namespace lumin {
 
-class Server;
+class Shell;
 
 struct key_binding_cancel_activity : KeyBinding {
-  explicit key_binding_cancel_activity(Server *server_);
+  explicit key_binding_cancel_activity(Shell *shell);
 
   void run();
 
-  Server *server;
+  Shell *shell_;
 };
 
 }  // namespace lumin

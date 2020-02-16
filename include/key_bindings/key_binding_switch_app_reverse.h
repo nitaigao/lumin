@@ -7,14 +7,14 @@
 
 namespace lumin {
 
-class Server;
+class Shell;
 
 struct key_binding_switch_app_reverse : KeyBinding {
-  explicit key_binding_switch_app_reverse(Server *server_);
+  explicit key_binding_switch_app_reverse(Shell *shell);
 
   void run();
 
-  Server *server;
+  Shell *shell_;
 };
 
 }  // namespace lumin
