@@ -268,6 +268,13 @@ void Server::init_keybindings() {
   terminal->state = WLR_KEY_PRESSED;
   key_bindings.push_back(terminal);
 
+  auto launch = std::make_shared<key_binding_cmd>();
+  launch->ctrl = true;
+  launch->key = XKB_KEY_space;
+  launch->cmd = "launch2";
+  launch->state = WLR_KEY_PRESSED;
+  key_bindings.push_back(launch);
+
   auto quit = std::make_shared<key_binding_quit>(this);
   quit->alt = true;
   quit->ctrl = true;
@@ -372,6 +379,8 @@ void Server::init() {
 
   setenv("WAYLAND_DISPLAY", socket, true);
   spdlog::info("WAYLAND_DISPLAY={}", socket);
+
+  setenv("MOZ_ENABLE_WAYLAND", "1", true);
 
   init_keybindings();
 
