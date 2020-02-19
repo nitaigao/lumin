@@ -9,20 +9,13 @@ class KeyBinding {
  public:
   virtual ~KeyBinding() { }
 
-  KeyBinding();
+  KeyBinding(int key_code, int modifiers, int state);
 
-  bool ctrl;
-  bool shift;
-  bool alt;
-  bool super;
-  unsigned int key;
-  wlr_key_state state;
+  int key_code_;
+  int modifiers_;
+  int state_;
 
-  int mods() const;
-
-  bool matches(int modifiers, unsigned int sym, wlr_key_state Key_state);
-
-  virtual void run() = 0;
+  bool matches(int modifiers, int key_code, int state);
 };
 
 }  // namespace lumin

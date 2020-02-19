@@ -5,6 +5,5 @@ int main(int argc, char *argv[]) {
   server.init();
   server.run();
   server.destroy();
-
   return 0;
 }

@@ -17,17 +17,11 @@
 #include "seat.h"
 #include "settings.h"
 #include "shell.h"
+#include "dbus/adapters/compositor.h"
 #include "shell/switcher/switcher.h"
 #include "view.h"
 
-#include "key_bindings/key_binding_cancel_activity.h"
-#include "key_bindings/key_binding_cmd.h"
-#include "key_bindings/key_binding_dock_left.h"
-#include "key_bindings/key_binding_dock_right.h"
-#include "key_bindings/key_binding_maximize.h"
-#include "key_bindings/key_binding_quit.h"
-#include "key_bindings/key_binding_switch_app.h"
-#include "key_bindings/key_binding_switch_app_reverse.h"
+#include "key_binding.h"
 
 namespace lumin {
 
@@ -36,7 +30,6 @@ Server::~Server() {
 
 Server::Server() {
   settings_ = std::make_unique<Settings>();
-  shell_ = std::make_unique<Shell>(this);
 }
 
 void Server::quit() {
@@ -47,33 +40,71 @@ const std::vector<std::shared_ptr<View>>& Server::views() const {
   return views_;
 }
 
+std::vector<std::string> Server::apps() const {
+  std::vector<std::string> apps;
+  for (auto &view : views_) {
+    auto id = view->root()->id();
+    auto it = std::find_if(apps.begin(), apps.end(), [id](auto &el) { return el == id; });
+    if (it == apps.end()) {
+      apps.push_back(id);
+    }
+  }
+  return apps;
+}
+
 void Server::damage_outputs() {
   for (auto &output : outputs_) {
     output->take_whole_damage();
   }
 }
 
-bool Server::handle_key(uint32_t keycode, const xkb_keysym_t *syms,
-  int nsyms, uint32_t modifiers, int state) {
-  bool handled = false;
+void Server::dbus(Server *server) {
+  DBus::BusDispatcher dispatcher;
+  DBus::default_dispatcher = &dispatcher;
+  DBus::Connection bus = DBus::Connection::SessionBus();
 
-  for (int i = 0; i < nsyms; i++) {
-    int sym = syms[i];
+  bus.request_name("org.os.Compositor");
 
-    for (auto &key_binding : key_bindings) {
-      bool matched = key_binding->matches(modifiers, sym, (wlr_key_state)state);
-      if (matched) {
-        key_binding->run();
-        handled = true;
-      }
-    }
+  server->endpoint_ = std::make_unique<CompositorEndpoint>(bus, server);
 
-    if (sym == XKB_KEY_Alt_L && state == WLR_KEY_RELEASED) {
-      key_binding_cancel_activity cancel_activity(shell_.get());
-      cancel_activity.run();
-    }
+  dispatcher.enter();
+}
+
+int Server::add_keybinding(int key_code, int modifiers, int state) {
+  unsigned int id = 0;
+  bool exists = false;
+  for (auto &pair : key_bindings) {
+    if (pair.second.key_code_ == key_code &&
+        pair.second.modifiers_ == modifiers &&
+        pair.second.state_ == state) {
+          exists = true;
+          id = pair.first;
+          break;
+        }
   }
 
+  if (exists) {
+    return id;
+  }
+
+  if (!key_bindings.empty()) {
+    auto it = key_bindings.end();
+    id = (*it).first + 1;
+  }
+  KeyBinding key_binding(key_code, modifiers, state);
+  key_bindings.insert(std::make_pair(id, key_binding));
+  return id;
+}
+
+bool Server::handle_key(uint32_t keycode, uint32_t modifiers, int state) {
+  bool handled = false;
+  for (auto &pair : key_bindings) {
+    bool matched = pair.second.matches(modifiers, keycode, (wlr_key_state)state);
+    if (matched) {
+      endpoint_->Shortcut(pair.first);
+      handled = true;
+    }
+  }
   return handled;
 }
 
@@ -94,6 +125,16 @@ void Server::new_input_notify(wl_listener *listener, void *data) {
     default:
       break;
   }
+}
+
+void Server::focus_app(const std::string& app_id) {
+  auto condition = [app_id](auto &el) { return el->id() == app_id; };
+  auto result = std::find_if(views_.begin(), views_.end(), condition);
+  if (result == views_.end()) {
+    return;
+  }
+  auto view = (*result).get();
+  focus_view(view);
 }
 
 void Server::focus_view(View *view) {
@@ -260,77 +301,6 @@ void Server::dock_right() {
   view->tile_right();
 }
 
-void Server::init_keybindings() {
-  auto terminal = std::make_shared<key_binding_cmd>();
-  terminal->ctrl = true;
-  terminal->key = XKB_KEY_Return;
-  terminal->cmd = "tilix";
-  terminal->state = WLR_KEY_PRESSED;
-  key_bindings.push_back(terminal);
-
-  auto launch = std::make_shared<key_binding_cmd>();
-  launch->ctrl = true;
-  launch->key = XKB_KEY_space;
-  launch->cmd = "launch2";
-  launch->state = WLR_KEY_PRESSED;
-  key_bindings.push_back(launch);
-
-  auto quit = std::make_shared<key_binding_quit>(this);
-  quit->alt = true;
-  quit->ctrl = true;
-  quit->key = XKB_KEY_BackSpace;
-  quit->state = WLR_KEY_PRESSED;
-  key_bindings.push_back(quit);
-
-  auto dock_left = std::make_shared<key_binding_dock_left>(this);
-  dock_left->alt = true;
-  dock_left->key = XKB_KEY_Left;
-  dock_left->state = WLR_KEY_PRESSED;
-  key_bindings.push_back(dock_left);
-
-  auto dock_right = std::make_shared<key_binding_dock_right>(this);
-  dock_right->alt = true;
-  dock_right->key = XKB_KEY_Right;
-  dock_right->state = WLR_KEY_PRESSED;
-  key_bindings.push_back(dock_right);
-
-  auto maximize = std::make_shared<key_binding_maximize>(this);
-  maximize->alt = true;
-  maximize->key = XKB_KEY_Up;
-  maximize->state = WLR_KEY_PRESSED;
-  key_bindings.push_back(maximize);
-
-  // ctrl
-
-  auto switch_app_x11 = std::make_shared<key_binding_switch_app>(shell_.get());
-  switch_app_x11->ctrl = true;
-  switch_app_x11->key = XKB_KEY_Tab;
-  switch_app_x11->state = WLR_KEY_PRESSED;
-  key_bindings.push_back(switch_app_x11);
-
-  auto switch_app_reverse_x11 = std::make_shared<key_binding_switch_app_reverse>(shell_.get());
-  switch_app_reverse_x11->ctrl = true;
-  switch_app_reverse_x11->shift = true;
-  switch_app_reverse_x11->key = XKB_KEY_ISO_Left_Tab;
-  switch_app_reverse_x11->state = WLR_KEY_PRESSED;
-  key_bindings.push_back(switch_app_reverse_x11);
-
-  // alt
-
-  auto switch_app = std::make_shared<key_binding_switch_app>(shell_.get());
-  switch_app->alt = true;
-  switch_app->key = XKB_KEY_Tab;
-  switch_app->state = WLR_KEY_PRESSED;
-  key_bindings.push_back(switch_app);
-
-  auto switch_app_reverse = std::make_shared<key_binding_switch_app_reverse>(shell_.get());
-  switch_app_reverse->alt = true;
-  switch_app_reverse->shift = true;
-  switch_app_reverse->key = XKB_KEY_ISO_Left_Tab;
-  switch_app_reverse->state = WLR_KEY_PRESSED;
-  key_bindings.push_back(switch_app_reverse);
-}
-
 void Server::init() {
   spdlog::set_level(spdlog::level::debug);
 
@@ -382,9 +352,11 @@ void Server::init() {
 
   setenv("MOZ_ENABLE_WAYLAND", "1", true);
 
-  init_keybindings();
+  dbus_ = std::thread(Server::dbus, this);
 
-  shell_->run();
+  if (fork() == 0) {
+    execl("/bin/sh", "/bin/sh", "-c", "tilix", NULL);
+  }
 }
 
 void Server::run() {

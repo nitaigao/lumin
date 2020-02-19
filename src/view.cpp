@@ -357,6 +357,13 @@ bool View::is_child() const {
   return is_child;
 }
 
+const View* View::root() const {
+  if (xdg_surface_->toplevel->parent == NULL) {
+    return this;
+  }
+  return parent()->root();
+}
+
 void View::xdg_toplevel_request_move_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, request_move);
   view->grab();

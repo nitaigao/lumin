@@ -5,7 +5,9 @@
 
 #include <map>
 #include <memory>
+#include <unordered_set>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "cursor_mode.h"
@@ -28,7 +30,7 @@ class Keyboard;
 class Output;
 class Seat;
 class Settings;
-class Shell;
+class CompositorEndpoint;
 class View;
 
 class Server {
@@ -44,6 +46,7 @@ class Server {
 
   void focus_top();
   void focus_view(View *view);
+  void focus_app(const std::string& app_id);
 
   void add_output(const std::shared_ptr<Output>& output);
   void enable_output(const std::string& name, bool enabled);
@@ -55,25 +58,26 @@ class Server {
   void dock_right();
   void dock_left();
   void toggle_maximize();
+  void maximize_view(View *view);
 
-  bool handle_key(uint32_t keycode, const xkb_keysym_t *syms, int nsyms,
-    uint32_t modifiers, int state);
+  bool handle_key(uint32_t keycode, uint32_t modifiers, int state);
+
+  int add_keybinding(int key_code, int modifiers, int state);
 
  public:
   View* desktop_view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
   View* view_from_surface(wlr_surface *surface);
 
-  void maximize_view(View *view);
   void destroy_view(View *view);
   void position_view(View* view);
 
   const std::vector<std::shared_ptr<View>>& views() const;
+  std::vector<std::string> apps() const;
 
  private:
   void new_keyboard(wlr_input_device *device);
   void new_switch(wlr_input_device *device);
 
-  void init_keybindings();
   void apply_layout();
 
  private:
@@ -91,8 +95,10 @@ class Server {
   static void new_output_notify(wl_listener *listener, void *data);
   static void new_surface_notify(wl_listener *listener, void *data);
 
+  static void dbus(Server *server);
+
  private:
-  std::vector<std::shared_ptr<KeyBinding>> key_bindings;
+  std::map<uint, KeyBinding> key_bindings;
   std::vector<std::shared_ptr<Keyboard>> keyboards_;
   std::vector<std::shared_ptr<Output>> outputs_;
   std::vector<std::shared_ptr<View>> views_;
@@ -108,7 +114,10 @@ class Server {
   std::unique_ptr<Cursor> cursor_;
   std::unique_ptr<Settings> settings_;
   std::unique_ptr<Seat> seat_;
-  std::unique_ptr<Shell> shell_;
+
+  std::unique_ptr<CompositorEndpoint> endpoint_;
+
+  std::thread dbus_;
 };
 
 }  // namespace lumin

@@ -44,12 +44,9 @@ void Keyboard::keyboard_key_notify(wl_listener *listener, void *data) {
   Keyboard *keyboard = wl_container_of(listener, keyboard, key);
   auto event = static_cast<struct wlr_event_keyboard_key *>(data);
 
-  uint32_t keycode = event->keycode + 8;
-  const xkb_keysym_t *syms;
-  int nsyms = xkb_state_key_get_syms(keyboard->device_->keyboard->xkb_state, keycode, &syms);
   uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->device_->keyboard);
 
-  bool handled = keyboard->server_->handle_key(keycode, syms, nsyms, modifiers, event->state);
+  bool handled = keyboard->server_->handle_key(event->keycode, modifiers, event->state);
 
   if (!handled) {
     keyboard->seat_->set_keyboard(keyboard->device_);

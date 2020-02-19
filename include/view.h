@@ -64,6 +64,7 @@ class View {
 
   bool is_child() const;
   View* parent() const;
+  const View *root() const;
 
   bool view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
 

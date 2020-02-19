@@ -8,6 +8,7 @@ namespace lumin {
 
 class Server;
 class Switcher;
+class KeyBinding;
 
 class Shell {
  public:
