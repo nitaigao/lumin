@@ -36,11 +36,15 @@ includes = include_directories(['include', 'protocols', 'vendor', 'dbus'])
 
 sources = [
   'src/cursor.cpp',
-  'src/gtk_shell/gtk_shell.cpp',
   'src/gtk_shell/gtk_shell_wl.cpp',
+  'src/gtk_shell/gtk_shell.cpp',
   'src/gtk_shell/gtk_surface.cpp',
   'src/key_binding.cpp',
   'src/keyboard.cpp',
+  'src/wlr_layer_shell/layer_shell.cpp',
+  'src/wlr_layer_shell/layer_shell_surface.cpp',
+  'src/wlr_layer_shell/layer_shell_wl.cpp',
+  'src/xdg_shell_wl.cpp',
   'src/main.cpp',
   'src/output.cpp',
   'src/seat.cpp',

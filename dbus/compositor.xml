@@ -19,5 +19,8 @@
     <method name="Focus">
       <arg direction="in" type="s" name="app_id" />
     </method>
+    <method name="DockLeft" />
+    <method name="DockRight" />
+    <method name="Maximize" />
   </interface>
 </node>

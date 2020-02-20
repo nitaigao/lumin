@@ -122,6 +122,9 @@ public:
     {
         register_method(Window_adaptor, Apps, _Apps_stub);
         register_method(Window_adaptor, Focus, _Focus_stub);
+        register_method(Window_adaptor, DockLeft, _DockLeft_stub);
+        register_method(Window_adaptor, DockRight, _DockRight_stub);
+        register_method(Window_adaptor, Maximize, _Maximize_stub);
     }
 
     ::DBus::IntrospectedInterface *introspect() const
@@ -136,10 +139,25 @@ public:
             { "app_id", "s", true },
             { 0, 0, 0 }
         };
+        static ::DBus::IntrospectedArgument DockLeft_args[] =
+        {
+            { 0, 0, 0 }
+        };
+        static ::DBus::IntrospectedArgument DockRight_args[] =
+        {
+            { 0, 0, 0 }
+        };
+        static ::DBus::IntrospectedArgument Maximize_args[] =
+        {
+            { 0, 0, 0 }
+        };
         static ::DBus::IntrospectedMethod Window_adaptor_methods[] =
         {
             { "Apps", Apps_args },
             { "Focus", Focus_args },
+            { "DockLeft", DockLeft_args },
+            { "DockRight", DockRight_args },
+            { "Maximize", Maximize_args },
             { 0, 0 }
         };
         static ::DBus::IntrospectedMethod Window_adaptor_signals[] =
@@ -173,6 +191,9 @@ public:
      */
     virtual std::vector< std::string > Apps() = 0;
     virtual void Focus(const std::string& app_id) = 0;
+    virtual void DockLeft() = 0;
+    virtual void DockRight() = 0;
+    virtual void Maximize() = 0;
 
 public:
 
@@ -185,8 +206,6 @@ private:
      */
     ::DBus::Message _Apps_stub(const ::DBus::CallMessage &call)
     {
-        // ::DBus::MessageIter ri = call.reader();
-
         std::vector< std::string > argout1 = Apps();
         ::DBus::ReturnMessage reply(call);
         ::DBus::MessageIter wi = reply.writer();
@@ -199,6 +218,24 @@ private:
 
         std::string argin1; ri >> argin1;
         Focus(argin1);
+        ::DBus::ReturnMessage reply(call);
+        return reply;
+    }
+    ::DBus::Message _DockLeft_stub(const ::DBus::CallMessage &call)
+    {
+        DockLeft();
+        ::DBus::ReturnMessage reply(call);
+        return reply;
+    }
+    ::DBus::Message _DockRight_stub(const ::DBus::CallMessage &call)
+    {
+        DockRight();
+        ::DBus::ReturnMessage reply(call);
+        return reply;
+    }
+    ::DBus::Message _Maximize_stub(const ::DBus::CallMessage &call)
+    {
+        Maximize();
         ::DBus::ReturnMessage reply(call);
         return reply;
     }

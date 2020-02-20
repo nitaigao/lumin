@@ -9,9 +9,11 @@
 
 #include <wlroots.h>
 #include <xkbcommon/xkbcommon.h>
+#include <gtk-layer-shell/gtk-layer-shell.h>
 
 #include "cursor.h"
 #include "gtk_shell.h"
+#include "layer_shell.h"
 #include "keyboard.h"
 #include "output.h"
 #include "seat.h"
@@ -346,6 +348,7 @@ void Server::init() {
   }
 
   gtk_shell_create(display_);
+  wlr_layer_shell_create(display_);
 
   setenv("WAYLAND_DISPLAY", socket, true);
   spdlog::info("WAYLAND_DISPLAY={}", socket);

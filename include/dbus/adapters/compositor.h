@@ -31,6 +31,18 @@ class CompositorEndpoint :
     server_->focus_app(app_id);
   }
 
+  void DockLeft() {
+    server_->dock_left();
+  }
+
+  void DockRight() {
+    server_->dock_right();
+  }
+
+  void Maximize() {
+    server_->toggle_maximize();
+  }
+
  private:
   Server *server_;
 };
