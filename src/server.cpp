@@ -1,5 +1,9 @@
 #include "server.h"
 
+#include <linux/input-event-codes.h>
+#include <wlroots.h>
+#include <xkbcommon/xkbcommon.h>
+
 #include <iostream>
 #include <memory>
 #include <set>
@@ -7,8 +11,6 @@
 
 #include <spdlog/spdlog.h>
 
-#include <wlroots.h>
-#include <xkbcommon/xkbcommon.h>
 #include <gtk-layer-shell/gtk-layer-shell.h>
 
 #include "cursor.h"
@@ -99,6 +101,10 @@ int Server::add_keybinding(int key_code, int modifiers, int state) {
 }
 
 bool Server::handle_key(uint32_t keycode, uint32_t modifiers, int state) {
+  if (keycode == KEY_EQUAL && modifiers == (WLR_MODIFIER_CTRL | WLR_MODIFIER_ALT)) {
+    wl_display_terminate(display_);
+    return true;
+  }
   bool handled = false;
   for (auto &pair : key_bindings) {
     bool matched = pair.second.matches(modifiers, keycode, (wlr_key_state)state);
@@ -356,6 +362,10 @@ void Server::init() {
   setenv("MOZ_ENABLE_WAYLAND", "1", true);
 
   dbus_ = std::thread(Server::dbus, this);
+
+  if (fork() == 0) {
+    execl("/bin/sh", "/bin/sh", "-c", "shell", NULL);
+  }
 
   if (fork() == 0) {
     execl("/bin/sh", "/bin/sh", "-c", "tilix", NULL);
