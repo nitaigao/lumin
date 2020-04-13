@@ -3,6 +3,8 @@
 #include <gtk-shell.h>
 #include <wayland-server-core.h>
 
+#include "view.h"
+
 #include <spdlog/spdlog.h>
 
 extern "C" {
@@ -19,7 +21,7 @@ static void set_dbus_properties(struct wl_client *client, struct wl_resource *re
   const char *unique_bus_name)
 {
   void *user_data = wl_resource_get_user_data(resource);
-  wlr_xdg_surface *xdg_surface = static_cast<wlr_xdg_surface*>(user_data);
+  auto xdg_surface = static_cast<wlr_xdg_surface*>(user_data);
 
   free(xdg_surface->toplevel->app_id);
 
@@ -29,8 +31,7 @@ static void set_dbus_properties(struct wl_client *client, struct wl_resource *re
   }
 
   xdg_surface->toplevel->app_id = tmp;
-
-  spdlog::error("set_dbus_properties {}", application_id);
+  spdlog::error("set_dbus_properties application_id: {}", application_id);
 }
 
 static void set_modal(struct wl_client *client, struct wl_resource *resource)

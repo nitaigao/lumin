@@ -22,7 +22,6 @@ static void get_gtk_surface(struct wl_client *client, struct wl_resource *resour
   gtk_shell1_send_capabilities(resource, GTK_SHELL1_CAPABILITY_GLOBAL_MENU_BAR);
   gtk_shell1_send_capabilities(resource, GTK_SHELL1_CAPABILITY_DESKTOP_ICONS);
 
-
   spdlog::debug("get_gtk_surface");
 }
 

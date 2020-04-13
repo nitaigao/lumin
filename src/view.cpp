@@ -109,7 +109,7 @@ void View::toggle_maximized() {
   bool is_maximised = maximized();
 
   if (is_maximised) {
-    window();
+    windowize();
   } else {
     maximize();
   }
@@ -311,7 +311,7 @@ void View::grab() {
   state = WM_WINDOW_STATE_WINDOW;
 }
 
-void View::window() {
+void View::windowize() {
   if (windowed()) {
     return;
   }

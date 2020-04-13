@@ -58,7 +58,7 @@ class View {
   void tile_left();
   void tile_right();
 
-  void window();
+  void windowize();
 
   void focus();
   void unfocus();
