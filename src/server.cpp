@@ -15,22 +15,18 @@
 
 #include "cursor.h"
 #include "gtk_shell.h"
-#include "layer_shell.h"
 #include "keyboard.h"
 #include "output.h"
 #include "seat.h"
 #include "settings.h"
-#include "shell.h"
 #include "dbus/adapters/compositor.h"
-#include "shell/switcher/switcher.h"
 #include "view.h"
 
 #include "key_binding.h"
 
 namespace lumin {
 
-Server::~Server() {
-}
+Server::~Server() { }
 
 Server::Server() {
   settings_ = std::make_unique<Settings>();
@@ -38,10 +34,6 @@ Server::Server() {
 
 void Server::quit() {
   wl_display_terminate(display_);
-}
-
-const std::vector<std::shared_ptr<View>>& Server::views() const {
-  return views_;
 }
 
 std::vector<std::string> Server::apps() const {
@@ -102,18 +94,17 @@ int Server::add_keybinding(int key_code, int modifiers, int state) {
 
 bool Server::handle_key(uint32_t keycode, uint32_t modifiers, int state) {
   if (keycode == KEY_EQUAL && modifiers == (WLR_MODIFIER_CTRL | WLR_MODIFIER_ALT)) {
-    wl_display_terminate(display_);
+    quit();
     return true;
   }
-  bool handled = false;
   for (auto &pair : key_bindings) {
     bool matched = pair.second.matches(modifiers, keycode, (wlr_key_state)state);
     if (matched) {
       endpoint_->Shortcut(pair.first);
-      handled = true;
+      return true;
     }
   }
-  return handled;
+  return false;
 }
 
 void Server::new_input_notify(wl_listener *listener, void *data) {
@@ -273,6 +264,7 @@ void Server::new_surface_notify(wl_listener *listener, void *data) {
     server->cursor_.get(), server->layout_, server->seat_.get());
 
   server->views_.push_back(view);
+  spdlog::debug("new_surface_notify");
 }
 
 void Server::maximize_view(View *view) {
@@ -354,7 +346,6 @@ void Server::init() {
   }
 
   gtk_shell_create(display_);
-  wlr_layer_shell_create(display_);
 
   setenv("WAYLAND_DISPLAY", socket, true);
   spdlog::info("WAYLAND_DISPLAY={}", socket);
@@ -365,10 +356,6 @@ void Server::init() {
 
   if (fork() == 0) {
     execl("/bin/sh", "/bin/sh", "-c", "shell", NULL);
-  }
-
-  if (fork() == 0) {
-    execl("/bin/sh", "/bin/sh", "-c", "tilix", NULL);
   }
 }
 

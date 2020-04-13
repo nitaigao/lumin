@@ -4,7 +4,11 @@
 struct wl_display;
 struct wl_resource;
 
-void wlr_layer_shell_create(struct wl_display* display);
+namespace lumin {
+class Server;
+}
+
+void wlr_layer_shell_create(struct wl_display* display, lumin::Server *server);
 
 void wlr_layer_surface_create(struct wl_client *client,
   unsigned int version, unsigned int id, void *data);

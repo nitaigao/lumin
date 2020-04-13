@@ -8,6 +8,7 @@
 #include "cursor_mode.h"
 
 struct wlr_xdg_surface;
+struct wlr_layer_surface_v1;
 struct wlr_xwayland_surface;
 struct wlr_surface;
 struct wlr_box;
@@ -28,13 +29,21 @@ enum WindowState {
   WM_WINDOW_STATE_MAXIMIZED = 2
 };
 
+enum ViewLayer {
+  VIEW_LAYER_BACKGROUND = 0,
+  VIEW_LAYER_BOTTOM = 1,
+  VIEW_LAYER_TOP = 2,
+  VIEW_LAYER_OVERLAY = 3,
+  VIEW_LAYER_MAX = 4
+};
+
 typedef void (*wlr_surface_iterator_func_t)(struct wlr_surface *surface,
   int sx, int sy, void *data);
 
 class View {
  public:
   View(Server *server, wlr_xdg_surface *surface, Cursor *cursor,
-     wlr_output_layout *layout, Seat *seat);
+    wlr_output_layout *layout, Seat *seat);
 
  public:
   void geometry(wlr_box *box) const;
@@ -86,6 +95,7 @@ class View {
  public:
   bool mapped;
   double x, y;
+  ViewLayer layer;
 
  public:
   wl_listener map;
@@ -99,7 +109,7 @@ class View {
   wl_listener new_popup;
   wl_listener set_app_id;
 
- private:
+ public:
   static void xdg_toplevel_request_maximize_notify(wl_listener *listener, void *data);
   static void xdg_toplevel_request_move_notify(wl_listener *listener, void *data);
   static void xdg_toplevel_request_resize_notify(wl_listener *listener, void *data);
@@ -129,13 +139,11 @@ class View {
 
   Server *server;
 
- public:
-  wlr_xdg_surface *xdg_surface_;
-
  private:
   Cursor *cursor_;
   wlr_output_layout *layout_;
   Seat *seat_;
+  wlr_xdg_surface *xdg_surface_;
 };
 
 struct Subsurface {

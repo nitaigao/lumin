@@ -14,11 +14,12 @@ const int DEFAULT_MINIMUM_HEIGHT = 600;
 
 namespace lumin {
 
-View::View(Server *server_, wlr_xdg_surface *surface, Cursor *cursor,
-  wlr_output_layout *layout, Seat *seat)
+View::View(Server *server_, wlr_xdg_surface *surface,
+  Cursor *cursor, wlr_output_layout *layout, Seat *seat)
   : mapped(false)
   , x(0)
   , y(0)
+  , layer(VIEW_LAYER_TOP)
   , state(WM_WINDOW_STATE_WINDOW)
   , saved_state_({
     .width = DEFAULT_MINIMUM_WIDTH,
@@ -26,10 +27,10 @@ View::View(Server *server_, wlr_xdg_surface *surface, Cursor *cursor,
     .x = 0,
     .y = 0 })
   , server(server_)
-  , xdg_surface_(surface)
   , cursor_(cursor)
   , layout_(layout)
   , seat_(seat)
+  , xdg_surface_(surface)
 {
   map.notify = View::xdg_surface_map_notify;
   wl_signal_add(&xdg_surface_->events.map, &map);

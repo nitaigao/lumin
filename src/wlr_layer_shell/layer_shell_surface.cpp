@@ -50,7 +50,7 @@ void destroy(struct wl_client *client, struct wl_resource *resource)
 
 void set_layer(struct wl_client *client, struct wl_resource *resource, uint32_t layer)
 {
-  spdlog::debug("set_layer");
+  spdlog::debug("set_layer to {}", layer);
 }
 
 static struct zwlr_layer_surface_v1_interface zwlr_layer_surface1_impl = {
@@ -69,6 +69,5 @@ void wlr_layer_surface_create(struct wl_client *client, uint32_t version,
   uint32_t id, void *data)
 {
   wl_resource *resource = wl_resource_create(client, &zwlr_layer_surface_v1_interface, version, id);
-  wl_resource_set_implementation(resource, &zwlr_layer_surface1_impl,
-      data, NULL);
+  wl_resource_set_implementation(resource, &zwlr_layer_surface1_impl, NULL, NULL);
 }

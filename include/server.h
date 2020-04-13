@@ -71,7 +71,6 @@ class Server {
   void destroy_view(View *view);
   void position_view(View* view);
 
-  const std::vector<std::shared_ptr<View>>& views() const;
   std::vector<std::string> apps() const;
 
  private:

@@ -250,24 +250,30 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const {
   float color[4] = {0.0, 0.0, 0.0, 1.0};
   wlr_renderer_clear(renderer_, color);
 
-  for (auto it = views.rbegin(); it != views.rend(); ++it) {
-    auto &view = (*it);
-    if (!view->mapped) {
-      continue;
+  for (int layer = VIEW_LAYER_BACKGROUND; layer != VIEW_LAYER_MAX; layer++) {
+    for (auto it = views.rbegin(); it != views.rend(); ++it) {
+      auto &view = (*it);
+
+      if (view->layer != layer) {
+        continue;
+      }
+
+      if (!view->mapped) {
+        return;
+      }
+
+      struct render_data render_data = {
+        .output = wlr_output,
+        .renderer = renderer_,
+        .view = view.get(),
+        .when = &now,
+        .layout = layout_,
+        .buffer_damage = &buffer_damage
+      };
+
+      view->for_each_surface(render_surface, &render_data);
     }
-
-    struct render_data render_data = {
-      .output = wlr_output,
-      .renderer = renderer_,
-      .view = view.get(),
-      .when = &now,
-      .layout = layout_,
-      .buffer_damage = &buffer_damage
-    };
-
-    view->for_each_surface(render_surface, &render_data);
   }
-
 
   pixman_region32_fini(&buffer_damage);
 

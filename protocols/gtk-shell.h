@@ -18,7 +18,7 @@ struct wl_resource;
  * @page page_gtk The gtk protocol
  * @section page_ifaces_gtk Interfaces
  * - @subpage page_iface_gtk_shell1 - gtk specific extensions
- * - @subpage page_iface_gtk_surface1 -
+ * - @subpage page_iface_gtk_surface1 - 
  */
 struct gtk_shell1;
 struct gtk_surface1;

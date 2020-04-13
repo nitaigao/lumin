@@ -41,9 +41,6 @@ sources = [
   'src/gtk_shell/gtk_surface.cpp',
   'src/key_binding.cpp',
   'src/keyboard.cpp',
-  'src/wlr_layer_shell/layer_shell.cpp',
-  'src/wlr_layer_shell/layer_shell_surface.cpp',
-  'src/wlr_layer_shell/layer_shell_wl.cpp',
   'src/xdg_shell_wl.cpp',
   'src/main.cpp',
   'src/output.cpp',
@@ -51,9 +48,6 @@ sources = [
   'src/server.cpp',
   'src/services/settings_service.cpp',
   'src/settings.cpp',
-  'src/shell.cpp',
-  'src/shell/switcher/switcher.cpp',
-  'src/shell/switcher/view.cpp',
   'src/view.cpp',
 ]
 
