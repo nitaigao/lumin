@@ -58,7 +58,9 @@ class Server {
   void dock_right();
   void dock_left();
   void toggle_maximize();
+  void minimize_top();
   void maximize_view(View *view);
+  void minimize_view(View *view);
 
   bool handle_key(uint32_t keycode, uint32_t modifiers, int state);
 

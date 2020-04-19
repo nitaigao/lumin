@@ -54,6 +54,7 @@ class View {
   void toggle_maximized();
   void maximize();
   bool maximized() const;
+  void minimize();
 
   void tile_left();
   void tile_right();
@@ -81,6 +82,13 @@ class View {
   void for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const;
   wlr_surface* surface_at(double sx, double sy, double *sub_x, double *sub_y);
 
+  bool is_launcher() const;
+  bool is_menubar() const;
+  bool is_shell() const;
+
+  bool is_always_focused() const;
+  bool steals_focus() const;
+
  private:
   void save_geometry();
   void grab();
@@ -95,6 +103,7 @@ class View {
  public:
   bool mapped;
   double x, y;
+  bool minimized;
   ViewLayer layer;
 
  public:
@@ -105,12 +114,14 @@ class View {
   wl_listener request_move;
   wl_listener request_resize;
   wl_listener request_maximize;
+  wl_listener request_minimize;
   wl_listener new_subsurface;
   wl_listener new_popup;
   wl_listener set_app_id;
 
  public:
   static void xdg_toplevel_request_maximize_notify(wl_listener *listener, void *data);
+  static void xdg_toplevel_request_minimize_notify(wl_listener *listener, void *data);
   static void xdg_toplevel_request_move_notify(wl_listener *listener, void *data);
   static void xdg_toplevel_request_resize_notify(wl_listener *listener, void *data);
   static void xdg_toplevel_set_app_id_notify(wl_listener *listener, void *data);

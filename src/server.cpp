@@ -143,7 +143,7 @@ void Server::focus_view(View *view) {
     return;
   }
 
-  if (prev_surface) {
+  if (view->steals_focus() && prev_surface != nullptr) {
     View *previous_view = view_from_surface(prev_surface);
     previous_view->unfocus();
   }
@@ -267,6 +267,20 @@ void Server::new_surface_notify(wl_listener *listener, void *data) {
   spdlog::debug("new_surface_notify");
 }
 
+void Server::minimize_view(View *view) {
+  view->minimize();
+
+  auto condition = [view](auto &el) { return el.get() == view; };
+  auto result = std::find_if(views_.begin(), views_.end(), condition);
+  if (result != views_.end()) {
+    auto resultValue = *result;
+    views_.erase(result);
+    views_.push_back(resultValue);
+  }
+
+  focus_top();
+}
+
 void Server::maximize_view(View *view) {
   view->maximize();
 
@@ -278,6 +292,15 @@ void Server::maximize_view(View *view) {
 
   view->x = output_box->x;
   view->y = output_box->y;
+}
+
+void Server::minimize_top() {
+  for (auto &view : views_) {
+    if (view->mapped) {
+      minimize_view(view.get());
+      return;
+    }
+  }
 }
 
 void Server::toggle_maximize() {
@@ -353,6 +376,10 @@ void Server::init() {
   setenv("MOZ_ENABLE_WAYLAND", "1", true);
 
   dbus_ = std::thread(Server::dbus, this);
+
+  if (fork() == 0) {
+    execl("/bin/sh", "/bin/sh", "-c", "menu", NULL);
+  }
 
   if (fork() == 0) {
     execl("/bin/sh", "/bin/sh", "-c", "shell", NULL);
@@ -436,6 +463,30 @@ View* Server::view_from_surface(wlr_surface *surface) {
 }
 
 void Server::position_view(View *view) {
+  if (view->is_menubar()) {
+    auto layout = settings_->display_find_layout(outputs_);
+    auto condition = [view](auto &el) { return el.second.primary; };
+    auto result = std::find_if(layout.begin(), layout.end(), condition);
+
+    if (result == layout.end()) {
+      spdlog::error("Failed to find primary output");
+      return;
+    }
+
+    auto output_setting = (*result);
+    int output_x = output_setting.second.x;
+    int output_y = output_setting.second.y;
+
+    view->x = output_x;
+    view->y = output_y;
+
+    wlr_output* output = wlr_output_layout_output_at(layout_, output_x, output_y);
+
+    view->resize(output->width, 20);
+
+    return;
+  }
+
   bool is_child = view->is_child();
 
   wlr_box geometry;
@@ -465,7 +516,7 @@ void Server::position_view(View *view) {
 
 void Server::focus_top() {
   for (auto &view : views_) {
-    if (view->mapped) {
+    if (view->mapped && !view->minimized) {
       view->focus();
       return;
     }

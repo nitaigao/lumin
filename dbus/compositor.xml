@@ -22,5 +22,6 @@
     <method name="DockLeft" />
     <method name="DockRight" />
     <method name="Maximize" />
+    <method name="Minimize" />
   </interface>
 </node>

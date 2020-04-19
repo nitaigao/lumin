@@ -43,6 +43,10 @@ class CompositorEndpoint :
     server_->toggle_maximize();
   }
 
+  void Minimize() {
+    server_->minimize_top();
+  }
+
  private:
   Server *server_;
 };

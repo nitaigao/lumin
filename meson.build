@@ -1,4 +1,4 @@
-project('lumin', 'cpp', default_options : [
+project('compositor', 'cpp', default_options : [
   'warning_level=3',
   'werror=true',
   'cpp_std=c++2a',
@@ -52,7 +52,7 @@ sources = [
 ]
 
 executable(
-  'lumin',
+  'compositor',
   sources,
   include_directories: includes,
   dependencies: dependencies

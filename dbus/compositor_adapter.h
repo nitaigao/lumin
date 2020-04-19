@@ -125,6 +125,7 @@ public:
         register_method(Window_adaptor, DockLeft, _DockLeft_stub);
         register_method(Window_adaptor, DockRight, _DockRight_stub);
         register_method(Window_adaptor, Maximize, _Maximize_stub);
+        register_method(Window_adaptor, Minimize, _Minimize_stub);
     }
 
     ::DBus::IntrospectedInterface *introspect() const
@@ -151,6 +152,10 @@ public:
         {
             { 0, 0, 0 }
         };
+        static ::DBus::IntrospectedArgument Minimize_args[] =
+        {
+            { 0, 0, 0 }
+        };
         static ::DBus::IntrospectedMethod Window_adaptor_methods[] =
         {
             { "Apps", Apps_args },
@@ -158,6 +163,7 @@ public:
             { "DockLeft", DockLeft_args },
             { "DockRight", DockRight_args },
             { "Maximize", Maximize_args },
+            { "Minimize", Minimize_args },
             { 0, 0 }
         };
         static ::DBus::IntrospectedMethod Window_adaptor_signals[] =
@@ -194,6 +200,7 @@ public:
     virtual void DockLeft() = 0;
     virtual void DockRight() = 0;
     virtual void Maximize() = 0;
+    virtual void Minimize() = 0;
 
 public:
 
@@ -236,6 +243,12 @@ private:
     ::DBus::Message _Maximize_stub(const ::DBus::CallMessage &call)
     {
         Maximize();
+        ::DBus::ReturnMessage reply(call);
+        return reply;
+    }
+    ::DBus::Message _Minimize_stub(const ::DBus::CallMessage &call)
+    {
+        Minimize();
         ::DBus::ReturnMessage reply(call);
         return reply;
     }

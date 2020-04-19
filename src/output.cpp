@@ -259,7 +259,11 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const {
       }
 
       if (!view->mapped) {
-        return;
+        continue;
+      }
+
+      if (view->minimized) {
+        continue;
       }
 
       struct render_data render_data = {

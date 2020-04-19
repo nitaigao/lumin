@@ -11,6 +11,7 @@
 
 const int DEFAULT_MINIMUM_WIDTH = 800;
 const int DEFAULT_MINIMUM_HEIGHT = 600;
+const int MENU_HEIGHT = 25;
 
 namespace lumin {
 
@@ -19,6 +20,7 @@ View::View(Server *server_, wlr_xdg_surface *surface,
   : mapped(false)
   , x(0)
   , y(0)
+  , minimized(false)
   , layer(VIEW_LAYER_TOP)
   , state(WM_WINDOW_STATE_WINDOW)
   , saved_state_({
@@ -60,6 +62,9 @@ View::View(Server *server_, wlr_xdg_surface *surface,
 
   request_maximize.notify = View::xdg_toplevel_request_maximize_notify;
   wl_signal_add(&toplevel->events.request_maximize, &request_maximize);
+
+  request_minimize.notify = View::xdg_toplevel_request_minimize_notify;
+  wl_signal_add(&toplevel->events.request_minimize, &request_minimize);
 
   set_app_id.notify = View::xdg_toplevel_set_app_id_notify;
   wl_signal_add(&toplevel->events.set_app_id, &set_app_id);
@@ -158,12 +163,40 @@ void View::for_each_surface(wlr_surface_iterator_func_t iterator, void *data) co
 }
 
 void View::focus() {
+  minimized = false;
   activate();
   seat_->keyboard_notify_enter(xdg_surface_->surface);
 }
 
 void View::unfocus() {
+  if (is_always_focused()) {
+    return;
+  }
+
   wlr_xdg_toplevel_set_activated(xdg_surface_, false);
+}
+
+bool View::steals_focus() const {
+  return !(is_menubar() || is_launcher());
+}
+
+bool View::is_always_focused() const {
+  return is_menubar() || is_launcher();
+}
+
+bool View::is_menubar() const {
+  bool result = std::string(xdg_surface_->toplevel->app_id).compare("org.os.Menu") == 0;
+  return result;
+}
+
+bool View::is_launcher() const {
+  bool result = std::string(xdg_surface_->toplevel->app_id).compare("org.os.Launcher") == 0;
+  return result;
+}
+
+bool View::is_shell() const {
+  bool result = std::string(xdg_surface_->toplevel->app_id).compare("org.os.Shell") == 0;
+  return result;
 }
 
 void View::geometry(struct wlr_box *box) const {
@@ -207,10 +240,10 @@ void View::tile_left() {
 
   int width = (output->width / 2.0f) / output->scale;
   int height = output->height / output->scale;
-  resize(width, height);
+  resize(width, height - MENU_HEIGHT);
 
   x = 0;
-  y = 0;
+  y = MENU_HEIGHT;
 
   wlr_output_layout_output_coords(layout_, output, &x, &y);
 
@@ -227,7 +260,7 @@ void View::tile_right() {
   int corner_y = y + box.y + (box.height / 2.0f);
   wlr_output* output = wlr_output_layout_output_at(layout_, corner_x, corner_y);
 
-  y = 0;
+  y = MENU_HEIGHT;
   x = 0;
 
   wlr_output_layout_output_coords(layout_, output, &x, &y);
@@ -258,6 +291,10 @@ void View::tile(int edges) {
   state = WM_WINDOW_STATE_TILED;
 }
 
+void View::minimize() {
+  minimized = true;
+}
+
 void View::maximize() {
   if (maximized()) {
     return;
@@ -276,10 +313,10 @@ void View::maximize() {
     cursor_->x(), cursor_->y());
 
   wlr_box *output_box = wlr_output_layout_get_box(layout_, output);
-  resize(output_box->width, output_box->height);
+  resize(output_box->width, output_box->height - MENU_HEIGHT);
 
   x = output_box->x;
-  y = output_box->y;
+  y = output_box->y + MENU_HEIGHT;
 
   state = WM_WINDOW_STATE_MAXIMIZED;
 }
@@ -380,6 +417,11 @@ void View::xdg_toplevel_request_resize_notify(wl_listener *listener, void *data)
 void View::xdg_toplevel_request_maximize_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, request_maximize);
   view->toggle_maximized();
+}
+
+void View::xdg_toplevel_request_minimize_notify(wl_listener *listener, void *data) {
+  View *view = wl_container_of(listener, view, request_minimize);
+  view->server->minimize_view(view);
 }
 
 void View::xdg_surface_destroy_notify(wl_listener *listener, void *data) {
