@@ -452,7 +452,7 @@ void View::xdg_popup_commit_notify(wl_listener *listener, void *data) {
 void View::xdg_surface_commit_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, commit);
   if (view->mapped) {
-    view->server->damage_outputs();
+    view->server->damage_output(view);
   }
 }
 
@@ -524,7 +524,7 @@ void View::xdg_surface_map_notify(wl_listener *listener, void *data) {
   view->map_view();
   view->server->position_view(view);
   view->server->focus_view(view);
-  view->server->damage_outputs();
+  view->server->damage_output(view);
 }
 
 void View::xdg_surface_unmap_notify(wl_listener *listener, void *data) {

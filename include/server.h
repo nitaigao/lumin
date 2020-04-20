@@ -52,8 +52,10 @@ class Server {
   void enable_output(const std::string& name, bool enabled);
   void render_output(Output *output) const;
   void remove_output(Output *output);
-  void damage_outputs();
   void enable_builtin_screen(bool enabled);
+
+  void damage_outputs();
+  void damage_output(View *view);
 
   void dock_right();
   void dock_left();

@@ -54,6 +54,12 @@ void Server::damage_outputs() {
   }
 }
 
+void Server::damage_output(View *view) {
+  for (auto &output : outputs_) {
+    output->take_damage(view);
+  }
+}
+
 void Server::dbus(Server *server) {
   DBus::BusDispatcher dispatcher;
   DBus::default_dispatcher = &dispatcher;
