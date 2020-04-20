@@ -10,7 +10,8 @@ namespace lumin {
 Keyboard::Keyboard(Server *server, wlr_input_device *device, Seat* seat)
   : server_(server)
   , device_(device)
-  , seat_(seat) {
+  , seat_(seat)
+{
   /* Here we set up listeners for keyboard events. */
   modifiers.notify = keyboard_modifiers_notify;
   wl_signal_add(&device_->keyboard->events.modifiers, &modifiers);
@@ -19,7 +20,8 @@ Keyboard::Keyboard(Server *server, wlr_input_device *device, Seat* seat)
   wl_signal_add(&device_->keyboard->events.key, &key);
 }
 
-void Keyboard::setup() {
+void Keyboard::setup()
+{
   xkb_rule_names rules;
   memset(&rules, 0, sizeof(xkb_rule_names));
   xkb_context *context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
@@ -34,13 +36,15 @@ void Keyboard::setup() {
   seat_->add_capability(WL_SEAT_CAPABILITY_KEYBOARD);
 }
 
-void Keyboard::keyboard_modifiers_notify(wl_listener *listener, void *data) {
+void Keyboard::keyboard_modifiers_notify(wl_listener *listener, void *data)
+{
   Keyboard *keyboard = wl_container_of(listener, keyboard, modifiers);
   keyboard->seat_->set_keyboard(keyboard->device_);
   keyboard->seat_->keyboard_notify_modifiers(&keyboard->device_->keyboard->modifiers);
 }
 
-void Keyboard::keyboard_key_notify(wl_listener *listener, void *data) {
+void Keyboard::keyboard_key_notify(wl_listener *listener, void *data)
+{
   Keyboard *keyboard = wl_container_of(listener, keyboard, key);
   auto event = static_cast<struct wlr_event_keyboard_key *>(data);
 

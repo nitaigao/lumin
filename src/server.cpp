@@ -26,17 +26,23 @@
 
 namespace lumin {
 
-Server::~Server() { }
+Server::~Server()
+{
 
-Server::Server() {
+}
+
+Server::Server()
+{
   settings_ = std::make_unique<Settings>();
 }
 
-void Server::quit() {
+void Server::quit()
+{
   wl_display_terminate(display_);
 }
 
-std::vector<std::string> Server::apps() const {
+std::vector<std::string> Server::apps() const
+{
   std::vector<std::string> apps;
   for (auto &view : views_) {
     auto id = view->root()->id();
@@ -48,19 +54,22 @@ std::vector<std::string> Server::apps() const {
   return apps;
 }
 
-void Server::damage_outputs() {
+void Server::damage_outputs()
+{
   for (auto &output : outputs_) {
     output->take_whole_damage();
   }
 }
 
-void Server::damage_output(View *view) {
+void Server::damage_output(View *view)
+{
   for (auto &output : outputs_) {
     output->take_damage(view);
   }
 }
 
-void Server::dbus(Server *server) {
+void Server::dbus(Server *server)
+{
   DBus::BusDispatcher dispatcher;
   DBus::default_dispatcher = &dispatcher;
   DBus::Connection bus = DBus::Connection::SessionBus();
@@ -72,17 +81,17 @@ void Server::dbus(Server *server) {
   dispatcher.enter();
 }
 
-int Server::add_keybinding(int key_code, int modifiers, int state) {
+int Server::add_keybinding(int key_code, int modifiers, int state)
+{
   unsigned int id = 0;
   bool exists = false;
   for (auto &pair : key_bindings) {
-    if (pair.second.key_code_ == key_code &&
-        pair.second.modifiers_ == modifiers &&
-        pair.second.state_ == state) {
-          exists = true;
-          id = pair.first;
-          break;
-        }
+    if (pair.second.key_code_ == key_code && pair.second.modifiers_ == modifiers &&
+      pair.second.state_ == state) {
+      exists = true;
+      id = pair.first;
+      break;
+    }
   }
 
   if (exists) {
@@ -93,16 +102,21 @@ int Server::add_keybinding(int key_code, int modifiers, int state) {
     auto it = key_bindings.end();
     id = (*it).first + 1;
   }
+
   KeyBinding key_binding(key_code, modifiers, state);
   key_bindings.insert(std::make_pair(id, key_binding));
+
   return id;
 }
 
-bool Server::handle_key(uint32_t keycode, uint32_t modifiers, int state) {
+bool Server::handle_key(uint32_t keycode, uint32_t modifiers, int state)
+{
+  // Global shortcut to quit the compositor
   if (keycode == KEY_EQUAL && modifiers == (WLR_MODIFIER_CTRL | WLR_MODIFIER_ALT)) {
     quit();
     return true;
   }
+
   for (auto &pair : key_bindings) {
     bool matched = pair.second.matches(modifiers, keycode, (wlr_key_state)state);
     if (matched) {
@@ -110,10 +124,12 @@ bool Server::handle_key(uint32_t keycode, uint32_t modifiers, int state) {
       return true;
     }
   }
+
   return false;
 }
 
-void Server::new_input_notify(wl_listener *listener, void *data) {
+void Server::new_input_notify(wl_listener *listener, void *data)
+{
   Server *server = wl_container_of(listener, server, new_input);
   auto device = static_cast<struct wlr_input_device *>(data);
 
@@ -132,7 +148,8 @@ void Server::new_input_notify(wl_listener *listener, void *data) {
   }
 }
 
-void Server::focus_app(const std::string& app_id) {
+void Server::focus_app(const std::string& app_id)
+{
   auto condition = [app_id](auto &el) { return el->id() == app_id; };
   auto result = std::find_if(views_.begin(), views_.end(), condition);
   if (result == views_.end()) {
@@ -142,7 +159,8 @@ void Server::focus_app(const std::string& app_id) {
   focus_view(view);
 }
 
-void Server::focus_view(View *view) {
+void Server::focus_view(View *view)
+{
   wlr_surface *prev_surface = seat_->keyboard_focused_surface();
 
   if (view->has_surface(prev_surface)) {
@@ -165,18 +183,21 @@ void Server::focus_view(View *view) {
   view->focus();
 }
 
-void Server::render_output(Output *output) const {
+void Server::render_output(Output *output) const
+{
   output->send_enter(views_);
   output->render(views_);
 }
 
-void Server::add_output(const std::shared_ptr<Output>& output) {
+void Server::add_output(const std::shared_ptr<Output>& output)
+{
   outputs_.push_back(output);
   output->init();
   apply_layout();
 }
 
-void Server::remove_output(Output *output) {
+void Server::remove_output(Output *output)
+{
   spdlog::debug("{} disconnected", output->id());
 
   output->remove_layout();
@@ -191,7 +212,8 @@ void Server::remove_output(Output *output) {
   apply_layout();
 }
 
-void Server::apply_layout() {
+void Server::apply_layout()
+{
   auto layout = settings_->display_find_layout(outputs_);
 
   std::map<Output*, DisplaySetting> enabled_outputs;
@@ -237,7 +259,8 @@ void Server::apply_layout() {
   }
 }
 
-void Server::new_output_notify(wl_listener *listener, void *data) {
+void Server::new_output_notify(wl_listener *listener, void *data)
+{
   Server *server = wl_container_of(listener, server, new_output);
   auto wlr_output = static_cast<struct wlr_output*>(data);
 
@@ -250,7 +273,8 @@ void Server::new_output_notify(wl_listener *listener, void *data) {
   server->add_output(output);
 }
 
-void Server::destroy_view(View *view) {
+void Server::destroy_view(View *view)
+{
   auto condition = [view](auto &el) { return el.get() == view; };
   auto result = std::find_if(views_.begin(), views_.end(), condition);
   if (result != views_.end()) {
@@ -258,7 +282,8 @@ void Server::destroy_view(View *view) {
   }
 }
 
-void Server::new_surface_notify(wl_listener *listener, void *data) {
+void Server::new_surface_notify(wl_listener *listener, void *data)
+{
   auto xdg_surface = static_cast<wlr_xdg_surface*>(data);
   if (xdg_surface->role != WLR_XDG_SURFACE_ROLE_TOPLEVEL) {
     return;
@@ -273,7 +298,8 @@ void Server::new_surface_notify(wl_listener *listener, void *data) {
   spdlog::debug("new_surface_notify");
 }
 
-void Server::minimize_view(View *view) {
+void Server::minimize_view(View *view)
+{
   view->minimize();
 
   auto condition = [view](auto &el) { return el.get() == view; };
@@ -287,7 +313,8 @@ void Server::minimize_view(View *view) {
   focus_top();
 }
 
-void Server::maximize_view(View *view) {
+void Server::maximize_view(View *view)
+{
   view->maximize();
 
   wlr_output* output = wlr_output_layout_output_at(layout_,
@@ -300,7 +327,8 @@ void Server::maximize_view(View *view) {
   view->y = output_box->y;
 }
 
-void Server::minimize_top() {
+void Server::minimize_top()
+{
   for (auto &view : views_) {
     if (view->mapped) {
       minimize_view(view.get());
@@ -309,28 +337,32 @@ void Server::minimize_top() {
   }
 }
 
-void Server::toggle_maximize() {
+void Server::toggle_maximize()
+{
   if (views_.empty()) return;
 
   auto &view = views_.front();
   view->toggle_maximized();
 }
 
-void Server::dock_left() {
+void Server::dock_left()
+{
   if (views_.empty()) return;
 
   auto &view = views_.front();
   view->tile_left();
 }
 
-void Server::dock_right() {
+void Server::dock_right()
+{
   if (views_.empty()) return;
 
   auto &view = views_.front();
   view->tile_right();
 }
 
-void Server::init() {
+void Server::init()
+{
   spdlog::set_level(spdlog::level::debug);
 
   display_ = wl_display_create();
@@ -392,11 +424,13 @@ void Server::init() {
   }
 }
 
-void Server::run() {
+void Server::run()
+{
   wl_display_run(display_);
 }
 
-void Server::destroy() {
+void Server::destroy()
+{
   spdlog::warn("quitting");
 
   wl_display_destroy_clients(display_);
@@ -405,7 +439,8 @@ void Server::destroy() {
   wl_display_destroy(display_);
 }
 
-void Server::lid_notify(wl_listener *listener, void *data) {
+void Server::lid_notify(wl_listener *listener, void *data)
+{
   auto event = static_cast<wlr_event_switch_toggle *>(data);
 
   if (event->switch_type != WLR_SWITCH_TYPE_LID) {
@@ -417,7 +452,8 @@ void Server::lid_notify(wl_listener *listener, void *data) {
   server->enable_builtin_screen(enabled);
 }
 
-void Server::enable_builtin_screen(bool enabled) {
+void Server::enable_builtin_screen(bool enabled)
+{
   const std::vector<std::string> laptop_screen_names = { "eDP-1", "LVDS1" };
 
   for (auto &laptop_screen_name : laptop_screen_names) {
@@ -425,7 +461,8 @@ void Server::enable_builtin_screen(bool enabled) {
   }
 }
 
-void Server::enable_output(const std::string& name, bool enabled) {
+void Server::enable_output(const std::string& name, bool enabled)
+{
   auto lambda = [name](auto &output) -> bool { return output->is_named(name); };
   auto it = std::find_if(outputs_.begin(), outputs_.end(), lambda);
   if (it == outputs_.end()) {
@@ -437,13 +474,15 @@ void Server::enable_output(const std::string& name, bool enabled) {
   apply_layout();
 }
 
-void Server::new_keyboard(wlr_input_device *device) {
+void Server::new_keyboard(wlr_input_device *device)
+{
   auto keyboard = std::make_shared<Keyboard>(this, device, seat_.get());
   keyboard->setup();
   keyboards_.push_back(keyboard);
 }
 
-void Server::new_switch(wlr_input_device *device) {
+void Server::new_switch(wlr_input_device *device)
+{
   spdlog::debug("new_switch");
   lid.notify = lid_notify;
   wl_signal_add(&device->switch_device->events.toggle, &lid);
@@ -459,7 +498,8 @@ View* Server::desktop_view_at(double lx, double ly,
   return NULL;
 }
 
-View* Server::view_from_surface(wlr_surface *surface) {
+View* Server::view_from_surface(wlr_surface *surface)
+{
   for (auto &view : views_) {
     if (view->has_surface(surface)) {
       return view.get();
@@ -468,7 +508,8 @@ View* Server::view_from_surface(wlr_surface *surface) {
   return NULL;
 }
 
-void Server::position_view(View *view) {
+void Server::position_view(View *view)
+{
   if (view->is_menubar()) {
     auto layout = settings_->display_find_layout(outputs_);
     auto condition = [view](auto &el) { return el.second.primary; };
@@ -520,7 +561,8 @@ void Server::position_view(View *view) {
   view->y = parent_view->y + inside_y;
 }
 
-void Server::focus_top() {
+void Server::focus_top()
+{
   for (auto &view : views_) {
     if (view->mapped && !view->minimized) {
       view->focus();

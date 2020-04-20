@@ -59,8 +59,8 @@ class Server {
 
   void dock_right();
   void dock_left();
-  void toggle_maximize();
   void minimize_top();
+  void toggle_maximize();
   void maximize_view(View *view);
   void minimize_view(View *view);
 

@@ -29,12 +29,14 @@ struct damage_iterator_data {
   wlr_output_layout *output_layout;
 };
 
-Output::~Output() {
+Output::~Output()
+{
   wl_list_remove(&frame_.link);
   wl_list_remove(&destroy_.link);
 }
 
-Output::Output(Server *server,
+Output::Output(
+  Server *server,
   struct wlr_output *output,
   wlr_renderer *renderer,
   wlr_output_damage *damage,
@@ -55,19 +57,23 @@ Output::Output(Server *server,
   wl_signal_add(&damage->events.frame, &frame_);
 }
 
-void Output::init() {
+void Output::init()
+{
   wlr_output_create_global(wlr_output);
 }
 
-bool Output::connected() const {
+bool Output::connected() const
+{
   return connected_;
 }
 
-void Output::set_connected(bool connected) {
+void Output::set_connected(bool connected)
+{
   connected_ = connected;
 }
 
-void Output::set_mode() {
+void Output::set_mode()
+{
   if (wl_list_empty(&wlr_output->modes)) {
     return;
   }
@@ -81,7 +87,8 @@ void Output::set_mode() {
   wlr_output_set_mode(wlr_output, mode);
 }
 
-void Output::send_enter(const std::vector<std::shared_ptr<View>>& views) {
+void Output::send_enter(const std::vector<std::shared_ptr<View>>& views)
+{
   if (enter_frames_left_-- > 0) {
     for (auto &view : views) {
       view->enter(this);
@@ -89,31 +96,37 @@ void Output::send_enter(const std::vector<std::shared_ptr<View>>& views) {
   }
 }
 
-void Output::commit() {
+void Output::commit()
+{
   if (!wlr_output_commit(wlr_output)) {
     std::cerr << "Failed to commit output" << std::endl;
   }
 }
 
-void Output::destroy() {
+void Output::destroy()
+{
   wlr_output_destroy_global(wlr_output);
 }
 
-std::string Output::id() const {
+std::string Output::id() const
+{
   std::stringstream id;
   id << wlr_output->make << " " << wlr_output->model;
   return id.str();
 }
 
-int Output::width() const {
+int Output::width() const
+{
   return wlr_output->width;
 }
 
-int Output::height() const {
+int Output::height() const
+{
   return wlr_output->height;
 }
 
-static void scissor_output(struct wlr_output *wlr_output, pixman_box32_t *rect) {
+static void scissor_output(struct wlr_output *wlr_output, pixman_box32_t *rect)
+{
   struct wlr_renderer *renderer = wlr_backend_get_renderer(wlr_output->backend);
   assert(renderer);
 
@@ -198,7 +211,8 @@ static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
   wlr_surface_send_frame_done(surface, rdata->when);
 }
 
-void surface_damage_output(wlr_surface *surface, int sx, int sy, void *data) {
+void surface_damage_output(wlr_surface *surface, int sx, int sy, void *data)
+{
   auto damage_data = static_cast<damage_iterator_data*>(data);
   auto view = damage_data->view;
   auto output = damage_data->output;
@@ -220,16 +234,19 @@ void surface_damage_output(wlr_surface *surface, int sx, int sy, void *data) {
   pixman_region32_fini(&damage);
 }
 
-bool Output::is_named(const std::string& name) const {
+bool Output::is_named(const std::string& name) const
+{
   bool match = name.compare(wlr_output->name) == 0;
   return match;
 }
 
-void Output::take_whole_damage() {
+void Output::take_whole_damage()
+{
   wlr_output_damage_add_whole(damage_);
 }
 
-void Output::take_damage(const View *view) {
+void Output::take_damage(const View *view)
+{
   damage_iterator_data data = {
     .view = view,
     .output = wlr_output,
@@ -239,7 +256,8 @@ void Output::take_damage(const View *view) {
   view->for_each_surface(surface_damage_output, &data);
 }
 
-void Output::set_enabled(bool enabled) {
+void Output::set_enabled(bool enabled)
+{
   enter_frames_left_ = ENTER_FRAME_REPEAT_COUNT;
 
   if (enabled == enabled_) {
@@ -254,7 +272,8 @@ void Output::set_enabled(bool enabled) {
   enabled_ = enabled;
 }
 
-void Output::render(const std::vector<std::shared_ptr<View>>& views) const {
+void Output::render(const std::vector<std::shared_ptr<View>>& views) const
+{
   if (!enabled_) {
     return;
   }
@@ -287,8 +306,33 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const {
     wlr_renderer_clear(renderer_, clear_color);
   }
 
+  std::vector<View*> background_views;
+  std::vector<View*> bottom_views;
+  std::vector<View*> top_views;
+  std::vector<View*> overlay_views;
+
+  std::vector<View*>* layered_views[] = {
+    &background_views,
+    &bottom_views,
+    &top_views,
+    &overlay_views
+  };
+
   for (int layer = VIEW_LAYER_BACKGROUND; layer != VIEW_LAYER_MAX; layer++) {
-    for (auto it = views.rbegin(); it != views.rend(); ++it) {
+    for (auto it = views.begin(); it != views.end(); ++it) {
+      auto &view = (*it);
+      layered_views[view->layer]->push_back(view.get());
+
+      if (layer == VIEW_LAYER_TOP) {
+        if (view->maximized()) {
+          break;
+        }
+      }
+    }
+  }
+
+  for (int layer = VIEW_LAYER_BACKGROUND; layer != VIEW_LAYER_MAX; layer++) {
+    for (auto it = layered_views[layer]->rbegin(); it != layered_views[layer]->rend(); ++it) {
       auto &view = (*it);
 
       if (!view->mapped) {
@@ -306,7 +350,7 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const {
       struct render_data render_data = {
         .output = wlr_output,
         .renderer = renderer_,
-        .view = view.get(),
+        .view = view,
         .when = &now,
         .layout = layout_,
         .output_damage = &buffer_damage
@@ -342,29 +386,35 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const {
   wlr_output_commit(wlr_output);
 }
 
-void Output::output_frame_notify(wl_listener *listener, void *data) {
+void Output::output_frame_notify(wl_listener *listener, void *data)
+{
   Output *output = wl_container_of(listener, output, frame_);
   output->server_->render_output(output);
 }
 
-void Output::output_destroy_notify(wl_listener *listener, void *data) {
+void Output::output_destroy_notify(wl_listener *listener, void *data)
+{
   Output *output = wl_container_of(listener, output, destroy_);
   output->server_->remove_output(output);
 }
 
-void Output::set_scale(int scale) {
+void Output::set_scale(int scale)
+{
   wlr_output_set_scale(wlr_output, scale);
 }
 
-void Output::set_position(int x, int y) {
+void Output::set_position(int x, int y)
+{
   wlr_output_layout_move(layout_, wlr_output, x, y);
 }
 
-void Output::remove_layout() {
+void Output::remove_layout()
+{
   wlr_output_layout_remove(layout_, wlr_output);
 }
 
-void Output::add_layout(int x, int y) {
+void Output::add_layout(int x, int y)
+{
   wlr_output_layout_add(layout_, wlr_output, x, y);
 }
 
