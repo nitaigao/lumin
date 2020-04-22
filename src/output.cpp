@@ -323,10 +323,8 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const
       auto &view = (*it);
       layered_views[view->layer]->push_back(view.get());
 
-      if (layer == VIEW_LAYER_TOP) {
-        if (view->maximized()) {
-          break;
-        }
+      if (layer != VIEW_LAYER_TOP && view->maximized()) {
+        break;
       }
     }
   }
