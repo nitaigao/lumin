@@ -46,6 +46,9 @@ std::vector<std::string> Server::apps() const
   std::vector<std::string> apps;
   for (auto &view : views_) {
     auto id = view->root()->id();
+    if (id.empty()) {
+      continue;
+    }
     auto it = std::find_if(apps.begin(), apps.end(), [id](auto &el) { return el == id; });
     if (it == apps.end()) {
       apps.push_back(id);
@@ -412,6 +415,7 @@ void Server::init()
   spdlog::info("WAYLAND_DISPLAY={}", socket);
 
   setenv("MOZ_ENABLE_WAYLAND", "1", true);
+  setenv("QT_QPA_PLATFORM", "wayland", true);
 
   dbus_ = std::thread(Server::dbus, this);
 
