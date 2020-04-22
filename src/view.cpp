@@ -71,6 +71,10 @@ View::View(Server *server_, wlr_xdg_surface *surface,
 }
 
 std::string View::id() const {
+  if (xdg_surface_->toplevel->app_id == nullptr) {
+    return "";
+  }
+
   return xdg_surface_->toplevel->app_id;
 }
 
@@ -185,17 +189,17 @@ bool View::is_always_focused() const {
 }
 
 bool View::is_menubar() const {
-  bool result = std::string(xdg_surface_->toplevel->app_id).compare("org.os.Menu") == 0;
+  bool result = id().compare("org.os.Menu") == 0;
   return result;
 }
 
 bool View::is_launcher() const {
-  bool result = std::string(xdg_surface_->toplevel->app_id).compare("org.os.Launcher") == 0;
+  bool result = id().compare("org.os.Launcher") == 0;
   return result;
 }
 
 bool View::is_shell() const {
-  bool result = std::string(xdg_surface_->toplevel->app_id).compare("org.os.Shell") == 0;
+  bool result = id().compare("org.os.Shell") == 0;
   return result;
 }
 
