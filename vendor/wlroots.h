@@ -19,7 +19,6 @@ extern "C" {
   #include <wlr/types/wlr_gtk_primary_selection.h>
   #include <wlr/types/wlr_input_device.h>
   #include <wlr/types/wlr_keyboard.h>
-  #include <wlr/types/wlr_layer_shell_v1.h>
   #include <wlr/types/wlr_linux_dmabuf_v1.h>
   #include <wlr/types/wlr_matrix.h>
   #include <wlr/types/wlr_output_damage.h>

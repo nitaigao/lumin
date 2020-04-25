@@ -78,11 +78,11 @@ static const struct wl_message xdg_wm_base_events[] = {
 	{ "ping", "u", xdg_shell_types + 0 },
 };
 
-const struct wl_interface xdg_wm_base_interface = {
-	"xdg_wm_base", 2,
-	4, xdg_wm_base_requests,
-	1, xdg_wm_base_events,
-};
+// const struct wl_interface xdg_wm_base_interface = {
+// 	"xdg_wm_base", 2,
+// 	4, xdg_wm_base_requests,
+// 	1, xdg_wm_base_events,
+// };
 
 static const struct wl_message xdg_positioner_requests[] = {
 	{ "destroy", "", xdg_shell_types + 0 },

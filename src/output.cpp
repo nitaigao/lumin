@@ -207,8 +207,6 @@ static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
   }
 
   pixman_region32_fini(&damage);
-
-  wlr_surface_send_frame_done(surface, rdata->when);
 }
 
 void surface_damage_output(wlr_surface *surface, int sx, int sy, void *data)
@@ -270,6 +268,11 @@ void Output::set_enabled(bool enabled)
 
   wlr_output_enable(wlr_output, enabled);
   enabled_ = enabled;
+}
+
+static void send_frame_done(wlr_surface *surface, int sx, int sy, void *data) {
+  struct timespec *when = static_cast<struct timespec *>(data);
+  wlr_surface_send_frame_done(surface, when);
 }
 
 void Output::render(const std::vector<std::shared_ptr<View>>& views) const
@@ -370,7 +373,6 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const
 
   /* Conclude rendering and swap the buffers, showing the final frame
    * on-screen. */
-  pixman_region32_fini(&buffer_damage);
 
   pixman_region32_t frame_damage;
   pixman_region32_init(&frame_damage);
@@ -382,6 +384,12 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const
   pixman_region32_fini(&frame_damage);
 
   wlr_output_commit(wlr_output);
+
+  pixman_region32_fini(&buffer_damage);
+
+  for (auto &view : views) {
+    view->for_each_surface(send_frame_done, &now);
+  }
 }
 
 void Output::output_frame_notify(wl_listener *listener, void *data)

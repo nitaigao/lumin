@@ -366,6 +366,13 @@ void Server::dock_right()
 
 void Server::init()
 {
+  // The Atomic interface slows down hardware cursors
+  setenv("WLR_DRM_NO_ATOMIC", "1", true);
+
+  // Modifiers can stop hotplugging working correctly
+  setenv("WLR_DRM_NO_MODIFIERS", "1", true);
+
+  wlr_log_init(WLR_DEBUG, NULL);
   spdlog::set_level(spdlog::level::debug);
 
   display_ = wl_display_create();
@@ -390,7 +397,7 @@ void Server::init()
   wl_signal_add(&backend_->events.new_input, &new_input);
 
   wlr_seat *seat = wlr_seat_create(display_, "seat0");
-  seat_ = std::make_unique<Seat>(this, seat);
+  seat_ = std::make_unique<Seat>(seat);
   cursor_ = std::make_unique<Cursor>(this, layout_, seat_.get());
   seat_->set_pointer(cursor_.get());
 

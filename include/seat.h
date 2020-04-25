@@ -11,11 +11,10 @@ struct wlr_surface;
 namespace lumin {
 
 class Cursor;
-class Server;
 
 class Seat {
  public:
-  Seat(Server *server, wlr_seat *seat);
+  Seat(wlr_seat *seat);
 
  public:
   void add_capability(unsigned int capability);
@@ -49,7 +48,6 @@ class Seat {
   wl_listener request_set_selection;
 
  private:
-  Server *server_;
   wlr_seat *seat_;
   Cursor *cursor_;
   unsigned int capabilities_;

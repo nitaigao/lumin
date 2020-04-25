@@ -7,9 +7,8 @@
 
 namespace lumin {
 
-Seat::Seat(Server *server, wlr_seat *seat)
-  : server_(server)
-  , seat_(seat)
+Seat::Seat(wlr_seat *seat)
+  : seat_(seat)
   , cursor_(NULL)
   , capabilities_(0)
 {
