@@ -21,6 +21,7 @@ struct wlr_renderer;
 struct wlr_xdg_shell;
 struct wlr_surface;
 struct wlr_input_device;
+struct wlr_output_manager_v1;
 
 namespace lumin {
 
@@ -113,6 +114,7 @@ class Server {
   wlr_output_layout *layout_;
   wlr_backend *backend_;
   wlr_renderer *renderer_;
+  wlr_output_manager_v1 *output_manager_;
 
   std::unique_ptr<Cursor> cursor_;
   std::unique_ptr<Settings> settings_;

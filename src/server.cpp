@@ -403,6 +403,7 @@ void Server::init()
 
   wlr_data_control_manager_v1_create(display_);
   wlr_primary_selection_v1_device_manager_create(display_);
+  output_manager_ = wlr_output_manager_v1_create(display_);
 
   const char *socket = wl_display_add_socket_auto(display_);
   if (!socket) {
