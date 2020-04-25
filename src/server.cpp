@@ -428,11 +428,11 @@ void Server::init()
   dbus_ = std::thread(Server::dbus, this);
 
   if (fork() == 0) {
-    execl("/bin/sh", "/bin/sh", "-c", "menu", NULL);
+    execl("/bin/sh", "/bin/sh", "-c", "lumin-menu", NULL);
   }
 
   if (fork() == 0) {
-    execl("/bin/sh", "/bin/sh", "-c", "shell", NULL);
+    execl("/bin/sh", "/bin/sh", "-c", "lumin-shell", NULL);
   }
 }
 
