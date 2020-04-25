@@ -8,7 +8,8 @@
 
 namespace lumin {
 
-Cursor::~Cursor() {
+Cursor::~Cursor()
+{
   wlr_cursor_destroy(cursor_);
   wlr_xcursor_manager_destroy(cursor_manager_);
 }
@@ -51,28 +52,34 @@ Cursor::Cursor(Server *server, wlr_output_layout *layout, Seat *seat)
   wl_signal_add(&cursor_->events.frame, &cursor_frame);
 }
 
-int Cursor::x() const {
+int Cursor::x() const
+{
   return cursor_->x;
 }
 
-int Cursor::y() const {
+int Cursor::y() const
+{
   return cursor_->y;
 }
 
-void Cursor::load_scale(int scale) {
+void Cursor::load_scale(int scale)
+{
   wlr_xcursor_manager_load(cursor_manager_, scale);
 }
 
-void Cursor::warp(int x, int y) {
+void Cursor::warp(int x, int y)
+{
   wlr_cursor_warp(cursor_, NULL, x, y);
   seat_->pointer_notify_frame();
 }
 
-void Cursor::set_surface(wlr_surface *surface, int hotspot_x, int hotspot_y) {
+void Cursor::set_surface(wlr_surface *surface, int hotspot_x, int hotspot_y)
+{
   wlr_cursor_set_surface(cursor_, surface, hotspot_x, hotspot_y);
 }
 
-void Cursor::add_device(wlr_input_device* device) {
+void Cursor::add_device(wlr_input_device* device)
+{
   bool is_libinput = wlr_input_device_is_libinput(device);
   if (is_libinput) {
     libinput_device *libinput_device = wlr_libinput_get_device_handle(device);
@@ -86,26 +93,30 @@ void Cursor::add_device(wlr_input_device* device) {
   seat_->add_capability(WL_SEAT_CAPABILITY_POINTER);
 }
 
-void Cursor::cursor_motion_notify(wl_listener *listener, void *data) {
+void Cursor::cursor_motion_notify(wl_listener *listener, void *data)
+{
   Cursor *cursor = wl_container_of(listener, cursor, cursor_motion);
   auto event = static_cast<struct wlr_event_pointer_motion*>(data);
   wlr_cursor_move(cursor->cursor_, event->device, event->delta_x, event->delta_y);
   cursor->process_cursor_motion(event->time_msec);
 }
 
-void Cursor::cursor_motion_absolute_notify(wl_listener *listener, void *data) {
+void Cursor::cursor_motion_absolute_notify(wl_listener *listener, void *data)
+{
   Cursor *cursor = wl_container_of(listener, cursor, cursor_motion_absolute);
   auto event = static_cast<struct wlr_event_pointer_motion_absolute*>(data);
   wlr_cursor_warp_absolute(cursor->cursor_, event->device, event->x, event->y);
   cursor->process_cursor_motion(event->time_msec);
 }
 
-void Cursor::process_cursor_move(uint32_t time) {
+void Cursor::process_cursor_move(uint32_t time)
+{
   grab_state_.view->x = cursor_->x - grab_state_.x;
   grab_state_.view->y = cursor_->y - grab_state_.y;
 }
 
-void Cursor::process_cursor_resize(uint32_t time) {
+void Cursor::process_cursor_resize(uint32_t time)
+{
   View *view = grab_state_.view;
 
   double dx = cursor_->x - grab_state_.cursor_x;
@@ -144,7 +155,8 @@ void Cursor::process_cursor_resize(uint32_t time) {
   view->resize(width, height);
 }
 
-void Cursor::process_cursor_motion(uint32_t time) {
+void Cursor::process_cursor_motion(uint32_t time)
+{
   /* If the mode is non-passthrough, delegate to those functions. */
   if (grab_state_.CursorMode == WM_CURSOR_MOVE) {
     process_cursor_move(time);
@@ -191,7 +203,8 @@ void Cursor::process_cursor_motion(uint32_t time) {
   }
 }
 
-void Cursor::cursor_button_notify(wl_listener *listener, void *data) {
+void Cursor::cursor_button_notify(wl_listener *listener, void *data)
+{
   Cursor *cursor = wl_container_of(listener, cursor, cursor_button);
   auto event = static_cast<struct wlr_event_pointer_button*>(data);
 
@@ -212,19 +225,22 @@ void Cursor::cursor_button_notify(wl_listener *listener, void *data) {
   }
 }
 
-void Cursor::cursor_axis_notify(wl_listener *listener, void *data) {
+void Cursor::cursor_axis_notify(wl_listener *listener, void *data)
+{
   Cursor *cursor = wl_container_of(listener, cursor, cursor_axis);
   auto event = static_cast<wlr_event_pointer_axis*>(data);
   cursor->seat_->pointer_notify_axis(event->time_msec, event->orientation,
     event->delta, event->delta_discrete, event->source);
 }
 
-void Cursor::cursor_frame_notify(wl_listener *listener, void *data) {
+void Cursor::cursor_frame_notify(wl_listener *listener, void *data)
+{
   Cursor *cursor = wl_container_of(listener, cursor, cursor_frame);
   cursor->seat_->pointer_notify_frame();
 }
 
-void Cursor::begin_interactive(View *view, CursorMode mode, unsigned int edges) {
+void Cursor::begin_interactive(View *view, CursorMode mode, unsigned int edges)
+{
   wlr_surface *focused_surface = seat_->pointer_focused_surface();
 
   if (!view->has_surface(focused_surface)) {

@@ -1,33 +1,22 @@
 #include "key_binding.h"
 
+#include <spdlog/spdlog.h>
+
 #include <wlroots.h>
 
 namespace lumin {
 
-KeyBinding::KeyBinding()
-    : ctrl(false)
-    , alt(false)
-    , super(false)
-    , key(0)
-    , state(WLR_KEY_PRESSED)
-  { }
+KeyBinding::KeyBinding(int key_code, int modifiers, int state)
+  : key_code_(key_code)
+  , modifiers_(modifiers)
+  , state_(state)
+{
 
-int KeyBinding::mods() const {
-  int modifiers = 0;
-  if (ctrl) {
-    modifiers |= WLR_MODIFIER_CTRL;
-  }
-  if (alt) {
-    modifiers |= WLR_MODIFIER_ALT;
-  }
-  if (super) {
-    modifiers |= WLR_MODIFIER_LOGO;
-  }
-  return modifiers;
 }
 
-bool KeyBinding::matches(int modifiers, unsigned int sym, wlr_key_state key_state) {
-  bool match = (mods() & modifiers && sym == key && state == key_state);
+bool KeyBinding::matches(int modifiers, int key_code, int state)
+{
+  bool match = (modifiers_ == modifiers && key_code_ == key_code && state_ == state);
   return match;
 }
 

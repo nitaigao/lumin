@@ -1,0 +1,9 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
+"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<node name="/org/os/Compositor/Window">
+  <interface name="org.os.Compositor.Window">
+    <method name="Apps">
+      <arg direction="out" type="as" name="app_ids" />
+    </method>
+  </interface>
+</node>

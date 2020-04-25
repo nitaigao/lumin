@@ -11,14 +11,17 @@
 
 const int DEFAULT_MINIMUM_WIDTH = 800;
 const int DEFAULT_MINIMUM_HEIGHT = 600;
+const int MENU_HEIGHT = 25;
 
 namespace lumin {
 
-View::View(Server *server_, wlr_xdg_surface *surface, Cursor *cursor,
-  wlr_output_layout *layout, Seat *seat)
+View::View(Server *server_, wlr_xdg_surface *surface,
+  Cursor *cursor, wlr_output_layout *layout, Seat *seat)
   : mapped(false)
   , x(0)
   , y(0)
+  , minimized(false)
+  , layer(VIEW_LAYER_TOP)
   , state(WM_WINDOW_STATE_WINDOW)
   , saved_state_({
     .width = DEFAULT_MINIMUM_WIDTH,
@@ -26,10 +29,10 @@ View::View(Server *server_, wlr_xdg_surface *surface, Cursor *cursor,
     .x = 0,
     .y = 0 })
   , server(server_)
-  , xdg_surface_(surface)
   , cursor_(cursor)
   , layout_(layout)
   , seat_(seat)
+  , xdg_surface_(surface)
 {
   map.notify = View::xdg_surface_map_notify;
   wl_signal_add(&xdg_surface_->events.map, &map);
@@ -59,6 +62,24 @@ View::View(Server *server_, wlr_xdg_surface *surface, Cursor *cursor,
 
   request_maximize.notify = View::xdg_toplevel_request_maximize_notify;
   wl_signal_add(&toplevel->events.request_maximize, &request_maximize);
+
+  request_minimize.notify = View::xdg_toplevel_request_minimize_notify;
+  wl_signal_add(&toplevel->events.request_minimize, &request_minimize);
+
+  set_app_id.notify = View::xdg_toplevel_set_app_id_notify;
+  wl_signal_add(&toplevel->events.set_app_id, &set_app_id);
+}
+
+std::string View::id() const {
+  if (xdg_surface_->toplevel->app_id == nullptr) {
+    return "";
+  }
+
+  return xdg_surface_->toplevel->app_id;
+}
+
+std::string View::title() const {
+  return xdg_surface_->toplevel->title;
 }
 
 uint View::min_width() const {
@@ -97,7 +118,7 @@ void View::toggle_maximized() {
   bool is_maximised = maximized();
 
   if (is_maximised) {
-    window();
+    windowize();
   } else {
     maximize();
   }
@@ -146,12 +167,40 @@ void View::for_each_surface(wlr_surface_iterator_func_t iterator, void *data) co
 }
 
 void View::focus() {
+  minimized = false;
   activate();
   seat_->keyboard_notify_enter(xdg_surface_->surface);
 }
 
 void View::unfocus() {
+  if (is_always_focused()) {
+    return;
+  }
+
   wlr_xdg_toplevel_set_activated(xdg_surface_, false);
+}
+
+bool View::steals_focus() const {
+  return !(is_menubar() || is_launcher());
+}
+
+bool View::is_always_focused() const {
+  return is_menubar() || is_launcher();
+}
+
+bool View::is_menubar() const {
+  bool result = id().compare("org.os.Menu") == 0;
+  return result;
+}
+
+bool View::is_launcher() const {
+  bool result = id().compare("org.os.Launcher") == 0;
+  return result;
+}
+
+bool View::is_shell() const {
+  bool result = id().compare("org.os.Shell") == 0;
+  return result;
 }
 
 void View::geometry(struct wlr_box *box) const {
@@ -195,10 +244,10 @@ void View::tile_left() {
 
   int width = (output->width / 2.0f) / output->scale;
   int height = output->height / output->scale;
-  resize(width, height);
+  resize(width, height - MENU_HEIGHT);
 
   x = 0;
-  y = 0;
+  y = MENU_HEIGHT;
 
   wlr_output_layout_output_coords(layout_, output, &x, &y);
 
@@ -215,7 +264,7 @@ void View::tile_right() {
   int corner_y = y + box.y + (box.height / 2.0f);
   wlr_output* output = wlr_output_layout_output_at(layout_, corner_x, corner_y);
 
-  y = 0;
+  y = MENU_HEIGHT;
   x = 0;
 
   wlr_output_layout_output_coords(layout_, output, &x, &y);
@@ -246,6 +295,10 @@ void View::tile(int edges) {
   state = WM_WINDOW_STATE_TILED;
 }
 
+void View::minimize() {
+  minimized = true;
+}
+
 void View::maximize() {
   if (maximized()) {
     return;
@@ -264,10 +317,10 @@ void View::maximize() {
     cursor_->x(), cursor_->y());
 
   wlr_box *output_box = wlr_output_layout_get_box(layout_, output);
-  resize(output_box->width, output_box->height);
+  resize(output_box->width, output_box->height - MENU_HEIGHT);
 
   x = output_box->x;
-  y = output_box->y;
+  y = output_box->y + MENU_HEIGHT;
 
   state = WM_WINDOW_STATE_MAXIMIZED;
 }
@@ -299,7 +352,7 @@ void View::grab() {
   state = WM_WINDOW_STATE_WINDOW;
 }
 
-void View::window() {
+void View::windowize() {
   if (windowed()) {
     return;
   }
@@ -346,6 +399,13 @@ bool View::is_child() const {
   return is_child;
 }
 
+const View* View::root() const {
+  if (xdg_surface_->toplevel->parent == NULL) {
+    return this;
+  }
+  return parent()->root();
+}
+
 void View::xdg_toplevel_request_move_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, request_move);
   view->grab();
@@ -361,6 +421,11 @@ void View::xdg_toplevel_request_resize_notify(wl_listener *listener, void *data)
 void View::xdg_toplevel_request_maximize_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, request_maximize);
   view->toggle_maximized();
+}
+
+void View::xdg_toplevel_request_minimize_notify(wl_listener *listener, void *data) {
+  View *view = wl_container_of(listener, view, request_minimize);
+  view->server->minimize_view(view);
 }
 
 void View::xdg_surface_destroy_notify(wl_listener *listener, void *data) {
@@ -391,7 +456,7 @@ void View::xdg_popup_commit_notify(wl_listener *listener, void *data) {
 void View::xdg_surface_commit_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, commit);
   if (view->mapped) {
-    view->server->damage_outputs();
+    view->server->damage_output(view);
   }
 }
 
@@ -463,7 +528,7 @@ void View::xdg_surface_map_notify(wl_listener *listener, void *data) {
   view->map_view();
   view->server->position_view(view);
   view->server->focus_view(view);
-  view->server->damage_outputs();
+  view->server->damage_output(view);
 }
 
 void View::xdg_surface_unmap_notify(wl_listener *listener, void *data) {
@@ -471,6 +536,10 @@ void View::xdg_surface_unmap_notify(wl_listener *listener, void *data) {
   view->unmap_view();
   view->server->focus_top();
   view->server->damage_outputs();
+}
+
+void View::xdg_toplevel_set_app_id_notify(wl_listener *listener, void *data) {
+  View *view = wl_container_of(listener, view, set_app_id);
 }
 
 }  // namespace lumin

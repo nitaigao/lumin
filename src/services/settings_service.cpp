@@ -18,13 +18,7 @@ class DisplayProxy : public org::os::Settings::Display_proxy,
 
 typedef DBus::Struct<std::string, int32_t, int32_t> FindLayoutArg;
 
-LayoutConfig SettingsService::display_find_layout(
-  const std::vector<std::shared_ptr<Output>>& outputs) {
-  LayoutConfig layout;
-  if (outputs.empty()) {
-    return layout;
-  }
-
+void log_outputs(const std::vector<std::shared_ptr<Output>>& outputs) {
   std::stringstream message;
 
   for (auto &output : outputs) {
@@ -35,6 +29,16 @@ LayoutConfig SettingsService::display_find_layout(
   }
 
   spdlog::debug("Fetch layout: {}", message.str());
+}
+
+LayoutConfig SettingsService::display_find_layout(
+  const std::vector<std::shared_ptr<Output>>& outputs) {
+  LayoutConfig layout;
+  if (outputs.empty()) {
+    return layout;
+  }
+
+  log_outputs(outputs);
 
   DBus::BusDispatcher dispatcher;
   DBus::default_dispatcher = &dispatcher;

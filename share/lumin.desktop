@@ -1,0 +1,5 @@
+[Desktop Entry]
+Name=Lumin
+Comment=This session logs you into Lumin
+Exec=lumin
+Type=Application
