@@ -18,6 +18,7 @@ wayland_protocols = dependency('wayland-protocols', version: '>=1.17')
 wayland_server = dependency('wayland-server')
 wlroots = dependency('wlroots')
 xkbcommon = dependency('xkbcommon')
+glesv2 = dependency('glesv2')
 
 dependencies = [
   dbuscpp,
@@ -30,6 +31,7 @@ dependencies = [
   wayland_server,
   wlroots,
   xkbcommon,
+  glesv2
 ]
 
 includes = include_directories(['include', 'protocols', 'vendor', 'dbus'])

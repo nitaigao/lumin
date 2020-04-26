@@ -66,6 +66,9 @@ View::View(Server *server_, wlr_xdg_surface *surface,
   request_minimize.notify = View::xdg_toplevel_request_minimize_notify;
   wl_signal_add(&toplevel->events.request_minimize, &request_minimize);
 
+  request_fullscreen.notify = View::xdg_toplevel_request_fullscreen_notify;
+  wl_signal_add(&toplevel->events.request_fullscreen, &request_fullscreen);
+
   set_app_id.notify = View::xdg_toplevel_set_app_id_notify;
   wl_signal_add(&toplevel->events.set_app_id, &set_app_id);
 }
@@ -107,6 +110,11 @@ void View::enter(const Output* output) {
 bool View::tiled() const {
   bool tiled = state == WM_WINDOW_STATE_TILED;
   return tiled;
+}
+
+bool View::fullscreen() const {
+  bool fullscreen = state == WM_WINDOW_STATE_FULLSCREEN;
+  return fullscreen;
 }
 
 bool View::maximized() const {
@@ -426,6 +434,12 @@ void View::xdg_toplevel_request_maximize_notify(wl_listener *listener, void *dat
 void View::xdg_toplevel_request_minimize_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, request_minimize);
   view->server->minimize_view(view);
+}
+
+void View::xdg_toplevel_request_fullscreen_notify(wl_listener *listener, void *data) {
+  auto event = static_cast<wlr_xdg_toplevel_set_fullscreen_event*>(data);
+  View *view = wl_container_of(listener, view, request_minimize);
+  view->state = event->fullscreen ? WM_WINDOW_STATE_FULLSCREEN : WM_WINDOW_STATE_WINDOW;
 }
 
 void View::xdg_surface_destroy_notify(wl_listener *listener, void *data) {

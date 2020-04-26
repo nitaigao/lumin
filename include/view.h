@@ -26,7 +26,8 @@ class Server;
 enum WindowState {
   WM_WINDOW_STATE_WINDOW = 0,
   WM_WINDOW_STATE_TILED = 1,
-  WM_WINDOW_STATE_MAXIMIZED = 2
+  WM_WINDOW_STATE_MAXIMIZED = 2,
+  WM_WINDOW_STATE_FULLSCREEN = 3
 };
 
 enum ViewLayer {
@@ -55,6 +56,8 @@ class View {
   void maximize();
   bool maximized() const;
   void minimize();
+
+  bool fullscreen() const;
 
   void tile_left();
   void tile_right();
@@ -115,6 +118,7 @@ class View {
   wl_listener request_resize;
   wl_listener request_maximize;
   wl_listener request_minimize;
+  wl_listener request_fullscreen;
   wl_listener new_subsurface;
   wl_listener new_popup;
   wl_listener set_app_id;
@@ -122,6 +126,7 @@ class View {
  public:
   static void xdg_toplevel_request_maximize_notify(wl_listener *listener, void *data);
   static void xdg_toplevel_request_minimize_notify(wl_listener *listener, void *data);
+  static void xdg_toplevel_request_fullscreen_notify(wl_listener *listener, void *data);
   static void xdg_toplevel_request_move_notify(wl_listener *listener, void *data);
   static void xdg_toplevel_request_resize_notify(wl_listener *listener, void *data);
   static void xdg_toplevel_set_app_id_notify(wl_listener *listener, void *data);

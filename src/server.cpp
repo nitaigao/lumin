@@ -366,9 +366,6 @@ void Server::dock_right()
 
 void Server::init()
 {
-  // The Atomic interface slows down hardware cursors
-  setenv("WLR_DRM_NO_ATOMIC", "1", true);
-
   // Modifiers can stop hotplugging working correctly
   setenv("WLR_DRM_NO_MODIFIERS", "1", true);
 

@@ -9,6 +9,8 @@
 #include "view.h"
 #include "server.h"
 
+#include <GL/gl.h>
+
 namespace lumin {
 
 const int ENTER_FRAME_REPEAT_COUNT = 5;
@@ -20,6 +22,7 @@ struct render_data {
   timespec *when;
   wlr_output_layout *layout;
   pixman_region32_t *output_damage;
+  bool first_surface;
 };
 
 struct damage_iterator_data {
@@ -199,11 +202,20 @@ static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
   pixman_region32_union_rect(&damage, &damage, box.x, box.y, box.width, box.height);
   pixman_region32_intersect(&damage, &damage, output_damage);
 
+  if (view->maximized() && !rdata->first_surface) {
+    glDisable(GL_BLEND);
+  }
+
   int nrects;
   pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
   for (int i = 0; i < nrects; ++i) {
     scissor_output(output, &rects[i]);
     wlr_render_texture_with_matrix(renderer, texture, matrix, 1);
+  }
+
+  if (view->maximized() && !rdata->first_surface) {
+    glEnable(GL_BLEND);
+    rdata->first_surface = true;
   }
 
   pixman_region32_fini(&damage);
@@ -284,10 +296,6 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const
   struct timespec now;
   clock_gettime(CLOCK_MONOTONIC, &now);
 
-  if (!wlr_output_attach_render(wlr_output, NULL)) {
-    return;
-  }
-
   bool needs_frame = false;
   pixman_region32_t buffer_damage;
   pixman_region32_init(&buffer_damage);
@@ -295,18 +303,6 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const
 
   if (!needs_frame) {
     return;
-  }
-
-  /* Begin the renderer (calls glViewport and some other GL sanity checks) */
-  wlr_renderer_begin(renderer_, wlr_output->width, wlr_output->height);
-
-  float clear_color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-
-  int nrects;
-  pixman_box32_t *rects = pixman_region32_rectangles(&buffer_damage, &nrects);
-  for (int i = 0; i < nrects; ++i) {
-    scissor_output(wlr_output, &rects[i]);
-    wlr_renderer_clear(renderer_, clear_color);
   }
 
   std::vector<View*> background_views;
@@ -321,14 +317,41 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const
     &overlay_views
   };
 
+  // Fill rate optimizations
+  // Maximized windows
+  // If a window is maximized then:
+  // 1. Do not clear the backbuffer
+  // 2. Cull any windows underneath the window
+  // 3. Do not blend the first surface in the window (culls shadows)
+
+  bool window_is_maximized = false;
+
   for (int layer = VIEW_LAYER_BACKGROUND; layer != VIEW_LAYER_MAX; layer++) {
     for (auto it = views.begin(); it != views.end(); ++it) {
       auto &view = (*it);
       layered_views[view->layer]->push_back(view.get());
 
-      if (layer != VIEW_LAYER_TOP && view->maximized()) {
+      if (view->maximized()) {
+        window_is_maximized = true;
         break;
       }
+    }
+  }
+
+  if (!wlr_output_attach_render(wlr_output, NULL)) {
+    return;
+  }
+
+  wlr_renderer_begin(renderer_, wlr_output->width, wlr_output->height);
+
+  if (!window_is_maximized) {
+    float clear_color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+
+    int nrects;
+    pixman_box32_t *rects = pixman_region32_rectangles(&buffer_damage, &nrects);
+    for (int i = 0; i < nrects; ++i) {
+      scissor_output(wlr_output, &rects[i]);
+      wlr_renderer_clear(renderer_, clear_color);
     }
   }
 
@@ -337,10 +360,6 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const
       auto &view = (*it);
 
       if (!view->mapped) {
-        continue;
-      }
-
-      if (view->layer != layer) {
         continue;
       }
 
@@ -354,25 +373,17 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const
         .view = view,
         .when = &now,
         .layout = layout_,
-        .output_damage = &buffer_damage
+        .output_damage = &buffer_damage,
+        .first_surface = false
       };
 
       view->for_each_surface(render_surface, &render_data);
     }
   }
 
-  /* Hardware cursors are rendered by the GPU on a separate plane, and can be
-   * moved around without re-rendering what's beneath them - which is more
-   * efficient. However, not all hardware supports hardware cursors. For this
-   * reason, wlroots provides a software fallback, which we ask it to render
-   * here. wlr_cursor handles configuring hardware vs software cursors for you,
-   * and this function is a no-op when hardware cursors are in use. */
   wlr_renderer_scissor(renderer_, NULL);
   wlr_output_render_software_cursors(wlr_output, &buffer_damage);
   wlr_renderer_end(renderer_);
-
-  /* Conclude rendering and swap the buffers, showing the final frame
-   * on-screen. */
 
   pixman_region32_t frame_damage;
   pixman_region32_init(&frame_damage);
