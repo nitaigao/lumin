@@ -338,7 +338,7 @@ void View::maximize() {
 
   state = WM_WINDOW_STATE_MAXIMIZED;
 
-  // server->damage_outputs();
+  server->damage_outputs();
 }
 
 void View::grab() {
