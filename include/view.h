@@ -59,6 +59,7 @@ class View {
 
   bool fullscreen() const;
 
+  bool tiled() const;
   void tile_left();
   void tile_right();
 
@@ -66,6 +67,8 @@ class View {
 
   void focus();
   void unfocus();
+
+  ViewLayer layer() const;
 
   std::string id() const;
   std::string title() const;
@@ -96,7 +99,6 @@ class View {
   void save_geometry();
   void grab();
   void tile(int edges);
-  bool tiled() const;
   bool windowed() const;
   void map_view();
   void unmap_view();
@@ -107,7 +109,6 @@ class View {
   bool mapped;
   double x, y;
   bool minimized;
-  ViewLayer layer;
 
  public:
   wl_listener map;
@@ -165,6 +166,7 @@ class View {
 struct Subsurface {
   wl_listener commit;
   Server *server;
+   View *view;
 };
 
 struct Popup {
@@ -172,6 +174,7 @@ struct Popup {
   wl_listener destroy;
   wl_listener new_subsurface;
   wl_listener new_popup;
+  View *view;
   Server *server;
 };
 

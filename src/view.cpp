@@ -21,7 +21,6 @@ View::View(Server *server_, wlr_xdg_surface *surface,
   , x(0)
   , y(0)
   , minimized(false)
-  , layer(VIEW_LAYER_TOP)
   , state(WM_WINDOW_STATE_WINDOW)
   , saved_state_({
     .width = DEFAULT_MINIMUM_WIDTH,
@@ -196,6 +195,13 @@ bool View::is_always_focused() const {
   return is_menubar() || is_launcher();
 }
 
+ViewLayer View::layer() const {
+  if (is_menubar() || is_launcher()) {
+    return VIEW_LAYER_OVERLAY;
+  }
+  return VIEW_LAYER_TOP;
+}
+
 bool View::is_menubar() const {
   bool result = id().compare("org.os.Menu") == 0;
   return result;
@@ -331,6 +337,8 @@ void View::maximize() {
   y = output_box->y + MENU_HEIGHT;
 
   state = WM_WINDOW_STATE_MAXIMIZED;
+
+  // server->damage_outputs();
 }
 
 void View::grab() {
@@ -438,23 +446,24 @@ void View::xdg_toplevel_request_minimize_notify(wl_listener *listener, void *dat
 
 void View::xdg_toplevel_request_fullscreen_notify(wl_listener *listener, void *data) {
   auto event = static_cast<wlr_xdg_toplevel_set_fullscreen_event*>(data);
-  View *view = wl_container_of(listener, view, request_minimize);
+  View *view = wl_container_of(listener, view, request_fullscreen);
   view->state = event->fullscreen ? WM_WINDOW_STATE_FULLSCREEN : WM_WINDOW_STATE_WINDOW;
 }
 
 void View::xdg_surface_destroy_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, destroy);
   view->server->destroy_view(view);
+  view->server->damage_outputs();
 }
 
 void View::xdg_popup_subsurface_commit_notify(wl_listener *listener, void *data) {
   Subsurface *subsurface = wl_container_of(listener, subsurface, commit);
-  subsurface->server->damage_outputs();
+  subsurface->server->damage_output(subsurface->view);
 }
 
 void View::xdg_subsurface_commit_notify(wl_listener *listener, void *data) {
   Subsurface *subsurface = wl_container_of(listener, subsurface, commit);
-  subsurface->server->damage_outputs();
+  subsurface->server->damage_output(subsurface->view);
 }
 
 void View::xdg_popup_destroy_notify(wl_listener *listener, void *data) {
@@ -464,7 +473,7 @@ void View::xdg_popup_destroy_notify(wl_listener *listener, void *data) {
 
 void View::xdg_popup_commit_notify(wl_listener *listener, void *data) {
   Popup *popup = wl_container_of(listener, popup, commit);
-  popup->server->damage_outputs();
+  popup->server->damage_output(popup->view);
 }
 
 void View::xdg_surface_commit_notify(wl_listener *listener, void *data) {
@@ -480,6 +489,7 @@ void View::new_popup_subsurface_notify(wl_listener *listener, void *data) {
 
   auto subsurface = new Subsurface();
   subsurface->server = popup->server;
+  subsurface->view = popup->view;
 
   subsurface->commit.notify = xdg_popup_subsurface_commit_notify;
   wl_signal_add(&wlr_subsurface_->surface->events.commit, &subsurface->commit);
@@ -491,6 +501,7 @@ void View::new_subsurface_notify(wl_listener *listener, void *data) {
 
   auto subsurface = new Subsurface();
   subsurface->server = view->server;
+  subsurface->view = view;
 
   subsurface->commit.notify = xdg_subsurface_commit_notify;
   wl_signal_add(&wlr_subsurface_->surface->events.commit, &subsurface->commit);
@@ -502,6 +513,7 @@ void View::new_popup_popup_notify(wl_listener *listener, void *data) {
 
   auto popup = new Popup();
   popup->server = parent_popup->server;
+  popup->view = parent_popup->view;
 
   popup->commit.notify = xdg_popup_commit_notify;
   wl_signal_add(&xdg_popup->base->surface->events.commit, &popup->commit);
@@ -523,6 +535,7 @@ void View::new_popup_notify(wl_listener *listener, void *data) {
 
   auto popup = new Popup();
   popup->server = view->server;
+  popup->view = view;
 
   popup->commit.notify = xdg_popup_commit_notify;
   wl_signal_add(&xdg_popup->base->surface->events.commit, &popup->commit);
@@ -549,7 +562,7 @@ void View::xdg_surface_unmap_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, unmap);
   view->unmap_view();
   view->server->focus_top();
-  view->server->damage_outputs();
+  view->server->damage_output(view);
 }
 
 void View::xdg_toplevel_set_app_id_notify(wl_listener *listener, void *data) {

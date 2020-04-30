@@ -9,8 +9,6 @@
 #include "view.h"
 #include "server.h"
 
-#include <GL/gl.h>
-
 namespace lumin {
 
 const int ENTER_FRAME_REPEAT_COUNT = 5;
@@ -22,7 +20,6 @@ struct render_data {
   timespec *when;
   wlr_output_layout *layout;
   pixman_region32_t *output_damage;
-  bool first_surface;
 };
 
 struct damage_iterator_data {
@@ -80,6 +77,10 @@ void Output::set_mode()
   if (wl_list_empty(&wlr_output->modes)) {
     return;
   }
+
+
+  // wlr_output_set_custom_mode(wlr_output, 2880, 1620, 0);
+  // return;
 
   struct wlr_output_mode *mode = wlr_output_preferred_mode(wlr_output);
   if (wlr_output->current_mode == mode) {
@@ -202,20 +203,11 @@ static void render_surface(wlr_surface *surface, int sx, int sy, void *data) {
   pixman_region32_union_rect(&damage, &damage, box.x, box.y, box.width, box.height);
   pixman_region32_intersect(&damage, &damage, output_damage);
 
-  if (view->maximized() && !rdata->first_surface) {
-    glDisable(GL_BLEND);
-  }
-
   int nrects;
   pixman_box32_t *rects = pixman_region32_rectangles(&damage, &nrects);
   for (int i = 0; i < nrects; ++i) {
     scissor_output(output, &rects[i]);
     wlr_render_texture_with_matrix(renderer, texture, matrix, 1);
-  }
-
-  if (view->maximized() && !rdata->first_surface) {
-    glEnable(GL_BLEND);
-    rdata->first_surface = true;
   }
 
   pixman_region32_fini(&damage);
@@ -305,37 +297,30 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const
     return;
   }
 
-  std::vector<View*> background_views;
-  std::vector<View*> bottom_views;
-  std::vector<View*> top_views;
-  std::vector<View*> overlay_views;
 
-  std::vector<View*>* layered_views[] = {
-    &background_views,
-    &bottom_views,
-    &top_views,
-    &overlay_views
-  };
+  std::vector<View*> render_list;
+  bool maximized_view = false;
+  for (auto it = views.begin(); it != views.end(); ++it) {
+    auto &view = (*it);
 
-  // Fill rate optimizations
-  // Maximized windows
-  // If a window is maximized then:
-  // 1. Do not clear the backbuffer
-  // 2. Cull any windows underneath the window
-  // 3. Do not blend the first surface in the window (culls shadows)
-
-  bool window_is_maximized = false;
-
-  for (int layer = VIEW_LAYER_BACKGROUND; layer != VIEW_LAYER_MAX; layer++) {
-    for (auto it = views.begin(); it != views.end(); ++it) {
-      auto &view = (*it);
-      layered_views[view->layer]->push_back(view.get());
-
-      if (view->maximized()) {
-        window_is_maximized = true;
-        break;
-      }
+    if (!view->mapped) {
+      continue;
     }
+
+    if (view->minimized) {
+      continue;
+    }
+
+    // Cull any TOP level windows behind a maximized window
+    if (view->layer() == VIEW_LAYER_TOP && maximized_view) {
+      continue;
+    }
+
+    if (view->layer() == VIEW_LAYER_TOP && !maximized_view && view->maximized()) {
+      maximized_view = true;
+    }
+
+    render_list.push_back(view.get());
   }
 
   if (!wlr_output_attach_render(wlr_output, NULL)) {
@@ -344,41 +329,28 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const
 
   wlr_renderer_begin(renderer_, wlr_output->width, wlr_output->height);
 
-  if (!window_is_maximized) {
-    float clear_color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+  float clear_color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
-    int nrects;
-    pixman_box32_t *rects = pixman_region32_rectangles(&buffer_damage, &nrects);
-    for (int i = 0; i < nrects; ++i) {
-      scissor_output(wlr_output, &rects[i]);
-      wlr_renderer_clear(renderer_, clear_color);
-    }
+  int nrects;
+  pixman_box32_t *rects = pixman_region32_rectangles(&buffer_damage, &nrects);
+  for (int i = 0; i < nrects; ++i) {
+    scissor_output(wlr_output, &rects[i]);
+    wlr_renderer_clear(renderer_, clear_color);
   }
 
-  for (int layer = VIEW_LAYER_BACKGROUND; layer != VIEW_LAYER_MAX; layer++) {
-    for (auto it = layered_views[layer]->rbegin(); it != layered_views[layer]->rend(); ++it) {
-      auto &view = (*it);
+  for (auto it = render_list.rbegin(); it != render_list.rend(); ++it) {
+    auto &view = (*it);
 
-      if (!view->mapped) {
-        continue;
-      }
+    struct render_data render_data = {
+      .output = wlr_output,
+      .renderer = renderer_,
+      .view = view,
+      .when = &now,
+      .layout = layout_,
+      .output_damage = &buffer_damage,
+    };
 
-      if (view->minimized) {
-        continue;
-      }
-
-      struct render_data render_data = {
-        .output = wlr_output,
-        .renderer = renderer_,
-        .view = view,
-        .when = &now,
-        .layout = layout_,
-        .output_damage = &buffer_damage,
-        .first_surface = false
-      };
-
-      view->for_each_surface(render_surface, &render_data);
-    }
+    view->for_each_surface(render_surface, &render_data);
   }
 
   wlr_renderer_scissor(renderer_, NULL);
@@ -398,9 +370,18 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const
 
   pixman_region32_fini(&buffer_damage);
 
-  for (auto &view : views) {
+  for (auto &view : render_list) {
     view->for_each_surface(send_frame_done, &now);
   }
+/*
+  GLTtext *text = gltCreateText();
+  gltSetText(text, "Hello World!");
+  gltBeginDraw();
+  gltColor(1.0f, 1.0f, 1.0f, 1.0f);
+  gltDrawText2D(text, 100, 100, 1);
+  gltEndDraw();
+  gltDeleteText(text);
+*/
 }
 
 void Output::output_frame_notify(wl_listener *listener, void *data)

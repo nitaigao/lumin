@@ -111,13 +111,17 @@ void Cursor::cursor_motion_absolute_notify(wl_listener *listener, void *data)
 
 void Cursor::process_cursor_move(uint32_t time)
 {
-  grab_state_.view->x = cursor_->x - grab_state_.x;
-  grab_state_.view->y = cursor_->y - grab_state_.y;
+  View *view = grab_state_.view;
+  view->x = cursor_->x - grab_state_.x;
+  view->y = cursor_->y - grab_state_.y;
+  server_->damage_outputs();
 }
 
 void Cursor::process_cursor_resize(uint32_t time)
 {
   View *view = grab_state_.view;
+
+  server_->damage_output(view);
 
   double dx = cursor_->x - grab_state_.cursor_x;
   double dy = cursor_->y - grab_state_.cursor_y;
@@ -153,6 +157,8 @@ void Cursor::process_cursor_resize(uint32_t time)
   }
 
   view->resize(width, height);
+
+  server_->damage_output(view);
 }
 
 void Cursor::process_cursor_motion(uint32_t time)
@@ -160,7 +166,6 @@ void Cursor::process_cursor_motion(uint32_t time)
   /* If the mode is non-passthrough, delegate to those functions. */
   if (grab_state_.CursorMode == WM_CURSOR_MOVE) {
     process_cursor_move(time);
-    server_->damage_outputs();
     return;
   } else if (grab_state_.CursorMode == WM_CURSOR_RESIZE) {
     process_cursor_resize(time);
