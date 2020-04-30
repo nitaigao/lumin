@@ -337,8 +337,6 @@ void View::maximize() {
   y = output_box->y + MENU_HEIGHT;
 
   state = WM_WINDOW_STATE_MAXIMIZED;
-
-  server->damage_outputs();
 }
 
 void View::grab() {
