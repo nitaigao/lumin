@@ -29,7 +29,7 @@ dependencies = [
   wayland_protocols,
   wayland_server,
   wlroots,
-  xkbcommon,
+  xkbcommon
 ]
 
 includes = include_directories(['include', 'protocols', 'vendor', 'dbus'])

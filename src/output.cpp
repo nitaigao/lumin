@@ -284,10 +284,6 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const
   struct timespec now;
   clock_gettime(CLOCK_MONOTONIC, &now);
 
-  if (!wlr_output_attach_render(wlr_output, NULL)) {
-    return;
-  }
-
   bool needs_frame = false;
   pixman_region32_t buffer_damage;
   pixman_region32_init(&buffer_damage);
@@ -297,7 +293,36 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const
     return;
   }
 
-  /* Begin the renderer (calls glViewport and some other GL sanity checks) */
+
+  std::vector<View*> render_list;
+  bool maximized_view = false;
+  for (auto it = views.begin(); it != views.end(); ++it) {
+    auto &view = (*it);
+
+    if (!view->mapped) {
+      continue;
+    }
+
+    if (view->minimized) {
+      continue;
+    }
+
+    // Cull any TOP level windows behind a maximized window
+    if (view->layer() == VIEW_LAYER_TOP && maximized_view) {
+      continue;
+    }
+
+    if (view->layer() == VIEW_LAYER_TOP && !maximized_view && view->maximized()) {
+      maximized_view = true;
+    }
+
+    render_list.push_back(view.get());
+  }
+
+  if (!wlr_output_attach_render(wlr_output, NULL)) {
+    return;
+  }
+
   wlr_renderer_begin(renderer_, wlr_output->width, wlr_output->height);
 
   float clear_color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
@@ -309,70 +334,24 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const
     wlr_renderer_clear(renderer_, clear_color);
   }
 
-  std::vector<View*> background_views;
-  std::vector<View*> bottom_views;
-  std::vector<View*> top_views;
-  std::vector<View*> overlay_views;
+  for (auto it = render_list.rbegin(); it != render_list.rend(); ++it) {
+    auto &view = (*it);
 
-  std::vector<View*>* layered_views[] = {
-    &background_views,
-    &bottom_views,
-    &top_views,
-    &overlay_views
-  };
+    struct render_data render_data = {
+      .output = wlr_output,
+      .renderer = renderer_,
+      .view = view,
+      .when = &now,
+      .layout = layout_,
+      .output_damage = &buffer_damage,
+    };
 
-  for (int layer = VIEW_LAYER_BACKGROUND; layer != VIEW_LAYER_MAX; layer++) {
-    for (auto it = views.begin(); it != views.end(); ++it) {
-      auto &view = (*it);
-      layered_views[view->layer]->push_back(view.get());
-
-      if (layer != VIEW_LAYER_TOP && view->maximized()) {
-        break;
-      }
-    }
+    view->for_each_surface(render_surface, &render_data);
   }
 
-  for (int layer = VIEW_LAYER_BACKGROUND; layer != VIEW_LAYER_MAX; layer++) {
-    for (auto it = layered_views[layer]->rbegin(); it != layered_views[layer]->rend(); ++it) {
-      auto &view = (*it);
-
-      if (!view->mapped) {
-        continue;
-      }
-
-      if (view->layer != layer) {
-        continue;
-      }
-
-      if (view->minimized) {
-        continue;
-      }
-
-      struct render_data render_data = {
-        .output = wlr_output,
-        .renderer = renderer_,
-        .view = view,
-        .when = &now,
-        .layout = layout_,
-        .output_damage = &buffer_damage
-      };
-
-      view->for_each_surface(render_surface, &render_data);
-    }
-  }
-
-  /* Hardware cursors are rendered by the GPU on a separate plane, and can be
-   * moved around without re-rendering what's beneath them - which is more
-   * efficient. However, not all hardware supports hardware cursors. For this
-   * reason, wlroots provides a software fallback, which we ask it to render
-   * here. wlr_cursor handles configuring hardware vs software cursors for you,
-   * and this function is a no-op when hardware cursors are in use. */
   wlr_renderer_scissor(renderer_, NULL);
   wlr_output_render_software_cursors(wlr_output, &buffer_damage);
   wlr_renderer_end(renderer_);
-
-  /* Conclude rendering and swap the buffers, showing the final frame
-   * on-screen. */
 
   pixman_region32_t frame_damage;
   pixman_region32_init(&frame_damage);
@@ -387,7 +366,7 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const
 
   pixman_region32_fini(&buffer_damage);
 
-  for (auto &view : views) {
+  for (auto &view : render_list) {
     view->for_each_surface(send_frame_done, &now);
   }
 }

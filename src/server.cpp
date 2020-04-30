@@ -47,6 +47,7 @@ std::vector<std::string> Server::apps() const
   for (auto &view : views_) {
     auto id = view->root()->id();
     if (id.empty()) {
+      apps.push_back("unknown");
       continue;
     }
     auto it = std::find_if(apps.begin(), apps.end(), [id](auto &el) { return el == id; });
@@ -366,9 +367,6 @@ void Server::dock_right()
 
 void Server::init()
 {
-  // The Atomic interface slows down hardware cursors
-  setenv("WLR_DRM_NO_ATOMIC", "1", true);
-
   // Modifiers can stop hotplugging working correctly
   setenv("WLR_DRM_NO_MODIFIERS", "1", true);
 
@@ -424,6 +422,7 @@ void Server::init()
 
   setenv("MOZ_ENABLE_WAYLAND", "1", true);
   setenv("QT_QPA_PLATFORM", "wayland", true);
+  setenv("QT_QPA_PLATFORMTHEME", "gnome", true);
 
   dbus_ = std::thread(Server::dbus, this);
 

@@ -18,12 +18,12 @@ extern "C" {
   #include <wlr/types/wlr_export_dmabuf_v1.h>
   #include <wlr/types/wlr_gtk_primary_selection.h>
   #include <wlr/types/wlr_input_device.h>
-  #include <wlr/types/wlr_output_management_v1.h>
   #include <wlr/types/wlr_keyboard.h>
   #include <wlr/types/wlr_linux_dmabuf_v1.h>
   #include <wlr/types/wlr_matrix.h>
   #include <wlr/types/wlr_output_damage.h>
   #include <wlr/types/wlr_output_layout.h>
+  #include <wlr/types/wlr_output_management_v1.h>
   #include <wlr/types/wlr_output.h>
   #include <wlr/types/wlr_pointer.h>
   #include <wlr/types/wlr_primary_selection_v1.h>
@@ -32,6 +32,8 @@ extern "C" {
   #include <wlr/types/wlr_screencopy_v1.h>
   #include <wlr/types/wlr_seat.h>
   #include <wlr/types/wlr_xcursor_manager.h>
+  #include <wlr/types/wlr_screencopy_v1.h>
+  #include <wlr/types/wlr_xdg_output_v1.h>
   #include <wlr/types/wlr_xdg_shell.h>
   #include <wlr/util/log.h>
   #include <wlr/util/region.h>
