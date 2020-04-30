@@ -78,10 +78,6 @@ void Output::set_mode()
     return;
   }
 
-
-  // wlr_output_set_custom_mode(wlr_output, 2880, 1620, 0);
-  // return;
-
   struct wlr_output_mode *mode = wlr_output_preferred_mode(wlr_output);
   if (wlr_output->current_mode == mode) {
     return;
@@ -373,15 +369,6 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const
   for (auto &view : render_list) {
     view->for_each_surface(send_frame_done, &now);
   }
-/*
-  GLTtext *text = gltCreateText();
-  gltSetText(text, "Hello World!");
-  gltBeginDraw();
-  gltColor(1.0f, 1.0f, 1.0f, 1.0f);
-  gltDrawText2D(text, 100, 100, 1);
-  gltEndDraw();
-  gltDeleteText(text);
-*/
 }
 
 void Output::output_frame_notify(wl_listener *listener, void *data)
