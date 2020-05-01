@@ -454,9 +454,7 @@ void Server::maximize_view(View *view)
 
   wlr_box *output_box = wlr_output_layout_get_box(layout_, output);
   view->resize(output_box->width, output_box->height);
-
-  view->x = output_box->x;
-  view->y = output_box->y;
+  view->move(output_box->x, output_box->y);
 }
 
 void Server::minimize_top()
@@ -495,6 +493,8 @@ void Server::dock_right()
 
 void Server::init()
 {
+  // Disable atomic for smooth cursor
+  setenv("WLR_DRM_NO_ATOMIC", "1", true);
   // Modifiers can stop hotplugging working correctly
   setenv("WLR_DRM_NO_MODIFIERS", "1", true);
 
