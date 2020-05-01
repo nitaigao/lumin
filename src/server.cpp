@@ -4,6 +4,7 @@
 #include <wlroots.h>
 #include <xkbcommon/xkbcommon.h>
 
+#include <algorithm>
 #include <iostream>
 #include <memory>
 #include <set>
@@ -26,10 +27,7 @@
 
 namespace lumin {
 
-Server::~Server()
-{
-
-}
+Server::~Server() {}
 
 Server::Server()
 {
@@ -72,7 +70,7 @@ void Server::damage_output(View *view)
   }
 }
 
-void Server::dbus(Server *server)
+void Server::dbus_thread(Server *server)
 {
   DBus::BusDispatcher dispatcher;
   DBus::default_dispatcher = &dispatcher;
@@ -263,18 +261,37 @@ void Server::apply_layout()
   }
 }
 
+void Server::output_destroyed(Output *output)
+{
+  remove_output(output);
+}
+
+void Server::output_frame(Output *output)
+{
+  render_output(output);
+}
+
 void Server::new_output_notify(wl_listener *listener, void *data)
 {
   Server *server = wl_container_of(listener, server, new_output);
   auto wlr_output = static_cast<struct wlr_output*>(data);
 
   auto damage = wlr_output_damage_create(wlr_output);
-  auto output = std::make_shared<Output>(server, wlr_output,
+  auto output = std::make_shared<Output>(wlr_output,
     server->renderer_, damage, server->layout_);
+
+  output->on_destroy.connect_member(server, &Server::output_destroyed);
+  output->on_frame.connect_member(server, &Server::output_frame);
 
   spdlog::debug("{} connected", output->id());
 
   server->add_output(output);
+}
+
+void Server::purge_deleted_views(void *data)
+{
+  Server *server = static_cast<Server*>(data);
+  std::erase_if(server->views_, [](const auto &el) { return el.get()->deleted; });
 }
 
 void Server::destroy_view(View *view)
@@ -282,8 +299,111 @@ void Server::destroy_view(View *view)
   auto condition = [view](auto &el) { return el.get() == view; };
   auto result = std::find_if(views_.begin(), views_.end(), condition);
   if (result != views_.end()) {
-    views_.erase(result);
+    (*result)->deleted = true;
   }
+  auto *event_loop = wl_display_get_event_loop(display_);
+  wl_event_loop_add_idle(event_loop, &Server::purge_deleted_views, this);
+}
+
+void Server::view_damaged(View *view)
+{
+  damage_output(view);
+}
+
+void Server::view_destroyed(View *view)
+{
+  damage_outputs();
+}
+
+void Server::view_moved(View *view)
+{
+  damage_outputs();
+}
+
+void Server::view_mapped(View *view)
+{
+  position_view(view);
+  focus_view(view);
+  damage_output(view);
+}
+
+void Server::view_unmapped(View *view)
+{
+  focus_top();
+  damage_output(view);
+  destroy_view(view);
+}
+
+void Server::keyboard_key(uint32_t time_msec, uint32_t keycode, uint32_t modifiers, int state)
+{
+  bool handled = handle_key(keycode, modifiers, state);
+
+  if (!handled) {
+    seat_->keyboard_notify_key(time_msec, keycode, state);
+  }
+}
+
+void Server::cursor_button(Cursor *cursor, int x, int y)
+{
+  double sx, sy;
+  wlr_surface *surface;
+  View *view = desktop_view_at(x, y, &surface, &sx, &sy);
+
+  if (view == nullptr) {
+    return;
+  }
+
+  focus_view(view);
+}
+
+void Server::cursor_moved(Cursor *cursor, int x, int y, uint32_t time)
+{
+  /* Otherwise, find the view under the pointer and send the event along. */
+  double sx, sy;
+  wlr_surface *surface = NULL;
+  View *view = desktop_view_at(x, y, &surface, &sx, &sy);
+
+  if (!view) {
+    cursor->set_image("left_ptr");
+  }
+
+  if (surface) {
+    bool focus_changed = seat_->pointer_focused_surface() != surface;
+    /*
+     * "Enter" the surface if necessary. This lets the client know that the
+     * cursor has entered one of its surfaces.
+     *
+     * Note that this gives the surface "pointer focus", which is distinct
+     * from keyboard focus. You get pointer focus by moving the pointer over
+     * a window.
+     */
+    seat_->pointer_notify_enter(surface, sx, sy);
+
+    if (!focus_changed) {
+      /* The enter event contains coordinates, so we only need to notify
+       * on motion if the focus did not change. */
+      seat_->pointer_motion(time, sx, sy);
+    }
+  } else {
+    /* Clear pointer focus so future button events and such are not sent to
+     * the last client to have the cursor over it. */
+    seat_->pointer_clear_focus();
+  }
+}
+
+void Server::view_minimized(View *view)
+{
+  view->minimize();
+
+  auto condition = [view](auto &el) { return el.get() == view; };
+  auto result = std::find_if(views_.begin(), views_.end(), condition);
+  if (result != views_.end()) {
+    auto resultValue = *result;
+    views_.erase(result);
+    views_.push_back(resultValue);
+  }
+
+  focus_top();
 }
 
 void Server::new_surface_notify(wl_listener *listener, void *data)
@@ -295,10 +415,18 @@ void Server::new_surface_notify(wl_listener *listener, void *data)
 
   Server *server = wl_container_of(listener, server, new_surface);
 
-  auto view = std::make_shared<View>(server, xdg_surface,
+  auto view = std::make_shared<View>(xdg_surface,
     server->cursor_.get(), server->layout_, server->seat_.get());
 
+  view->on_map.connect_member(server, &Server::view_mapped);
+  view->on_unmap.connect_member(server, &Server::view_unmapped);
+  view->on_minimize.connect_member(server, &Server::view_minimized);
+  view->on_damage.connect_member(server, &Server::view_damaged);
+  view->on_destroy.connect_member(server, &Server::view_destroyed);
+  view->on_move.connect_member(server, &Server::view_moved);
+
   server->views_.push_back(view);
+
   spdlog::debug("new_surface_notify");
 }
 
@@ -396,7 +524,9 @@ void Server::init()
 
   wlr_seat *seat = wlr_seat_create(display_, "seat0");
   seat_ = std::make_unique<Seat>(seat);
-  cursor_ = std::make_unique<Cursor>(this, layout_, seat_.get());
+  cursor_ = std::make_unique<Cursor>(layout_, seat_.get());
+  cursor_->on_button.connect_member(this, &Server::cursor_button);
+  cursor_->on_move.connect_member(this, &Server::cursor_moved);
   seat_->set_pointer(cursor_.get());
 
   wlr_data_control_manager_v1_create(display_);
@@ -424,7 +554,7 @@ void Server::init()
   setenv("QT_QPA_PLATFORM", "wayland", true);
   setenv("QT_QPA_PLATFORMTHEME", "gnome", true);
 
-  dbus_ = std::thread(Server::dbus, this);
+  dbus_ = std::thread(Server::dbus_thread, this);
 
   if (fork() == 0) {
     execl("/bin/sh", "/bin/sh", "-c", "lumin-menu", NULL);
@@ -450,7 +580,7 @@ void Server::destroy()
   wl_display_destroy(display_);
 }
 
-void Server::lid_notify(wl_listener *listener, void *data)
+void Server::lid_toggle_notify(wl_listener *listener, void *data)
 {
   auto event = static_cast<wlr_event_switch_toggle *>(data);
 
@@ -458,7 +588,7 @@ void Server::lid_notify(wl_listener *listener, void *data)
     return;
   }
 
-  Server *server = wl_container_of(listener, server, lid);
+  Server *server = wl_container_of(listener, server, lid_toggle);
   bool enabled = event->switch_state == WLR_SWITCH_STATE_OFF;
   server->enable_builtin_screen(enabled);
 }
@@ -487,16 +617,17 @@ void Server::enable_output(const std::string& name, bool enabled)
 
 void Server::new_keyboard(wlr_input_device *device)
 {
-  auto keyboard = std::make_shared<Keyboard>(this, device, seat_.get());
+  auto keyboard = std::make_shared<Keyboard>(device, seat_.get());
   keyboard->setup();
   keyboards_.push_back(keyboard);
+  keyboard->on_key.connect_member(this, &Server::keyboard_key);
 }
 
 void Server::new_switch(wlr_input_device *device)
 {
   spdlog::debug("new_switch");
-  lid.notify = lid_notify;
-  wl_signal_add(&device->switch_device->events.toggle, &lid);
+  lid_toggle.notify = lid_toggle_notify;
+  wl_signal_add(&device->switch_device->events.toggle, &lid_toggle);
 }
 
 View* Server::desktop_view_at(double lx, double ly,

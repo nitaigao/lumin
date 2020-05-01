@@ -5,9 +5,9 @@
 
 #include <map>
 #include <memory>
-#include <unordered_set>
 #include <string>
 #include <thread>
+#include <unordered_set>
 #include <vector>
 
 #include "cursor_mode.h"
@@ -45,21 +45,16 @@ class Server {
   void destroy();
   void quit();
 
-  void focus_top();
   void focus_view(View *view);
   void focus_app(const std::string& app_id);
 
   void add_output(const std::shared_ptr<Output>& output);
   void enable_output(const std::string& name, bool enabled);
-  void render_output(Output *output) const;
-  void remove_output(Output *output);
   void enable_builtin_screen(bool enabled);
-
-  void damage_outputs();
-  void damage_output(View *view);
 
   void dock_right();
   void dock_left();
+
   void minimize_top();
   void toggle_maximize();
   void maximize_view(View *view);
@@ -73,9 +68,6 @@ class Server {
   View* desktop_view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
   View* view_from_surface(wlr_surface *surface);
 
-  void destroy_view(View *view);
-  void position_view(View* view);
-
   std::vector<std::string> apps() const;
 
  private:
@@ -83,23 +75,55 @@ class Server {
   void new_switch(wlr_input_device *device);
 
   void apply_layout();
+  void focus_top();
+
+  void position_view(View* view);
+  void destroy_view(View *view);
+
+  void damage_outputs();
+  void damage_output(View *view);
+
+  void render_output(Output *output) const;
+  void remove_output(Output *output);
 
  private:
   wl_listener new_input;
   wl_listener new_output;
   wl_listener new_surface;
 
-  wl_listener lid;
+  wl_listener lid_toggle;
 
  private:
   static void layout_changed_notify(wl_listener *listener, void *data);
-  static void lid_notify(wl_listener *listener, void *data);
+  static void lid_toggle_notify(wl_listener *listener, void *data);
 
   static void new_input_notify(wl_listener *listener, void *data);
   static void new_output_notify(wl_listener *listener, void *data);
   static void new_surface_notify(wl_listener *listener, void *data);
 
-  static void dbus(Server *server);
+ private:
+  void view_mapped(View *view);
+  void view_unmapped(View *view);
+  void view_minimized(View *view);
+  void view_damaged(View *view);
+  void view_destroyed(View *view);
+  void view_moved(View *view);
+
+  void output_destroyed(Output *output);
+  void output_frame(Output *output);
+
+  void cursor_moved(Cursor *cursor, int x, int y, uint32_t time);
+  void cursor_button(Cursor *cursor, int x, int y);
+
+  void keyboard_key(uint32_t time_msec, uint32_t keycode, uint32_t modifiers, int state);
+
+ private:
+
+  static void dbus_thread(Server *server);
+
+ private:
+
+  static void purge_deleted_views(void *data);
 
  private:
   std::map<uint, KeyBinding> key_bindings;

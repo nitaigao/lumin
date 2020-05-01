@@ -3,7 +3,6 @@
 #include <wlroots.h>
 
 #include "seat.h"
-#include "server.h"
 #include "view.h"
 
 namespace lumin {
@@ -14,9 +13,8 @@ Cursor::~Cursor()
   wlr_xcursor_manager_destroy(cursor_manager_);
 }
 
-Cursor::Cursor(Server *server, wlr_output_layout *layout, Seat *seat)
-  : server_(server)
-  , layout_(layout)
+Cursor::Cursor(wlr_output_layout *layout, Seat *seat)
+  : layout_(layout)
   , seat_(seat)
   , grab_state_({
     .view = NULL,
@@ -50,6 +48,11 @@ Cursor::Cursor(Server *server, wlr_output_layout *layout, Seat *seat)
 
   cursor_frame.notify = cursor_frame_notify;
   wl_signal_add(&cursor_->events.frame, &cursor_frame);
+}
+
+void Cursor::set_image(const std::string& name)
+{
+  wlr_xcursor_manager_set_cursor_image(cursor_manager_, name.c_str(), cursor_);
 }
 
 int Cursor::x() const
@@ -112,16 +115,14 @@ void Cursor::cursor_motion_absolute_notify(wl_listener *listener, void *data)
 void Cursor::process_cursor_move(uint32_t time)
 {
   View *view = grab_state_.view;
-  view->x = cursor_->x - grab_state_.x;
-  view->y = cursor_->y - grab_state_.y;
-  server_->damage_outputs();
+  int new_x = cursor_->x - grab_state_.x;
+  int new_y = cursor_->y - grab_state_.y;
+  view->move(new_x, new_y);
 }
 
 void Cursor::process_cursor_resize(uint32_t time)
 {
   View *view = grab_state_.view;
-
-  server_->damage_output(view);
 
   double dx = cursor_->x - grab_state_.cursor_x;
   double dy = cursor_->y - grab_state_.cursor_y;
@@ -157,8 +158,6 @@ void Cursor::process_cursor_resize(uint32_t time)
   }
 
   view->resize(width, height);
-
-  server_->damage_output(view);
 }
 
 void Cursor::process_cursor_motion(uint32_t time)
@@ -172,40 +171,7 @@ void Cursor::process_cursor_motion(uint32_t time)
     return;
   }
 
-  /* Otherwise, find the view under the pointer and send the event along. */
-  double sx, sy;
-  wlr_surface *surface = NULL;
-  View *view = server_->desktop_view_at(cursor_->x, cursor_->y, &surface, &sx, &sy);
-
-  if (!view) {
-    /* If there's no view under the cursor, set the cursor image to a
-     * default. This is what makes the cursor image appear when you move it
-     * around the screen, not over any views. */
-    wlr_xcursor_manager_set_cursor_image(cursor_manager_, "left_ptr", cursor_);
-  }
-
-  if (surface) {
-    bool focus_changed = seat_->pointer_focused_surface() != surface;
-    /*
-     * "Enter" the surface if necessary. This lets the client know that the
-     * cursor has entered one of its surfaces.
-     *
-     * Note that this gives the surface "pointer focus", which is distinct
-     * from keyboard focus. You get pointer focus by moving the pointer over
-     * a window.
-     */
-    seat_->pointer_notify_enter(surface, sx, sy);
-
-    if (!focus_changed) {
-      /* The enter event contains coordinates, so we only need to notify
-       * on motion if the focus did not change. */
-      seat_->pointer_motion(time, sx, sy);
-    }
-  } else {
-    /* Clear pointer focus so future button events and such are not sent to
-     * the last client to have the cursor over it. */
-    seat_->pointer_clear_focus();
-  }
+  on_move.emit(this, cursor_->x, cursor_->y, time);
 }
 
 void Cursor::cursor_button_notify(wl_listener *listener, void *data)
@@ -215,19 +181,12 @@ void Cursor::cursor_button_notify(wl_listener *listener, void *data)
 
   cursor->seat_->pointer_notify_button(event->time_msec, event->button, event->state);
 
-  double sx, sy;
-  wlr_surface *surface;
-  View *view = cursor->server_->desktop_view_at(
-    cursor->cursor_->x, cursor->cursor_->y, &surface, &sx, &sy);
-
   if (event->state == WLR_BUTTON_RELEASED) {
     cursor->grab_state_.CursorMode = WM_CURSOR_PASSTHROUGH;
     return;
   }
 
-  if (view != NULL) {
-    cursor->server_->focus_view(view);
-  }
+  cursor->on_button.emit(cursor, cursor->cursor_->x, cursor->cursor_->y);
 }
 
 void Cursor::cursor_axis_notify(wl_listener *listener, void *data)

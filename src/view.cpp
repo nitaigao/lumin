@@ -7,7 +7,6 @@
 #include "cursor.h"
 #include "output.h"
 #include "seat.h"
-#include "server.h"
 
 const int DEFAULT_MINIMUM_WIDTH = 800;
 const int DEFAULT_MINIMUM_HEIGHT = 600;
@@ -15,19 +14,18 @@ const int MENU_HEIGHT = 25;
 
 namespace lumin {
 
-View::View(Server *server_, wlr_xdg_surface *surface,
-  Cursor *cursor, wlr_output_layout *layout, Seat *seat)
+View::View(wlr_xdg_surface *surface, Cursor *cursor, wlr_output_layout *layout, Seat *seat)
   : mapped(false)
   , x(0)
   , y(0)
   , minimized(false)
+  , deleted(false)
   , state(WM_WINDOW_STATE_WINDOW)
   , saved_state_({
     .width = DEFAULT_MINIMUM_WIDTH,
     .height = DEFAULT_MINIMUM_HEIGHT,
     .x = 0,
     .y = 0 })
-  , server(server_)
   , cursor_(cursor)
   , layout_(layout)
   , seat_(seat)
@@ -70,6 +68,8 @@ View::View(Server *server_, wlr_xdg_surface *surface,
 
   set_app_id.notify = View::xdg_toplevel_set_app_id_notify;
   wl_signal_add(&toplevel->events.set_app_id, &set_app_id);
+
+  surface->data = this;
 }
 
 std::string View::id() const {
@@ -156,14 +156,6 @@ bool View::view_at(double lx, double ly, wlr_surface **surface, double *sx, doub
   }
 
   return false;
-}
-
-void View::map_view() {
-  mapped = true;
-}
-
-void View::unmap_view() {
-  mapped = false;
 }
 
 void View::for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const {
@@ -264,8 +256,6 @@ void View::tile_left() {
   y = MENU_HEIGHT;
 
   wlr_output_layout_output_coords(layout_, output, &x, &y);
-
-  server->damage_outputs();
 }
 
 void View::tile_right() {
@@ -290,7 +280,6 @@ void View::tile_right() {
   int height = output->height / output->scale;
 
   resize(width, height);
-  server->damage_outputs();
 }
 
 void View::tile(int edges) {
@@ -362,7 +351,6 @@ void View::grab() {
   float desired_x = saved_state_.width * x_percentage;
   x = cursor_->x() - desired_x;
 
-  server->damage_outputs();
   state = WM_WINDOW_STATE_WINDOW;
 }
 
@@ -384,7 +372,6 @@ void View::windowize() {
   x = saved_state_.x;
   y = saved_state_.y;
 
-  server->damage_outputs();
   state = WM_WINDOW_STATE_WINDOW;
 }
 
@@ -396,6 +383,12 @@ void View::activate() {
   wlr_xdg_toplevel_set_activated(xdg_surface_, true);
 }
 
+void View::move(int new_x, int new_y) {
+  x = new_x;
+  y = new_y;
+  on_move.emit(this);
+}
+
 void View::resize(double width, double height) {
   wlr_xdg_toplevel_set_size(xdg_surface_, width, height);
 }
@@ -405,7 +398,8 @@ wlr_surface* View::surface_at(double sx, double sy, double *sub_x, double *sub_y
 }
 
 View* View::parent() const {
-  return server->view_from_surface(xdg_surface_->toplevel->parent->surface);
+  auto parent_view = static_cast<View*>(xdg_surface_->toplevel->parent->surface->data);
+  return parent_view;
 }
 
 bool View::is_child() const {
@@ -439,7 +433,7 @@ void View::xdg_toplevel_request_maximize_notify(wl_listener *listener, void *dat
 
 void View::xdg_toplevel_request_minimize_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, request_minimize);
-  view->server->minimize_view(view);
+  view->on_minimize.emit(view);
 }
 
 void View::xdg_toplevel_request_fullscreen_notify(wl_listener *listener, void *data) {
@@ -450,34 +444,33 @@ void View::xdg_toplevel_request_fullscreen_notify(wl_listener *listener, void *d
 
 void View::xdg_surface_destroy_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, destroy);
-  view->server->destroy_view(view);
-  view->server->damage_outputs();
+  view->on_destroy.emit(view);
 }
 
 void View::xdg_popup_subsurface_commit_notify(wl_listener *listener, void *data) {
   Subsurface *subsurface = wl_container_of(listener, subsurface, commit);
-  subsurface->server->damage_output(subsurface->view);
+  subsurface->view->on_damage.emit(subsurface->view);
 }
 
 void View::xdg_subsurface_commit_notify(wl_listener *listener, void *data) {
   Subsurface *subsurface = wl_container_of(listener, subsurface, commit);
-  subsurface->server->damage_output(subsurface->view);
+  subsurface->view->on_damage.emit(subsurface->view);
 }
 
 void View::xdg_popup_destroy_notify(wl_listener *listener, void *data) {
   Popup *popup = wl_container_of(listener, popup, destroy);
-  popup->server->damage_outputs();
+  popup->view->on_damage.emit(popup->view);
 }
 
 void View::xdg_popup_commit_notify(wl_listener *listener, void *data) {
   Popup *popup = wl_container_of(listener, popup, commit);
-  popup->server->damage_output(popup->view);
+  popup->view->on_damage.emit(popup->view);
 }
 
 void View::xdg_surface_commit_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, commit);
   if (view->mapped) {
-    view->server->damage_output(view);
+    view->on_damage.emit(view);
   }
 }
 
@@ -486,7 +479,6 @@ void View::new_popup_subsurface_notify(wl_listener *listener, void *data) {
   Popup *popup = wl_container_of(listener, popup, new_subsurface);
 
   auto subsurface = new Subsurface();
-  subsurface->server = popup->server;
   subsurface->view = popup->view;
 
   subsurface->commit.notify = xdg_popup_subsurface_commit_notify;
@@ -498,7 +490,6 @@ void View::new_subsurface_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, new_subsurface);
 
   auto subsurface = new Subsurface();
-  subsurface->server = view->server;
   subsurface->view = view;
 
   subsurface->commit.notify = xdg_subsurface_commit_notify;
@@ -510,7 +501,6 @@ void View::new_popup_popup_notify(wl_listener *listener, void *data) {
   Popup *parent_popup = wl_container_of(listener, parent_popup, new_popup);
 
   auto popup = new Popup();
-  popup->server = parent_popup->server;
   popup->view = parent_popup->view;
 
   popup->commit.notify = xdg_popup_commit_notify;
@@ -532,7 +522,6 @@ void View::new_popup_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, new_popup);
 
   auto popup = new Popup();
-  popup->server = view->server;
   popup->view = view;
 
   popup->commit.notify = xdg_popup_commit_notify;
@@ -550,17 +539,14 @@ void View::new_popup_notify(wl_listener *listener, void *data) {
 
 void View::xdg_surface_map_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, map);
-  view->map_view();
-  view->server->position_view(view);
-  view->server->focus_view(view);
-  view->server->damage_output(view);
+  view->mapped = true;
+  view->on_map.emit(view);
 }
 
 void View::xdg_surface_unmap_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, unmap);
-  view->unmap_view();
-  view->server->focus_top();
-  view->server->damage_output(view);
+  view->mapped = false;
+  view->on_unmap.emit(view);
 }
 
 void View::xdg_toplevel_set_app_id_notify(wl_listener *listener, void *data) {

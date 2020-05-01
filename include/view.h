@@ -6,6 +6,7 @@
 #include <string>
 
 #include "cursor_mode.h"
+#include "signal.hpp"
 
 struct wlr_xdg_surface;
 struct wlr_layer_surface_v1;
@@ -43,13 +44,13 @@ typedef void (*wlr_surface_iterator_func_t)(struct wlr_surface *surface,
 
 class View {
  public:
-  View(Server *server, wlr_xdg_surface *surface, Cursor *cursor,
-    wlr_output_layout *layout, Seat *seat);
+  View(wlr_xdg_surface *surface, Cursor *cursor, wlr_output_layout *layout, Seat *seat);
 
  public:
   void geometry(wlr_box *box) const;
   void extents(wlr_box *box) const;
 
+  void move(int x, int y);
   void resize(double width, double height);
 
   void toggle_maximized();
@@ -100,8 +101,6 @@ class View {
   void grab();
   void tile(int edges);
   bool windowed() const;
-  void map_view();
-  void unmap_view();
   void activate();
   void notify_keyboard_enter(wlr_seat *seat);
 
@@ -109,6 +108,7 @@ class View {
   bool mapped;
   double x, y;
   bool minimized;
+  bool deleted;
 
  public:
   wl_listener map;
@@ -154,18 +154,23 @@ class View {
     int x, y;
   } saved_state_;
 
-  Server *server;
-
  private:
   Cursor *cursor_;
   wlr_output_layout *layout_;
   Seat *seat_;
   wlr_xdg_surface *xdg_surface_;
+
+ public:
+  Signal<View*> on_map;
+  Signal<View*> on_unmap;
+  Signal<View*> on_minimize;
+  Signal<View*> on_damage;
+  Signal<View*> on_destroy;
+  Signal<View*> on_move;
 };
 
 struct Subsurface {
   wl_listener commit;
-  Server *server;
    View *view;
 };
 
@@ -175,7 +180,6 @@ struct Popup {
   wl_listener new_subsurface;
   wl_listener new_popup;
   View *view;
-  Server *server;
 };
 
 }  // namespace lumin
