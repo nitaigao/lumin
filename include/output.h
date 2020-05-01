@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 
+#include "signal.hpp"
+
 struct wlr_output_damage;
 struct wlr_output_layout;
 struct wlr_output;
@@ -14,15 +16,13 @@ struct wlr_renderer;
 
 namespace lumin {
 
-class Server;
 class View;
 
 class Output {
  public:
   ~Output();
 
-  explicit Output(Server *server,
-                  struct wlr_output *output,
+  explicit Output(struct wlr_output *output,
                   wlr_renderer *renderer,
                   wlr_output_damage *damage,
                   wlr_output_layout *layout);
@@ -76,7 +76,6 @@ class Output {
 
  private:
   wlr_renderer *renderer_;
-  Server *server_;
   wlr_output_damage *damage_;
   wlr_output_layout *layout_;
   bool enabled_;
@@ -86,6 +85,10 @@ class Output {
  public:
   wl_listener destroy_;
   wl_listener frame_;
+
+ public:
+  Signal<Output*> on_destroy;
+  Signal<Output*> on_frame;
 };
 
 }  // namespace lumin

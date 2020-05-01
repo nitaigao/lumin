@@ -36,14 +36,12 @@ Output::~Output()
 }
 
 Output::Output(
-  Server *server,
   struct wlr_output *output,
   wlr_renderer *renderer,
   wlr_output_damage *damage,
   wlr_output_layout *layout)
   : wlr_output(output)
   , renderer_(renderer)
-  , server_(server)
   , damage_(damage)
   , layout_(layout)
   , enabled_(false)
@@ -374,13 +372,13 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const
 void Output::output_frame_notify(wl_listener *listener, void *data)
 {
   Output *output = wl_container_of(listener, output, frame_);
-  output->server_->render_output(output);
+  output->on_frame.emit(output);
 }
 
 void Output::output_destroy_notify(wl_listener *listener, void *data)
 {
   Output *output = wl_container_of(listener, output, destroy_);
-  output->server_->remove_output(output);
+  output->on_destroy.emit(output);
 }
 
 void Output::set_scale(int scale)

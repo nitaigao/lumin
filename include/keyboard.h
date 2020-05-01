@@ -3,6 +3,8 @@
 
 #include <wayland-server-core.h>
 
+#include "signal.hpp"
+
 struct wlr_input_device;
 
 namespace lumin {
@@ -12,7 +14,7 @@ class Server;
 
 class Keyboard {
  public:
-  Keyboard(Server *server, wlr_input_device *device, Seat* seat);
+  Keyboard(wlr_input_device *device, Seat* seat);
 
  public:
   void setup();
@@ -25,8 +27,10 @@ class Keyboard {
   wl_listener modifiers;
   wl_listener key;
 
+ public:
+  Signal<uint32_t, uint32_t, uint32_t, int> on_key;
+
  private:
-  Server *server_;
   wlr_input_device *device_;
   Seat *seat_;
 };

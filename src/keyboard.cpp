@@ -7,9 +7,8 @@
 
 namespace lumin {
 
-Keyboard::Keyboard(Server *server, wlr_input_device *device, Seat* seat)
-  : server_(server)
-  , device_(device)
+Keyboard::Keyboard(wlr_input_device *device, Seat* seat)
+  : device_(device)
   , seat_(seat)
 {
   /* Here we set up listeners for keyboard events. */
@@ -48,14 +47,10 @@ void Keyboard::keyboard_key_notify(wl_listener *listener, void *data)
   Keyboard *keyboard = wl_container_of(listener, keyboard, key);
   auto event = static_cast<struct wlr_event_keyboard_key *>(data);
 
+  keyboard->seat_->set_keyboard(keyboard->device_);
+
   uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->device_->keyboard);
-
-  bool handled = keyboard->server_->handle_key(event->keycode, modifiers, event->state);
-
-  if (!handled) {
-    keyboard->seat_->set_keyboard(keyboard->device_);
-    keyboard->seat_->keyboard_notify_key(event->time_msec, event->keycode, event->state);
-  }
+  keyboard->on_key.emit(event->time_msec, event->keycode, modifiers, event->state);
 }
 
 }  // namespace lumin

@@ -3,6 +3,7 @@
 
 #include <wayland-server-core.h>
 
+#include "signal.hpp"
 #include "cursor_mode.h"
 
 struct wlr_cursor;
@@ -21,11 +22,12 @@ class View;
 class Cursor {
  public:
   ~Cursor();
-  Cursor(Server *server, wlr_output_layout *layout, Seat *seat);
+  Cursor(wlr_output_layout *layout, Seat *seat);
 
  public:
   void load_scale(int scale);
   void warp(int x, int y);
+  void set_image(const std::string& name);
   void set_surface(wlr_surface *surface, int hotspot_x, int hotspot_y);
   void begin_interactive(View *view, CursorMode mode, unsigned int edges);
   void add_device(wlr_input_device* device);
@@ -49,7 +51,6 @@ class Cursor {
   wlr_xcursor_manager *cursor_manager_;
   wlr_cursor *cursor_;
 
-  Server *server_;
   wlr_output_layout *layout_;
   Seat *seat_;
 
@@ -68,6 +69,10 @@ class Cursor {
   static void cursor_button_notify(wl_listener *listener, void *data);
   static void cursor_axis_notify(wl_listener *listener, void *data);
   static void cursor_frame_notify(wl_listener *listener, void *data);
+
+ public:
+  Signal<Cursor*, int, int, uint32_t> on_move;
+  Signal<Cursor*, int, int> on_button;
 };
 
 }
