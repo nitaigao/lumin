@@ -251,9 +251,7 @@ void View::tile_left() {
   int width = (output->width / 2.0f) / output->scale;
   int height = output->height / output->scale;
   resize(width, height - MENU_HEIGHT);
-
-  x = 0;
-  y = MENU_HEIGHT;
+  move(0, MENU_HEIGHT);
 
   wlr_output_layout_output_coords(layout_, output, &x, &y);
 }
@@ -268,18 +266,18 @@ void View::tile_right() {
   int corner_y = y + box.y + (box.height / 2.0f);
   wlr_output* output = wlr_output_layout_output_at(layout_, corner_x, corner_y);
 
-  y = MENU_HEIGHT;
-  x = 0;
+  int new_y = MENU_HEIGHT;
+  int new_x = 0;
 
   wlr_output_layout_output_coords(layout_, output, &x, &y);
 
   // middle of the screen
-  x += (output->width / 2.0f) / output->scale;
+  new_x += (output->width / 2.0f) / output->scale;
 
   int width = (output->width / 2.0f) / output->scale;
   int height = output->height / output->scale;
-
   resize(width, height);
+  move(new_x, new_y);
 }
 
 void View::tile(int edges) {
@@ -322,8 +320,10 @@ void View::maximize() {
   wlr_box *output_box = wlr_output_layout_get_box(layout_, output);
   resize(output_box->width, output_box->height - MENU_HEIGHT);
 
-  x = output_box->x;
-  y = output_box->y + MENU_HEIGHT;
+  int new_x = output_box->x;
+  int new_y = output_box->y + MENU_HEIGHT;
+
+  move(new_x, new_y);
 
   state = WM_WINDOW_STATE_MAXIMIZED;
 }
@@ -368,9 +368,7 @@ void View::windowize() {
   }
 
   wlr_xdg_toplevel_set_size(xdg_surface_, saved_state_.width, saved_state_.height);
-
-  x = saved_state_.x;
-  y = saved_state_.y;
+  move(saved_state_.x, saved_state_.y);
 
   state = WM_WINDOW_STATE_WINDOW;
 }
