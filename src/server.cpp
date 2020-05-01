@@ -280,6 +280,8 @@ void Server::new_output_notify(wl_listener *listener, void *data)
   auto output = std::make_shared<Output>(wlr_output,
     server->renderer_, damage, server->layout_);
 
+  wlr_output->data = output.get();
+
   output->on_destroy.connect_member(server, &Server::output_destroyed);
   output->on_frame.connect_member(server, &Server::output_frame);
 
@@ -671,23 +673,32 @@ void Server::position_view(View *view)
 
     wlr_output* output = wlr_output_layout_output_at(layout_, output_x, output_y);
 
-    view->resize(output->width, 20);
+    view->resize(output->width, View::MENU_HEIGHT - 10);
 
     return;
   }
 
-  bool is_child = view->is_child();
-
   wlr_box geometry;
   view->geometry(&geometry);
 
-  if (!is_child) {
+  bool is_root = view->is_root();
+
+  if (is_root) {
     wlr_output* output = wlr_output_layout_output_at(layout_, cursor_->x(), cursor_->y());
     int inside_x = ((output->width  / output->scale) - geometry.width) / 2.0;
     int inside_y = ((output->height / output->scale) - geometry.height) / 2.0;
 
     view->x = inside_x;
     view->y = inside_y;
+
+    if (view->y + geometry.y < View::MENU_HEIGHT) {
+      view->y = View::MENU_HEIGHT - geometry.y;
+    }
+
+    if (view->y + geometry.height > output->height - view->y) {
+      view->resize(geometry.width, output->height - view->y);
+    }
+
     return;
   }
 

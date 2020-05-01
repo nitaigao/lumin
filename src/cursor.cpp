@@ -2,6 +2,7 @@
 
 #include <wlroots.h>
 
+#include "output.h"
 #include "seat.h"
 #include "view.h"
 
@@ -182,6 +183,11 @@ void Cursor::cursor_button_notify(wl_listener *listener, void *data)
   cursor->seat_->pointer_notify_button(event->time_msec, event->button, event->state);
 
   if (event->state == WLR_BUTTON_RELEASED) {
+    if (cursor->grab_state_.CursorMode != WM_CURSOR_PASSTHROUGH) {
+      auto wlr_output = wlr_output_layout_output_at(cursor->layout_, cursor->x(), cursor->y());
+      Output *output = static_cast<Output*>(wlr_output->data);
+      output->unlock_software_cursors();
+    }
     cursor->grab_state_.CursorMode = WM_CURSOR_PASSTHROUGH;
     return;
   }
@@ -205,6 +211,12 @@ void Cursor::cursor_frame_notify(wl_listener *listener, void *data)
 
 void Cursor::begin_interactive(View *view, CursorMode mode, unsigned int edges)
 {
+  auto wlr_output =  wlr_output_layout_output_at(layout_, x(), y());
+  if (wlr_output != nullptr) {
+    auto output = static_cast<Output*>(wlr_output->data);
+    output->lock_software_cursors();
+  }
+
   wlr_surface *focused_surface = seat_->pointer_focused_surface();
 
   if (!view->has_surface(focused_surface)) {
@@ -217,8 +229,8 @@ void Cursor::begin_interactive(View *view, CursorMode mode, unsigned int edges)
   grab_state_.view = view;
   grab_state_.CursorMode = mode;
 
-  wlr_box geo_box;
-  view->extents(&geo_box);
+  wlr_box box;
+  view->geometry(&box);
 
   if (mode == WM_CURSOR_MOVE) {
     grab_state_.x = cursor_->x - view->x;
@@ -230,8 +242,8 @@ void Cursor::begin_interactive(View *view, CursorMode mode, unsigned int edges)
     grab_state_.cursor_y = cursor_->y;
   }
 
-  grab_state_.width = geo_box.width;
-  grab_state_.height = geo_box.height;
+  grab_state_.width = box.width;
+  grab_state_.height = box.height;
 
   grab_state_.resize_edges = edges;
 }

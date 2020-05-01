@@ -67,6 +67,9 @@ class Output {
   void take_damage(const View *view);
   void take_whole_damage();
 
+  void lock_software_cursors();
+  void unlock_software_cursors();
+
  private:
   static void output_destroy_notify(wl_listener *listener, void *data);
   static void output_frame_notify(wl_listener *listener, void *data);
@@ -80,6 +83,7 @@ class Output {
   wlr_output_layout *layout_;
   bool enabled_;
   bool connected_;
+  bool software_cursors_;
   int enter_frames_left_;
 
  public:

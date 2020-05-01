@@ -10,7 +10,6 @@
 
 const int DEFAULT_MINIMUM_WIDTH = 800;
 const int DEFAULT_MINIMUM_HEIGHT = 600;
-const int MENU_HEIGHT = 25;
 
 namespace lumin {
 
@@ -65,9 +64,6 @@ View::View(wlr_xdg_surface *surface, Cursor *cursor, wlr_output_layout *layout, 
 
   request_fullscreen.notify = View::xdg_toplevel_request_fullscreen_notify;
   wl_signal_add(&toplevel->events.request_fullscreen, &request_fullscreen);
-
-  set_app_id.notify = View::xdg_toplevel_set_app_id_notify;
-  wl_signal_add(&toplevel->events.set_app_id, &set_app_id);
 
   surface->data = this;
 }
@@ -209,7 +205,7 @@ bool View::is_shell() const {
   return result;
 }
 
-void View::geometry(struct wlr_box *box) const {
+void View::extents(struct wlr_box *box) const {
   wlr_surface_get_extends(xdg_surface_->surface, box);
 
   if (!xdg_surface_->geometry.width) {
@@ -224,25 +220,27 @@ bool View::has_surface(const wlr_surface *surface) const {
 }
 
 void View::save_geometry() {
-  if (state == WM_WINDOW_STATE_WINDOW) {
-    wlr_box geometry;
-    extents(&geometry);
-
-    if (geometry.width != 0) {
-      saved_state_.width = geometry.width;
-      saved_state_.height = geometry.height;
-    }
-
-    saved_state_.x = x;
-    saved_state_.y = y;
+  if (state != WM_WINDOW_STATE_WINDOW) {
+    return;
   }
+
+  wlr_box box;
+  geometry(&box);
+
+  if (box.width != 0) {
+    saved_state_.width = box.width;
+    saved_state_.height = box.height;
+  }
+
+  saved_state_.x = x;
+  saved_state_.y = y;
 }
 
 void View::tile_left() {
   tile(WLR_EDGE_LEFT);
 
   wlr_box box;
-  extents(&box);
+  geometry(&box);
 
   int corner_x = x + box.x + (box.width / 2.0f);
   int corner_y = y + box.y + (box.height / 2.0f);
@@ -260,7 +258,7 @@ void View::tile_right() {
   tile(WLR_EDGE_RIGHT);
 
   wlr_box box;
-  extents(&box);
+  geometry(&box);
 
   int corner_x = x + box.x + (box.width / 2.0f);
   int corner_y = y + box.y + (box.height / 2.0f);
@@ -276,7 +274,7 @@ void View::tile_right() {
 
   int width = (output->width / 2.0f) / output->scale;
   int height = output->height / output->scale;
-  resize(width, height);
+  resize(width, height - MENU_HEIGHT);
   move(new_x, new_y);
 }
 
@@ -343,11 +341,11 @@ void View::grab() {
 
   wlr_xdg_toplevel_set_size(xdg_surface_, saved_state_.width, saved_state_.height);
 
-  wlr_box geometry;
-  extents(&geometry);
+  wlr_box box;
+  geometry(&box);
 
   float surface_x = cursor_->x() - x;
-  float x_percentage = surface_x / geometry.width;
+  float x_percentage = surface_x / box.width;
   float desired_x = saved_state_.width * x_percentage;
   x = cursor_->x() - desired_x;
 
@@ -361,9 +359,7 @@ void View::windowize() {
 
   if (tiled()) {
     wlr_xdg_toplevel_set_tiled(xdg_surface_, WLR_EDGE_NONE);
-  }
-
-  if (maximized()) {
+  } else if (maximized()) {
     wlr_xdg_toplevel_set_maximized(xdg_surface_, false);
   }
 
@@ -373,7 +369,7 @@ void View::windowize() {
   state = WM_WINDOW_STATE_WINDOW;
 }
 
-void View::extents(wlr_box *box) const {
+void View::geometry(wlr_box *box) const {
   wlr_xdg_surface_get_geometry(xdg_surface_, box);
 }
 
@@ -384,6 +380,14 @@ void View::activate() {
 void View::move(int new_x, int new_y) {
   x = new_x;
   y = new_y;
+
+  wlr_box box;
+  geometry(&box);
+
+  if (y + box.y < MENU_HEIGHT) {
+    y = MENU_HEIGHT - box.y;
+  }
+
   on_move.emit(this);
 }
 
@@ -398,6 +402,11 @@ wlr_surface* View::surface_at(double sx, double sy, double *sub_x, double *sub_y
 View* View::parent() const {
   auto parent_view = static_cast<View*>(xdg_surface_->toplevel->parent->surface->data);
   return parent_view;
+}
+
+bool View::is_root() const
+{
+  return !is_child();
 }
 
 bool View::is_child() const {
@@ -545,10 +554,6 @@ void View::xdg_surface_unmap_notify(wl_listener *listener, void *data) {
   View *view = wl_container_of(listener, view, unmap);
   view->mapped = false;
   view->on_unmap.emit(view);
-}
-
-void View::xdg_toplevel_set_app_id_notify(wl_listener *listener, void *data) {
-  View *view = wl_container_of(listener, view, set_app_id);
 }
 
 }  // namespace lumin

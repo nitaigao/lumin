@@ -46,6 +46,7 @@ Output::Output(
   , layout_(layout)
   , enabled_(false)
   , connected_(true)
+  , software_cursors_(false)
   , enter_frames_left_(0)
 {
   destroy_.notify = Output::output_destroy_notify;
@@ -291,31 +292,39 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const
     return;
   }
 
+  std::vector<std::shared_ptr<View>> mapped_views;
+  std::copy_if(views.begin(), views.end(), std::back_inserter(mapped_views), [](auto &view) {
+    return view->mapped;
+  });
 
-  std::vector<View*> render_list;
+  std::vector<std::shared_ptr<View>> active_views;
+  std::copy_if(mapped_views.begin(), mapped_views.end(), std::back_inserter(active_views), [](auto &view) {
+    return !view->minimized;
+  });
+
+  std::vector<std::shared_ptr<View>> top_layer_views;
   bool maximized_view = false;
-  for (auto it = views.begin(); it != views.end(); ++it) {
-    auto &view = (*it);
-
-    if (!view->mapped) {
-      continue;
-    }
-
-    if (view->minimized) {
-      continue;
-    }
-
-    // Cull any TOP level windows behind a maximized window
+  std::copy_if(active_views.begin(), active_views.end(), std::back_inserter(top_layer_views), [maximized_view](auto &view) mutable {
+    // Cull anything behind a maximized window
     if (view->layer() == VIEW_LAYER_TOP && maximized_view) {
-      continue;
+      return false;
     }
 
     if (view->layer() == VIEW_LAYER_TOP && !maximized_view && view->maximized()) {
       maximized_view = true;
     }
 
-    render_list.push_back(view.get());
-  }
+    return view->layer() == VIEW_LAYER_TOP;
+  });
+
+  std::vector<std::shared_ptr<View>> overlay_layer_views;
+  std::copy_if(active_views.begin(), active_views.end(), std::back_inserter(overlay_layer_views), [](auto &view) mutable {
+    return view->layer() == VIEW_LAYER_OVERLAY;
+  });
+
+  std::vector<std::shared_ptr<View>> render_list;
+  render_list.insert(render_list.end(), overlay_layer_views.begin(), overlay_layer_views.end());
+  render_list.insert(render_list.end(), top_layer_views.begin(), top_layer_views.end());
 
   if (!wlr_output_attach_render(wlr_output, NULL)) {
     return;
@@ -338,7 +347,7 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const
     struct render_data render_data = {
       .output = wlr_output,
       .renderer = renderer_,
-      .view = view,
+      .view = view.get(),
       .when = &now,
       .layout = layout_,
       .output_damage = &buffer_damage,
@@ -399,6 +408,24 @@ void Output::remove_layout()
 void Output::add_layout(int x, int y)
 {
   wlr_output_layout_add(layout_, wlr_output, x, y);
+}
+
+void Output::lock_software_cursors()
+{
+  if (software_cursors_) {
+    return;
+  }
+  wlr_output_lock_software_cursors(wlr_output, true);
+  software_cursors_ = true;
+}
+
+void Output::unlock_software_cursors()
+{
+  if (!software_cursors_) {
+    return;
+  }
+  wlr_output_lock_software_cursors(wlr_output, false);
+  software_cursors_ = false;
 }
 
 }  // namespace lumin
