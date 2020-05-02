@@ -55,6 +55,9 @@ Output::Output(
   destroy_.notify = Output::output_destroy_notify;
   wl_signal_add(&wlr_output->events.destroy, &destroy_);
 
+  mode_.notify = Output::output_mode_notify;
+  wl_signal_add(&wlr_output->events.mode, &mode_);
+
   frame_.notify = Output::output_frame_notify;
   wl_signal_add(&damage->events.frame, &frame_);
 }
@@ -367,7 +370,7 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const
 
   std::vector<std::shared_ptr<View>> mapped_views;
   std::copy_if(views.begin(), views.end(), std::back_inserter(mapped_views), [](auto &view) {
-    return view->mapped;
+    return !view->deleted && view->mapped;
   });
 
   std::vector<std::shared_ptr<View>> active_views;
@@ -449,6 +452,12 @@ void Output::render(const std::vector<std::shared_ptr<View>>& views) const
   for (auto &view : render_list) {
     view->for_each_surface(send_frame_done, &now);
   }
+}
+
+void Output::output_mode_notify(wl_listener *listener, void *data)
+{
+  Output *output = wl_container_of(listener, output, mode_);
+  output->on_mode.emit(output);
 }
 
 void Output::output_frame_notify(wl_listener *listener, void *data)

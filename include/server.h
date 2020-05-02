@@ -113,6 +113,7 @@ class Server {
 
   void output_destroyed(Output *output);
   void output_frame(Output *output);
+  void output_mode(Output *output);
 
   void cursor_moved(Cursor *cursor, int x, int y, uint32_t time);
   void cursor_button(Cursor *cursor, int x, int y);

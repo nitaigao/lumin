@@ -268,6 +268,20 @@ void Server::output_frame(Output *output)
   render_output(output);
 }
 
+void Server::output_mode(Output *output)
+{
+  if (!output->primary()) {
+    return;
+  }
+
+  for (auto &view : views_) {
+    if (view->is_menubar()) {
+      output->set_menubar(view.get());
+      return;
+    }
+  }
+}
+
 void Server::new_output_notify(wl_listener *listener, void *data)
 {
   Server *server = wl_container_of(listener, server, new_output);
@@ -281,6 +295,7 @@ void Server::new_output_notify(wl_listener *listener, void *data)
 
   output->on_destroy.connect_member(server, &Server::output_destroyed);
   output->on_frame.connect_member(server, &Server::output_frame);
+  output->on_mode.connect_member(server, &Server::output_mode);
 
   spdlog::debug("{} connected", output->id());
 
@@ -311,7 +326,7 @@ void Server::view_damaged(View *view)
 
 void Server::view_destroyed(View *view)
 {
-  damage_outputs();
+  destroy_view(view);
 }
 
 void Server::view_moved(View *view)
@@ -329,8 +344,7 @@ void Server::view_mapped(View *view)
 void Server::view_unmapped(View *view)
 {
   focus_top();
-  damage_output(view);
-  destroy_view(view);
+  damage_outputs();
 }
 
 void Server::keyboard_key(uint32_t time_msec, uint32_t keycode, uint32_t modifiers, int state)
@@ -531,6 +545,8 @@ void Server::init()
   wlr_data_control_manager_v1_create(display_);
   wlr_primary_selection_v1_device_manager_create(display_);
   output_manager_ = wlr_output_manager_v1_create(display_);
+  wlr_xdg_output_manager_v1_create(display_, layout_);
+  wlr_screencopy_manager_v1_create(display_);
 
   const char *socket = wl_display_add_socket_auto(display_);
   if (!socket) {
@@ -552,6 +568,9 @@ void Server::init()
   setenv("MOZ_ENABLE_WAYLAND", "1", true);
   setenv("QT_QPA_PLATFORM", "wayland", true);
   setenv("QT_QPA_PLATFORMTHEME", "gnome", true);
+  setenv("QT_QPA_PLATFORMTHEME", "gnome", true);
+  setenv("XDG_CURRENT_DESKTOP", "sway", true);
+  setenv("XDG_SESSION_TYPE", "wayland", true);
 
   dbus_ = std::thread(Server::dbus_thread, this);
 

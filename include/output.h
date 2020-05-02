@@ -86,6 +86,7 @@ class Output {
  private:
   static void output_destroy_notify(wl_listener *listener, void *data);
   static void output_frame_notify(wl_listener *listener, void *data);
+  static void output_mode_notify(wl_listener *listener, void *data);
 
  public:
   struct wlr_output *wlr_output;
@@ -104,10 +105,12 @@ class Output {
  public:
   wl_listener destroy_;
   wl_listener frame_;
+  wl_listener mode_;
 
  public:
   Signal<Output*> on_destroy;
   Signal<Output*> on_frame;
+  Signal<Output*> on_mode;
 };
 
 }  // namespace lumin
