@@ -80,6 +80,7 @@ class View {
   uint min_height() const;
 
   bool is_child() const;
+  bool is_root() const;
   View* parent() const;
   const View *root() const;
 
@@ -122,7 +123,6 @@ class View {
   wl_listener request_fullscreen;
   wl_listener new_subsurface;
   wl_listener new_popup;
-  wl_listener set_app_id;
 
  public:
   static void xdg_toplevel_request_maximize_notify(wl_listener *listener, void *data);
@@ -130,7 +130,6 @@ class View {
   static void xdg_toplevel_request_fullscreen_notify(wl_listener *listener, void *data);
   static void xdg_toplevel_request_move_notify(wl_listener *listener, void *data);
   static void xdg_toplevel_request_resize_notify(wl_listener *listener, void *data);
-  static void xdg_toplevel_set_app_id_notify(wl_listener *listener, void *data);
 
   static void xdg_popup_commit_notify(wl_listener *listener, void *data);
   static void xdg_popup_destroy_notify(wl_listener *listener, void *data);
@@ -167,6 +166,9 @@ class View {
   Signal<View*> on_damage;
   Signal<View*> on_destroy;
   Signal<View*> on_move;
+
+ public:
+  static const int MENU_HEIGHT = 27;
 };
 
 struct Subsurface {
