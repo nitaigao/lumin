@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <map>
+#include <spdlog/spdlog.h>
 
 // A signal object may call multiple slots with the
 // same signature. You can connect functions to the signal
@@ -56,7 +57,11 @@ class Signal {
   // calls all connected functions
   void emit(Args... p) {
     for(auto const& it : slots_) {
-      it.second(std::forward<Args>(p)...);
+      try {
+        it.second(std::forward<Args>(p)...);
+      } catch(const std::bad_function_call& e) {
+        spdlog::warn(e.what());
+      }
     }
   }
 
