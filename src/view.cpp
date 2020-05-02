@@ -312,16 +312,11 @@ void View::maximize() {
 
   wlr_xdg_toplevel_set_maximized(xdg_surface_, true);
 
-  wlr_output* output = wlr_output_layout_output_at(layout_,
+  wlr_output* wlr_output = wlr_output_layout_output_at(layout_,
     cursor_->x(), cursor_->y());
 
-  wlr_box *output_box = wlr_output_layout_get_box(layout_, output);
-  resize(output_box->width, output_box->height - MENU_HEIGHT);
-
-  int new_x = output_box->x;
-  int new_y = output_box->y + MENU_HEIGHT;
-
-  move(new_x, new_y);
+  Output *output = static_cast<Output*>(wlr_output->data);
+  output->maximize_view(this);
 
   state = WM_WINDOW_STATE_MAXIMIZED;
 }
@@ -364,7 +359,10 @@ void View::windowize() {
   }
 
   wlr_xdg_toplevel_set_size(xdg_surface_, saved_state_.width, saved_state_.height);
-  move(saved_state_.x, saved_state_.y);
+
+  wlr_output *wlr_output = wlr_output_layout_output_at(layout_, cursor_->x(), cursor_->y());
+  Output *output = static_cast<Output*>(wlr_output->data);
+  output->move_view(this, saved_state_.x, saved_state_.y);
 
   state = WM_WINDOW_STATE_WINDOW;
 }
@@ -380,13 +378,6 @@ void View::activate() {
 void View::move(int new_x, int new_y) {
   x = new_x;
   y = new_y;
-
-  wlr_box box;
-  geometry(&box);
-
-  if (y + box.y < MENU_HEIGHT) {
-    y = MENU_HEIGHT - box.y;
-  }
 
   on_move.emit(this);
 }

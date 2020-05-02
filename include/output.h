@@ -16,6 +16,7 @@ struct wlr_renderer;
 
 namespace lumin {
 
+class Cursor;
 class View;
 
 class Output {
@@ -41,6 +42,15 @@ class Output {
   int width() const;
   int height() const;
 
+  int x() const;
+  int y() const;
+
+  void set_menubar(View *view);
+  void add_view(View *view);
+  void move_view(View *view, double x, double y);
+  void maximize_view(View *view);
+  void place_cursor(Cursor *cursor);
+
   bool is_named(const std::string& name) const;
 
   void init();
@@ -53,6 +63,9 @@ class Output {
 
   bool connected() const;
   void set_connected(bool connected);
+
+  bool primary() const;
+  void set_primary(bool primary);
 
   void add_layout(int x, int y);
   void remove_layout();
@@ -83,8 +96,10 @@ class Output {
   wlr_output_layout *layout_;
   bool enabled_;
   bool connected_;
+  bool primary_;
   bool software_cursors_;
   int enter_frames_left_;
+  int top_margin_;
 
  public:
   wl_listener destroy_;

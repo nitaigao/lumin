@@ -115,10 +115,13 @@ void Cursor::cursor_motion_absolute_notify(wl_listener *listener, void *data)
 
 void Cursor::process_cursor_move(uint32_t time)
 {
+  wlr_output *wlr_output = wlr_output_layout_output_at(layout_, cursor_->x, cursor_->y);
+  Output *output = static_cast<Output*>(wlr_output->data);
+
   View *view = grab_state_.view;
   int new_x = cursor_->x - grab_state_.x;
   int new_y = cursor_->y - grab_state_.y;
-  view->move(new_x, new_y);
+  output->move_view(view, new_x, new_y);
 }
 
 void Cursor::process_cursor_resize(uint32_t time)

@@ -6,6 +6,7 @@
 #include <iostream>
 #include <sstream>
 
+#include "cursor.h"
 #include "view.h"
 #include "server.h"
 
@@ -46,8 +47,10 @@ Output::Output(
   , layout_(layout)
   , enabled_(false)
   , connected_(true)
+  , primary_(false)
   , software_cursors_(false)
   , enter_frames_left_(0)
+  , top_margin_(0)
 {
   destroy_.notify = Output::output_destroy_notify;
   wl_signal_add(&wlr_output->events.destroy, &destroy_);
@@ -69,6 +72,16 @@ bool Output::connected() const
 void Output::set_connected(bool connected)
 {
   connected_ = connected;
+}
+
+bool Output::primary() const
+{
+  return primary_;
+}
+
+void Output::set_primary(bool primary)
+{
+  primary_ = primary;
 }
 
 void Output::set_mode()
@@ -93,6 +106,66 @@ void Output::send_enter(const std::vector<std::shared_ptr<View>>& views)
       view->enter(this);
     }
   }
+}
+
+void Output::set_menubar(View *view)
+{
+  view->move(x(), y());
+  view->resize(wlr_output->width, View::MENU_HEIGHT);
+  top_margin_ = View::MENU_HEIGHT;
+}
+
+void Output::add_view(View *view)
+{
+  wlr_box geometry;
+  view->geometry(&geometry);
+
+  int inside_x = ((wlr_output->width  / wlr_output->scale) - geometry.width) / 2.0;
+  int inside_y = ((wlr_output->height / wlr_output->scale) - geometry.height) / 2.0;
+
+  view->x = inside_x;
+  view->y = inside_y;
+
+  if (view->y + geometry.y < top_margin_) {
+    view->y = top_margin_ - geometry.y;
+  }
+
+  if (view->y + geometry.height > wlr_output->height - view->y) {
+    view->resize(geometry.width, wlr_output->height - view->y);
+  }
+}
+
+void Output::place_cursor(Cursor *cursor)
+{
+  int cursor_x = x() + (wlr_output->width * 0.5f) / wlr_output->scale;
+  int cursor_y = y() + (wlr_output->height * 0.5f) / wlr_output->scale;
+
+  cursor->warp(cursor_x, cursor_y);
+}
+
+void Output::maximize_view(View *view)
+{
+  int new_width = wlr_output->width / wlr_output->scale;
+  int new_height = wlr_output->height / wlr_output->scale;
+
+  view->resize(new_width, new_height - top_margin_);
+
+  int new_x = x();
+  int new_y = y() + top_margin_;
+
+  view->move(new_x, new_y);
+}
+
+void Output::move_view(View *view, double x, double y)
+{
+  wlr_box box;
+  view->geometry(&box);
+
+  if (y + box.y < top_margin_) {
+    y = top_margin_ - box.y;
+  }
+
+  view->move(x, y);
 }
 
 void Output::commit()
@@ -388,6 +461,16 @@ void Output::output_destroy_notify(wl_listener *listener, void *data)
 {
   Output *output = wl_container_of(listener, output, destroy_);
   output->on_destroy.emit(output);
+}
+
+int Output::x() const {
+  auto box = wlr_output_layout_get_box(layout_, wlr_output);
+  return box->x;
+}
+
+int Output::y() const {
+  auto box = wlr_output_layout_get_box(layout_, wlr_output);
+  return box->y;
 }
 
 void Output::set_scale(int scale)

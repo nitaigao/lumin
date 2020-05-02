@@ -85,6 +85,8 @@ class Server {
 
   void render_output(Output *output) const;
   void remove_output(Output *output);
+  Output* primary_output() const;
+  Output* output_at(int x, int y) const;
 
  private:
   wl_listener new_input;

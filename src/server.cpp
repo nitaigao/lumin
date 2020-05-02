@@ -12,8 +12,6 @@
 
 #include <spdlog/spdlog.h>
 
-#include <gtk-layer-shell/gtk-layer-shell.h>
-
 #include "cursor.h"
 #include "gtk_shell.h"
 #include "keyboard.h"
@@ -114,7 +112,7 @@ int Server::add_keybinding(int key_code, int modifiers, int state)
 bool Server::handle_key(uint32_t keycode, uint32_t modifiers, int state)
 {
   // Global shortcut to quit the compositor
-  if (keycode == KEY_EQUAL && modifiers == (WLR_MODIFIER_CTRL | WLR_MODIFIER_ALT)) {
+  if (keycode == KEY_BACKSPACE && modifiers == (WLR_MODIFIER_CTRL | WLR_MODIFIER_ALT)) {
     quit();
     return true;
   }
@@ -231,11 +229,11 @@ void Server::apply_layout()
     } else {
       disabled_outputs.insert(std::make_pair(output.get(), display));
     }
-
-    cursor_->load_scale(display.scale);
   }
 
   for (auto& [output, display] : enabled_outputs) {
+    cursor_->load_scale(display.scale);
+
     output->set_enabled(true);
     output->set_scale(display.scale);
     output->set_mode();
@@ -244,16 +242,15 @@ void Server::apply_layout()
     output->remove_layout();
 
     output->add_layout(display.x, display.y);
+    output->set_primary(display.primary);
 
     if (display.primary) {
-      int cursor_x = display.x + (output->wlr_output->width * 0.5f) / display.scale;
-      int cursor_y = display.y + (output->wlr_output->height  * 0.5f) / display.scale;
-
-      cursor_->warp(cursor_x, cursor_y);
+      output->place_cursor(cursor_.get());
     }
   }
 
   for (auto& [output, display] : disabled_outputs) {
+    output->set_primary(false);
     output->set_enabled(false);
     output->commit();
 
@@ -652,55 +649,43 @@ View* Server::view_from_surface(wlr_surface *surface)
   return NULL;
 }
 
+Output* Server::primary_output() const
+{
+  auto condition = [](auto &el) { return el->primary(); };
+  auto result = std::find_if(outputs_.begin(), outputs_.end(), condition);
+
+  if (result == outputs_.end()) {
+    spdlog::error("Failed to find primary output");
+    return nullptr;
+  }
+
+  return (*result).get();
+}
+
+Output* Server::output_at(int x, int y) const
+{
+  wlr_output* wlr_output = wlr_output_layout_output_at(layout_, cursor_->x(), cursor_->y());
+  Output *output = static_cast<Output*>(wlr_output->data);
+  return output;
+}
+
 void Server::position_view(View *view)
 {
   if (view->is_menubar()) {
-    auto layout = settings_->display_find_layout(outputs_);
-    auto condition = [view](auto &el) { return el.second.primary; };
-    auto result = std::find_if(layout.begin(), layout.end(), condition);
+    auto output = primary_output();
+    output->set_menubar(view);
+    return;
+  }
 
-    if (result == layout.end()) {
-      spdlog::error("Failed to find primary output");
-      return;
-    }
-
-    auto output_setting = (*result);
-    int output_x = output_setting.second.x;
-    int output_y = output_setting.second.y;
-
-    view->x = output_x;
-    view->y = output_y;
-
-    wlr_output* output = wlr_output_layout_output_at(layout_, output_x, output_y);
-
-    view->resize(output->width, View::MENU_HEIGHT - 10);
-
+  bool is_root = view->is_root();
+  if (is_root) {
+    Output *output = output_at(cursor_->x(), cursor_->y());
+    output->add_view(view);
     return;
   }
 
   wlr_box geometry;
   view->geometry(&geometry);
-
-  bool is_root = view->is_root();
-
-  if (is_root) {
-    wlr_output* output = wlr_output_layout_output_at(layout_, cursor_->x(), cursor_->y());
-    int inside_x = ((output->width  / output->scale) - geometry.width) / 2.0;
-    int inside_y = ((output->height / output->scale) - geometry.height) / 2.0;
-
-    view->x = inside_x;
-    view->y = inside_y;
-
-    if (view->y + geometry.y < View::MENU_HEIGHT) {
-      view->y = View::MENU_HEIGHT - geometry.y;
-    }
-
-    if (view->y + geometry.height > output->height - view->y) {
-      view->resize(geometry.width, output->height - view->y);
-    }
-
-    return;
-  }
 
   View *parent_view = view->parent();
 
