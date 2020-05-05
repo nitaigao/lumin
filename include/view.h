@@ -57,8 +57,8 @@ class View {
   void toggle_maximized();
   void maximize();
   bool maximized() const;
-  bool fullscreen() const;
   void minimize();
+  bool fullscreen() const;
 
   bool tiled() const;
   void tile_left();
