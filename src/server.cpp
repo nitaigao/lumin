@@ -441,14 +441,14 @@ void Server::new_xwayland_surface_notify(wl_listener *listener, void *data)
 
 }
 
-void Server::new_surface_notify(wl_listener *listener, void *data)
+void Server::new_xdg_surface_notify(wl_listener *listener, void *data)
 {
   auto xdg_surface = static_cast<wlr_xdg_surface*>(data);
   if (xdg_surface->role != WLR_XDG_SURFACE_ROLE_TOPLEVEL) {
     return;
   }
 
-  Server *server = wl_container_of(listener, server, new_surface);
+  Server *server = wl_container_of(listener, server, new_xdg_surface);
 
   auto view = std::make_shared<XDGView>(xdg_surface,
     server->cursor_.get(), server->layout_, server->seat_.get());
@@ -552,8 +552,8 @@ void Server::init()
 
   xdg_shell_ = wlr_xdg_shell_create(display_);
 
-  new_surface.notify = new_surface_notify;
-  wl_signal_add(&xdg_shell_->events.new_surface, &new_surface);
+  new_xdg_surface.notify = new_xdg_surface_notify;
+  wl_signal_add(&xdg_shell_->events.new_surface, &new_xdg_surface);
 
   new_input.notify = new_input_notify;
   wl_signal_add(&backend_->events.new_input, &new_input);

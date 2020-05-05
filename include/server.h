@@ -91,7 +91,7 @@ class Server {
  private:
   wl_listener new_input;
   wl_listener new_output;
-  wl_listener new_surface;
+  wl_listener new_xdg_surface;
   wl_listener new_xwayland_surface;
 
   wl_listener lid_toggle;
@@ -102,7 +102,7 @@ class Server {
 
   static void new_input_notify(wl_listener *listener, void *data);
   static void new_output_notify(wl_listener *listener, void *data);
-  static void new_surface_notify(wl_listener *listener, void *data);
+  static void new_xdg_surface_notify(wl_listener *listener, void *data);
   static void new_xwayland_surface_notify(wl_listener *listener, void *data);
 
  private:
