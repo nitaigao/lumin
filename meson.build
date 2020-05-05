@@ -1,6 +1,6 @@
 project('compositor', 'cpp', default_options : [
-  'warning_level=3',
-  'werror=true',
+  'warning_level=0',
+  'werror=false',
   'cpp_std=c++2a',
   'c_std=c11'
 ])
@@ -49,6 +49,8 @@ sources = [
   'src/services/settings_service.cpp',
   'src/settings.cpp',
   'src/view.cpp',
+  'src/xwayland_view.cpp',
+  'src/xdg_view.cpp',
 ]
 
 executable(
