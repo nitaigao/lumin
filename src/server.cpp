@@ -643,8 +643,8 @@ void Server::destroy()
 {
   spdlog::warn("quitting");
 
-  wl_display_destroy_clients(display_);
   wlr_xwayland_destroy(xwayland_);
+  wl_display_destroy_clients(display_);
   wlr_xcursor_manager_destroy(xcursor_manager_);
   wlr_backend_destroy(backend_);
   wlr_output_layout_destroy(layout_);
