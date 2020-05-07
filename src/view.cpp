@@ -290,10 +290,10 @@ void View::grab()
     set_maximized(false);
   }
 
-  resize(saved_state_.width, saved_state_.height);
-
   wlr_box box;
   geometry(&box);
+
+  resize(saved_state_.width, saved_state_.height);
 
   float surface_x = cursor_->x() - x;
   float x_percentage = surface_x / box.width;
