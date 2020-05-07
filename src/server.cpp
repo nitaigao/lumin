@@ -578,14 +578,14 @@ void Server::init()
   new_input.notify = new_input_notify;
   wl_signal_add(&backend_->events.new_input, &new_input);
 
-  wlr_xcursor_manager_create("default", 24);
+  xcursor_manager_ = wlr_xcursor_manager_create("default", 24);
 
-  auto xwayland = wlr_xwayland_create(display_, compositor, false);
-  wlr_xwayland_set_seat(xwayland, seat);
-  spdlog::info("XWAYLAND DISPLAY={}", xwayland->display_name);
+  xwayland_ = wlr_xwayland_create(display_, compositor, false);
+  wlr_xwayland_set_seat(xwayland_, seat);
+  spdlog::info("XWAYLAND DISPLAY={}", xwayland_->display_name);
 
   new_xwayland_surface.notify = new_xwayland_surface_notify;
-  wl_signal_add(&xwayland->events.new_surface , &new_xwayland_surface);
+  wl_signal_add(&xwayland_->events.new_surface , &new_xwayland_surface);
 
   cursor_ = std::make_unique<Cursor>(layout_, seat_.get());
   cursor_->on_button.connect_member(this, &Server::cursor_button);
@@ -621,7 +621,7 @@ void Server::init()
   setenv("QT_QPA_PLATFORMTHEME", "gnome", true);
   setenv("XDG_CURRENT_DESKTOP", "sway", true);
   setenv("XDG_SESSION_TYPE", "wayland", true);
-  setenv("DISPLAY", xwayland->display_name, true);
+  setenv("DISPLAY", xwayland_->display_name, true);
 
   dbus_ = std::thread(Server::dbus_thread, this);
 
@@ -644,6 +644,8 @@ void Server::destroy()
   spdlog::warn("quitting");
 
   wl_display_destroy_clients(display_);
+  wlr_xwayland_destroy(xwayland_);
+  wlr_xcursor_manager_destroy(xcursor_manager_);
   wlr_backend_destroy(backend_);
   wlr_output_layout_destroy(layout_);
   wl_display_destroy(display_);
