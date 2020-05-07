@@ -1,6 +1,6 @@
 project('compositor', 'cpp', default_options : [
-  'warning_level=0',
-  'werror=false',
+  'warning_level=3',
+  'werror=true',
   'cpp_std=c++2a',
   'c_std=c11'
 ])
