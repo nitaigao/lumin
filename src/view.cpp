@@ -181,6 +181,11 @@ void View::tile_left()
   int corner_y = y + box.y + (box.height / 2.0f);
   wlr_output* output = wlr_output_layout_output_at(layout_, corner_x, corner_y);
 
+  if (output == nullptr) {
+    spdlog::warn("Failed to get output for tiling");
+    return;
+  }
+
   int width = (output->width / 2.0f) / output->scale;
   int height = output->height / output->scale;
   resize(width, height - MENU_HEIGHT);
@@ -199,6 +204,11 @@ void View::tile_right()
   int corner_x = x + box.x + (box.width / 2.0f);
   int corner_y = y + box.y + (box.height / 2.0f);
   wlr_output* output = wlr_output_layout_output_at(layout_, corner_x, corner_y);
+
+  if (output == nullptr) {
+    spdlog::warn("Failed to get output for tiling");
+    return;
+  }
 
   int new_y = MENU_HEIGHT;
   int new_x = 0;
@@ -220,6 +230,14 @@ void View::maximize()
     return;
   }
 
+  wlr_output* wlr_output = wlr_output_layout_output_at(layout_,
+    cursor_->x(), cursor_->y());
+
+  if (wlr_output == nullptr) {
+    spdlog::warn("Failed to get output for maximize");
+    return;
+  }
+
   save_geometry();
 
   bool is_tiled = tiled();
@@ -228,9 +246,6 @@ void View::maximize()
   }
 
   set_maximized(true);
-
-  wlr_output* wlr_output = wlr_output_layout_output_at(layout_,
-    cursor_->x(), cursor_->y());
 
   Output *output = static_cast<Output*>(wlr_output->data);
   output->maximize_view(this);
@@ -244,6 +259,13 @@ void View::windowize()
     return;
   }
 
+  wlr_output *wlr_output = wlr_output_layout_output_at(layout_, cursor_->x(), cursor_->y());
+
+  if (wlr_output == nullptr) {
+    spdlog::warn("Failed to get output for windowize");
+    return;
+  }
+
   if (tiled()) {
     set_tiled(WLR_EDGE_NONE);
   } else if (maximized()) {
@@ -252,7 +274,6 @@ void View::windowize()
 
   set_size(saved_state_.width, saved_state_.height);
 
-  wlr_output *wlr_output = wlr_output_layout_output_at(layout_, cursor_->x(), cursor_->y());
   Output *output = static_cast<Output*>(wlr_output->data);
   output->move_view(this, saved_state_.x, saved_state_.y);
 

@@ -127,13 +127,19 @@ void XWaylandView::tile(int edges) {
 
 std::string XWaylandView::id() const
 {
-  std::string id(xwayland_surface_->class_name);
-
-  if (id.empty()) {
+  if (!mapped) {
     return "";
   }
 
-  return id;
+  if (xwayland_surface_->class_name == nullptr) {
+    return "";
+  }
+
+  if (strlen(xwayland_surface_->class_name) == 0) {
+    return "";
+  }
+
+  return xwayland_surface_->class_name;
 }
 
 std::string XWaylandView::title() const

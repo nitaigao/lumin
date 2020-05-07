@@ -91,7 +91,7 @@ void XDGView::enter(const Output* output)
 
 void XDGView::set_tiled(int edges)
 {
-  wlr_xdg_toplevel_set_tiled(xdg_surface_, WLR_EDGE_NONE);
+  wlr_xdg_toplevel_set_maximized(xdg_surface_, edges != WLR_EDGE_NONE);
 }
 
 void XDGView::set_maximized(bool maximized)

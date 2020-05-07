@@ -38,10 +38,19 @@ void Server::quit()
   wl_display_terminate(display_);
 }
 
+std::vector<std::shared_ptr<View>> Server::mapped_views() const
+{
+  std::vector<std::shared_ptr<View>> views;
+  std::copy_if(views_.begin(), views_.end(), std::back_inserter(views), [](auto &view) {
+    return !view->deleted && view->mapped;
+  });
+  return views;
+}
+
 std::vector<std::string> Server::apps() const
 {
   std::vector<std::string> apps;
-  for (auto &view : views_) {
+  for (auto &view : mapped_views()) {
     auto id = view->root()->id();
     if (id.empty()) {
       apps.push_back("unknown");
@@ -151,11 +160,10 @@ void Server::new_input_notify(wl_listener *listener, void *data)
 
 void Server::focus_app(const std::string& app_id)
 {
+  auto views = mapped_views();
   auto condition = [app_id](auto &el) { return el->id() == app_id; };
-  auto result = std::find_if(views_.begin(), views_.end(), condition);
-  if (result == views_.end()) {
-    return;
-  }
+  auto result = std::find_if(views.begin(), views.end(), condition);
+  if (result == views.end()) return;
   auto view = (*result).get();
   focus_view(view);
 }
@@ -186,8 +194,9 @@ void Server::focus_view(View *view)
 
 void Server::render_output(Output *output) const
 {
-  output->send_enter(views_);
-  output->render(views_);
+  auto views = mapped_views();
+  output->send_enter(views);
+  output->render(views);
 }
 
 void Server::add_output(const std::shared_ptr<Output>& output)
@@ -275,7 +284,7 @@ void Server::output_mode(Output *output)
     return;
   }
 
-  for (auto &view : views_) {
+  for (auto &view : mapped_views()) {
     if (view->is_menubar()) {
       output->set_menubar(view.get());
       return;
@@ -490,38 +499,49 @@ void Server::maximize_view(View *view)
   view->move(output_box->x, output_box->y);
 }
 
+void Server::focus_top()
+{
+  auto views = mapped_views();
+  if (views.empty()) return;
+
+  auto top_view = views.front();
+  top_view->focus();
+}
+
 void Server::minimize_top()
 {
-  for (auto &view : views_) {
-    if (view->mapped) {
-      minimize_view(view.get());
-      return;
-    }
-  }
+  auto views = mapped_views();
+  if (views.empty()) return;
+
+  auto top_view = views.front();
+  minimize_view(top_view.get());
 }
 
 void Server::toggle_maximize()
 {
-  if (views_.empty()) return;
+  auto views = mapped_views();
+  if (views.empty()) return;
 
-  auto &view = views_.front();
-  view->toggle_maximized();
+  auto top_view = views.front();
+  top_view->toggle_maximized();
 }
 
 void Server::dock_left()
 {
-  if (views_.empty()) return;
+  auto views = mapped_views();
+  if (views.empty()) return;
 
-  auto &view = views_.front();
-  view->tile_left();
+  auto top_view = views.front();
+  top_view->tile_left();
 }
 
 void Server::dock_right()
 {
-  if (views_.empty()) return;
+  auto views = mapped_views();
+  if (views.empty()) return;
 
-  auto &view = views_.front();
-  view->tile_right();
+  auto top_view = views.front();
+  top_view->tile_right();
 }
 
 void Server::init()
@@ -747,16 +767,6 @@ void Server::position_view(View *view)
 
   view->x = parent_view->x + inside_x;
   view->y = parent_view->y + inside_y;
-}
-
-void Server::focus_top()
-{
-  for (auto &view : views_) {
-    if (view->mapped && !view->minimized) {
-      view->focus();
-      return;
-    }
-  }
 }
 
 }  // namespace lumin

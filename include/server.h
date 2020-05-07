@@ -64,6 +64,8 @@ class Server {
 
   int add_keybinding(int key_code, int modifiers, int state);
 
+  std::vector<std::shared_ptr<View>> mapped_views() const;
+
  public:
   View* desktop_view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
   View* view_from_surface(wlr_surface *surface);
