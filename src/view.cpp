@@ -118,7 +118,7 @@ void View::unfocus()
 
 bool View::steals_focus() const
 {
-  return !(is_menubar() || is_launcher());
+  return !(is_menubar() || is_launcher() || is_shell());
 }
 
 bool View::is_always_focused() const

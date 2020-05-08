@@ -1,8 +1,9 @@
-#ifndef SIGNAL_HPP
-#define SIGNAL_HPP
+#ifndef SIGNAL_HPP_
+#define SIGNAL_HPP_
 
 #include <functional>
 #include <map>
+#include <utility>
 #include <spdlog/spdlog.h>
 
 // A signal object may call multiple slots with the
@@ -13,9 +14,7 @@
 
 template <typename... Args>
 class Signal {
-
  public:
-
   Signal() : current_id_(0) {}
 
   // copy creates new signal
@@ -56,7 +55,7 @@ class Signal {
 
   // calls all connected functions
   void emit(Args... p) {
-    for(auto const& it : slots_) {
+    for (auto const& it : slots_) {
       try {
         it.second(std::forward<Args>(p)...);
       } catch(const std::bad_function_call& e) {
@@ -75,4 +74,4 @@ class Signal {
   mutable int current_id_;
 };
 
-#endif /* SIGNAL_HPP */
+#endif  // SIGNAL_HPP_

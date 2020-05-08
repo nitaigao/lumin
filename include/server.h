@@ -128,11 +128,9 @@ class Server {
   void keyboard_key(uint32_t time_msec, uint32_t keycode, uint32_t modifiers, int state);
 
  private:
-
   static void dbus_thread(Server *server);
 
  private:
-
   static void purge_deleted_views(void *data);
 
  private:
@@ -155,7 +153,6 @@ class Server {
   std::unique_ptr<Cursor> cursor_;
   std::unique_ptr<Settings> settings_;
   std::unique_ptr<Seat> seat_;
-
   std::unique_ptr<CompositorEndpoint> endpoint_;
 
   std::thread dbus_;

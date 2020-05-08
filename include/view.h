@@ -108,7 +108,7 @@ class View {
 
   virtual wlr_surface* surface() const = 0;
 
-  bool steals_focus() const;
+  virtual bool steals_focus() const;
   bool is_always_focused() const;
 
  public:

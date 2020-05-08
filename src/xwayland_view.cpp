@@ -218,6 +218,11 @@ void XWaylandView::xwayland_request_move_notify(wl_listener *listener, void *dat
   view->cursor_->begin_interactive(view, WM_CURSOR_MOVE, WLR_EDGE_NONE);
 }
 
+bool XWaylandView::steals_focus() const
+{
+  return wlr_xwayland_or_surface_wants_focus(xwayland_surface_);
+}
+
 void XWaylandView::xwayland_request_resize_notify(wl_listener *listener, void *data)
 {
   auto event = static_cast<wlr_xwayland_resize_event*>(data);

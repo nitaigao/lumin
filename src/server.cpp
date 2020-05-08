@@ -447,7 +447,6 @@ void Server::new_xwayland_surface_notify(wl_listener *listener, void *data)
   view->on_commit.connect_member(server, &Server::view_moved);
 
   server->views_.push_back(view);
-
 }
 
 void Server::new_xdg_surface_notify(wl_listener *listener, void *data)
