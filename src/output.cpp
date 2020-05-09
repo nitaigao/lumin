@@ -42,6 +42,7 @@ Output::Output(
   wlr_output_damage *damage,
   wlr_output_layout *layout)
   : wlr_output(output)
+  , deleted(false)
   , renderer_(renderer)
   , damage_(damage)
   , layout_(layout)
@@ -50,7 +51,6 @@ Output::Output(
   , primary_(false)
   , software_cursors_(false)
   , enter_frames_left_(0)
-  , top_margin_(0)
 {
   destroy_.notify = Output::output_destroy_notify;
   wl_signal_add(&wlr_output->events.destroy, &destroy_);
@@ -87,6 +87,11 @@ void Output::set_primary(bool primary)
   primary_ = primary;
 }
 
+int Output::top_margin() const
+{
+  return primary_ ? View::MENU_HEIGHT : 0;
+}
+
 void Output::set_mode()
 {
   if (wl_list_empty(&wlr_output->modes)) {
@@ -115,7 +120,6 @@ void Output::set_menubar(View *view)
 {
   view->move(x(), y());
   view->resize(wlr_output->width, View::MENU_HEIGHT);
-  top_margin_ = View::MENU_HEIGHT;
 }
 
 void Output::add_view(View *view)
@@ -129,8 +133,8 @@ void Output::add_view(View *view)
   view->x = inside_x;
   view->y = inside_y;
 
-  if (view->y + geometry.y < top_margin_) {
-    view->y = top_margin_ - geometry.y;
+  if (view->y + geometry.y < top_margin()) {
+    view->y = top_margin() - geometry.y;
   }
 
   if (view->y + geometry.height > wlr_output->height - view->y) {
@@ -151,10 +155,10 @@ void Output::maximize_view(View *view)
   int new_width = wlr_output->width / wlr_output->scale;
   int new_height = wlr_output->height / wlr_output->scale;
 
-  view->resize(new_width, new_height - top_margin_);
+  view->resize(new_width, new_height - top_margin());
 
   int new_x = x();
-  int new_y = y() + top_margin_;
+  int new_y = y() + top_margin();
 
   view->move(new_x, new_y);
 }
@@ -164,8 +168,8 @@ void Output::move_view(View *view, double x, double y)
   wlr_box box;
   view->geometry(&box);
 
-  if (y + box.y < top_margin_) {
-    y = top_margin_ - box.y;
+  if (y + box.y < top_margin()) {
+    y = top_margin() - box.y;
   }
 
   view->move(x, y);
@@ -176,11 +180,6 @@ void Output::commit()
   if (!wlr_output_commit(wlr_output)) {
     std::cerr << "Failed to commit output" << std::endl;
   }
-}
-
-void Output::destroy()
-{
-  wlr_output_destroy_global(wlr_output);
 }
 
 std::string Output::id() const

@@ -206,20 +206,27 @@ void Server::add_output(const std::shared_ptr<Output>& output)
   apply_layout();
 }
 
+void Server::purge_deleted_outputs(void *data)
+{
+  Server *server = static_cast<Server*>(data);
+
+  std::erase_if(server->outputs_, [](const auto &el) { return el.get()->deleted; });
+
+  server->apply_layout();
+}
+
 void Server::remove_output(Output *output)
 {
   spdlog::debug("{} disconnected", output->id());
 
-  output->remove_layout();
-  output->destroy();
-
   auto condition = [output](auto &el) { return el.get() == output; };
   auto result = std::find_if(outputs_.begin(), outputs_.end(), condition);
   if (result != outputs_.end()) {
-    outputs_.erase(result);
+    (*result)->deleted = true;
   }
 
-  apply_layout();
+  auto *event_loop = wl_display_get_event_loop(display_);
+  wl_event_loop_add_idle(event_loop, &Server::purge_deleted_outputs, this);
 }
 
 void Server::apply_layout()
@@ -256,6 +263,12 @@ void Server::apply_layout()
 
     if (display.primary) {
       output->place_cursor(cursor_.get());
+
+      for (auto &view : mapped_views()) {
+        if (view->is_menubar()) {
+          output->set_menubar(view.get());
+        }
+      }
     }
   }
 
@@ -266,6 +279,8 @@ void Server::apply_layout()
 
     output->remove_layout();
   }
+
+  damage_outputs();
 }
 
 void Server::output_destroyed(Output *output)
@@ -282,13 +297,6 @@ void Server::output_mode(Output *output)
 {
   if (!output->primary()) {
     return;
-  }
-
-  for (auto &view : mapped_views()) {
-    if (view->is_menubar()) {
-      output->set_menubar(view.get());
-      return;
-    }
   }
 }
 

@@ -132,6 +132,7 @@ class Server {
 
  private:
   static void purge_deleted_views(void *data);
+  static void purge_deleted_outputs(void *data);
 
  private:
   std::map<uint, KeyBinding> key_bindings;

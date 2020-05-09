@@ -54,7 +54,6 @@ class Output {
   bool is_named(const std::string& name) const;
 
   void init();
-  void destroy();
 
   void set_enabled(bool enabled);
   void set_position(int x, int y);
@@ -82,6 +81,7 @@ class Output {
 
   void lock_software_cursors();
   void unlock_software_cursors();
+  int top_margin() const;
 
  private:
   static void output_destroy_notify(wl_listener *listener, void *data);
@@ -90,6 +90,7 @@ class Output {
 
  public:
   struct wlr_output *wlr_output;
+  bool deleted;
 
  private:
   wlr_renderer *renderer_;
@@ -100,7 +101,6 @@ class Output {
   bool primary_;
   bool software_cursors_;
   int enter_frames_left_;
-  int top_margin_;
 
  public:
   wl_listener destroy_;
