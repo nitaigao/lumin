@@ -58,6 +58,7 @@ class XDGView : public View {
   void for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const;
 
  private:
+  bool can_move() const;
   wlr_surface* surface() const;
   void activate();
   void deactivate();

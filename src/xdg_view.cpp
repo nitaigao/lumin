@@ -54,13 +54,19 @@ XDGView::XDGView(wlr_xdg_surface *surface, Cursor *cursor, wlr_output_layout *la
 
 std::string XDGView::id() const
 {
-  std::string id(xdg_surface_->toplevel->app_id);
-
-  if (id.empty()) {
+  if (!mapped) {
     return "";
   }
 
-  return id;
+  if (xdg_surface_->toplevel->app_id == nullptr) {
+    return "";
+  }
+
+  if (strlen(xdg_surface_->toplevel->app_id) == 0) {
+    return "";
+  }
+
+  return xdg_surface_->toplevel->app_id;
 }
 
 std::string XDGView::title() const
@@ -112,6 +118,10 @@ wlr_surface* XDGView::surface() const
   return xdg_surface_->surface;
 }
 
+bool XDGView::can_move() const
+{
+  return !is_menubar() && !is_shell();
+}
 
 void XDGView::extents(struct wlr_box *box) const
 {
@@ -193,6 +203,9 @@ const View* XDGView::root() const
 void XDGView::xdg_toplevel_request_move_notify(wl_listener *listener, void *data)
 {
   XDGView *view = wl_container_of(listener, view, request_move);
+  if (!view->can_move()) {
+    return;
+  }
   view->grab();
   view->cursor_->begin_interactive(view, WM_CURSOR_MOVE, WLR_EDGE_NONE);
 }
