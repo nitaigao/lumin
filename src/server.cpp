@@ -4,16 +4,18 @@
 #include <wlroots.h>
 #include <xkbcommon/xkbcommon.h>
 
+#include <spdlog/spdlog.h>
+
 #include <algorithm>
 #include <iostream>
 #include <memory>
 #include <set>
 #include <vector>
 
-#include <spdlog/spdlog.h>
+#include "wlroots_platform.h"
+#include "posix_os.h"
 
 #include "cursor.h"
-#include "gtk_shell.h"
 #include "keyboard.h"
 #include "output.h"
 #include "seat.h"
@@ -30,26 +32,44 @@ Server::~Server() {}
 Server::Server()
 {
   settings_ = std::make_unique<Settings>();
+  platform_ = std::make_unique<WlRootsPlatform>();
+  os_ = std::make_unique<PosixOS>();
+}
+
+Server::Server(std::unique_ptr<IPlatform>& platform, std::unique_ptr<IOS>& os)
+ : platform_(std::move(platform))
+ , os_(std::move(os))
+{
+}
+
+std::vector<std::shared_ptr<View>> filter_unminimized_views(const std::vector<std::shared_ptr<View>>& views)
+{
+  std::vector<std::shared_ptr<View>> filtered_views;
+  std::copy_if(views.begin(), views.end(), std::back_inserter(filtered_views), [](auto &view) {
+    return !view->minimized;
+  });
+  return filtered_views;
+}
+
+std::vector<std::shared_ptr<View>> filter_mapped_views(const std::vector<std::shared_ptr<View>>& views)
+{
+  std::vector<std::shared_ptr<View>> filtered_views;
+  std::copy_if(views.begin(), views.end(), std::back_inserter(filtered_views), [](auto &view) {
+    return !view->deleted && view->mapped;
+  });
+  return filtered_views;
 }
 
 void Server::quit()
 {
-  wl_display_terminate(display_);
-}
-
-std::vector<std::shared_ptr<View>> Server::mapped_views() const
-{
-  std::vector<std::shared_ptr<View>> views;
-  std::copy_if(views_.begin(), views_.end(), std::back_inserter(views), [](auto &view) {
-    return !view->deleted && view->mapped;
-  });
-  return views;
+  platform_->terminate();
 }
 
 std::vector<std::string> Server::apps() const
 {
   std::vector<std::string> apps;
-  for (auto &view : mapped_views()) {
+  auto mapped_views = filter_mapped_views(views_);
+  for (auto &view : mapped_views) {
     auto id = view->root()->id();
     if (id.empty()) {
       apps.push_back("unknown");
@@ -118,7 +138,7 @@ int Server::add_keybinding(int key_code, int modifiers, int state)
   return id;
 }
 
-bool Server::handle_key(uint32_t keycode, uint32_t modifiers, int state)
+bool Server::key(uint32_t keycode, uint32_t modifiers, int state)
 {
   // Global shortcut to quit the compositor
   if (keycode == KEY_BACKSPACE && modifiers == (WLR_MODIFIER_CTRL | WLR_MODIFIER_ALT)) {
@@ -137,39 +157,20 @@ bool Server::handle_key(uint32_t keycode, uint32_t modifiers, int state)
   return false;
 }
 
-void Server::new_input_notify(wl_listener *listener, void *data)
-{
-  Server *server = wl_container_of(listener, server, new_input);
-  auto device = static_cast<struct wlr_input_device *>(data);
-
-  switch (device->type) {
-    case WLR_INPUT_DEVICE_KEYBOARD:
-      server->new_keyboard(device);
-      break;
-    case WLR_INPUT_DEVICE_POINTER:
-      server->cursor_->add_device(device);
-      break;
-    case WLR_INPUT_DEVICE_SWITCH:
-      server->new_switch(device);
-      break;
-    default:
-      break;
-  }
-}
-
 void Server::focus_app(const std::string& app_id)
 {
-  auto views = mapped_views();
+  auto mapped_views = filter_mapped_views(views_);
   auto condition = [app_id](auto &el) { return el->id() == app_id; };
-  auto result = std::find_if(views.begin(), views.end(), condition);
-  if (result == views.end()) return;
+  auto result = std::find_if(mapped_views.begin(), mapped_views.end(), condition);
+  if (result == mapped_views.end()) return;
   auto view = (*result).get();
-  focus_view(view);
+  view->focus();
 }
 
-void Server::focus_view(View *view)
+void Server::view_focused(View *view)
 {
-  wlr_surface *prev_surface = seat_->keyboard_focused_surface();
+  auto seat = platform_->seat();
+  wlr_surface *prev_surface = seat->keyboard_focused_surface();
 
   if (view->has_surface(prev_surface)) {
     return;
@@ -187,48 +188,312 @@ void Server::focus_view(View *view)
     views_.erase(result);
     views_.insert(views_.begin(), resultValue);
   }
-
-  view->focus();
-}
-
-void Server::render_output(Output *output) const
-{
-  auto views = mapped_views();
-  output->send_enter(views);
-  output->render(views);
-}
-
-void Server::add_output(const std::shared_ptr<Output>& output)
-{
-  outputs_.push_back(output);
-  output->init();
-  apply_layout();
 }
 
 void Server::purge_deleted_outputs(void *data)
 {
   Server *server = static_cast<Server*>(data);
-
   std::erase_if(server->outputs_, [](const auto &el) { return el.get()->deleted; });
-
-  server->apply_layout();
 }
 
-void Server::remove_output(Output *output)
+void Server::output_destroyed(Output *output)
 {
-  spdlog::debug("{} disconnected", output->id());
-
   auto condition = [output](auto &el) { return el.get() == output; };
   auto result = std::find_if(outputs_.begin(), outputs_.end(), condition);
   if (result != outputs_.end()) {
     (*result)->deleted = true;
   }
 
-  auto *event_loop = wl_display_get_event_loop(display_);
-  wl_event_loop_add_idle(event_loop, &Server::purge_deleted_outputs, this);
+  platform_->add_idle(&Server::purge_deleted_outputs, this);
 }
 
-void Server::apply_layout()
+void Server::output_frame(Output *output)
+{
+  auto mapped_views = filter_mapped_views(views_);
+  auto unminimized_views = filter_unminimized_views(mapped_views);
+  output->send_enter(unminimized_views);
+  output->render(unminimized_views);
+}
+
+void Server::output_mode(Output *output)
+{
+  if (!output->primary()) {
+    return;
+  }
+}
+
+void Server::purge_deleted_views(void *data)
+{
+  Server *server = static_cast<Server*>(data);
+  std::erase_if(server->views_, [](const auto &el) { return el.get()->deleted; });
+}
+
+void Server::view_damaged(View *view)
+{
+  damage_output(view);
+}
+
+void Server::view_destroyed(View *view)
+{
+  auto condition = [view](auto &el) { return el.get() == view; };
+  auto result = std::find_if(views_.begin(), views_.end(), condition);
+  if (result != views_.end()) {
+    (*result)->deleted = true;
+  }
+  platform_->add_idle(&Server::purge_deleted_views, this);
+}
+
+void Server::view_moved(View *view)
+{
+  damage_outputs();
+}
+
+void Server::view_mapped(View *view)
+{
+  position_view(view);
+  view->focus();
+  damage_output(view);
+}
+
+void Server::view_unmapped(View *view)
+{
+  focus_top();
+  damage_outputs();
+}
+
+void Server::keyboard_key(uint32_t time_msec, uint32_t keycode, uint32_t modifiers, int state)
+{
+  auto seat = platform_->seat();
+  bool handled = key(keycode, modifiers, state);
+
+  if (!handled) {
+    seat->keyboard_notify_key(time_msec, keycode, state);
+  }
+}
+
+void Server::lid_switch(bool enabled)
+{
+  const std::vector<std::string> laptop_screen_names = { "eDP-1", "LVDS1" };
+
+  for (auto &laptop_screen_name : laptop_screen_names) {
+    enable_output(laptop_screen_name, enabled);
+  }
+}
+
+void Server::cursor_button(Cursor *cursor, int x, int y)
+{
+  double sx, sy;
+  wlr_surface *surface;
+  View *view = desktop_view_at(x, y, &surface, &sx, &sy);
+
+  if (view == nullptr) {
+    return;
+  }
+
+  view->focus();
+}
+
+void Server::view_minimized(View *view)
+{
+  auto condition = [view](auto &el) { return el.get() == view; };
+  auto result = std::find_if(views_.begin(), views_.end(), condition);
+  if (result != views_.end()) {
+    auto resultValue = *result;
+    views_.erase(result);
+    views_.push_back(resultValue);
+  }
+
+  focus_top();
+}
+
+void Server::maximize_view(View *view)
+{
+  auto cursor = platform_->cursor();
+  view->maximize();
+
+  auto output = platform_->output_at(cursor->x(), cursor->y());
+  wlr_box *output_box = output->box();
+
+  view->resize(output_box->width, output_box->height);
+  view->move(output_box->x, output_box->y);
+}
+
+void Server::focus_top()
+{
+  auto mapped_views = filter_mapped_views(views_);
+  auto unminimized_views = filter_unminimized_views(mapped_views);
+  if (unminimized_views.empty()) return;
+
+  auto top_view = unminimized_views.front();
+  top_view->focus();
+}
+
+void Server::minimize_top()
+{
+  auto mapped_views = filter_mapped_views(views_);
+  if (mapped_views.empty()) return;
+
+  auto top_view = mapped_views.front();
+  top_view->minimize();
+}
+
+void Server::toggle_maximize()
+{
+  auto mapped_views = filter_mapped_views(views_);
+  if (mapped_views.empty()) return;
+
+  auto top_view = mapped_views.front();
+  top_view->toggle_maximized();
+}
+
+void Server::dock_left()
+{
+  auto mapped_views = filter_mapped_views(views_);
+  if (mapped_views.empty()) return;
+
+  auto top_view = mapped_views.front();
+  top_view->tile_left();
+}
+
+void Server::dock_right()
+{
+  auto mapped_views = filter_mapped_views(views_);
+  if (mapped_views.empty()) return;
+
+  auto top_view = mapped_views.front();
+  top_view->tile_right();
+}
+
+void Server::output_created(std::shared_ptr<Output>& output)
+{
+  outputs_.push_back(output);
+
+  output->on_destroy.connect_member(this, &Server::output_destroyed);
+  output->on_frame.connect_member(this, &Server::output_frame);
+  output->on_mode.connect_member(this, &Server::output_mode);
+  output->on_connect.connect_member(this, &Server::output_changed_state);
+  output->on_disconnect.connect_member(this, &Server::output_changed_state);
+
+  output->set_connected(true);
+}
+
+void Server::view_created(std::shared_ptr<View>& view)
+{
+  spdlog::debug("{} view launched", view->id());
+
+  view->on_map.connect_member(this, &Server::view_mapped);
+  view->on_unmap.connect_member(this, &Server::view_unmapped);
+  view->on_minimize.connect_member(this, &Server::view_minimized);
+  view->on_damage.connect_member(this, &Server::view_damaged);
+  view->on_destroy.connect_member(this, &Server::view_destroyed);
+  view->on_move.connect_member(this, &Server::view_moved);
+  view->on_focus.connect_member(this, &Server::view_focused);
+
+  views_.push_back(view);
+}
+
+void Server::cursor_motion(Cursor* cursor, int x, int y, uint32_t time)
+{
+  /* Otherwise, find the view under the pointer and send the event along. */
+  double sx, sy;
+  wlr_surface *surface = NULL;
+  View *view = desktop_view_at(x, y, &surface, &sx, &sy);
+
+  if (!view) {
+    cursor->set_image("left_ptr");
+  }
+
+  auto seat = platform_->seat();
+
+  if (surface) {
+    bool focus_changed = seat->pointer_focused_surface() != surface;
+    /*
+     * "Enter" the surface if necessary. This lets the client know that the
+     * cursor has entered one of its surfaces.
+     *
+     * Note that this gives the surface "pointer focus", which is distinct
+     * from keyboard focus. You get pointer focus by moving the pointer over
+     * a window.
+     */
+    seat->pointer_notify_enter(surface, sx, sy);
+
+    if (!focus_changed) {
+      /* The enter event contains coordinates, so we only need to notify
+       * on motion if the focus did not change. */
+      seat->pointer_motion(time, sx, sy);
+    }
+  } else {
+    /* Clear pointer focus so future button events and such are not sent to
+     * the last client to have the cursor over it. */
+    seat->pointer_clear_focus();
+  }
+}
+
+bool Server::init()
+{
+  spdlog::set_level(spdlog::level::debug);
+
+  auto platform_init_result = platform_->init();
+  if (!platform_init_result) {
+    return false;
+  }
+
+  platform_->on_new_output.connect_member(this, &Server::output_created);
+  platform_->on_new_view.connect_member(this, &Server::view_created);
+  platform_->on_new_keyboard.connect_member(this, &Server::keyboard_created);
+  platform_->on_cursor_motion.connect_member(this, &Server::cursor_motion);
+  platform_->on_cursor_button.connect_member(this, &Server::cursor_button);
+  platform_->on_lid_switch.connect_member(this, &Server::lid_switch);
+
+  bool platform_start_result = platform_->start();
+  if (!platform_start_result) {
+    return false;
+  }
+
+  os_->set_env("MOZ_ENABLE_WAYLAND", "1");
+  os_->set_env("QT_QPA_PLATFORM", "wayland");
+  os_->set_env("QT_QPA_PLATFORMTHEME", "gnome");
+  os_->set_env("XDG_CURRENT_DESKTOP", "sway");
+  os_->set_env("XDG_SESSION_TYPE", "wayland");
+
+  dbus_ = std::thread(Server::dbus_thread, this);
+
+  if (fork() == 0) {
+    execl("/bin/sh", "/bin/sh", "-c", "lumin-menu", NULL);
+  }
+
+  if (fork() == 0) {
+    execl("/bin/sh", "/bin/sh", "-c", "lumin-shell", NULL);
+  }
+
+  return true;
+}
+
+void Server::run()
+{
+  platform_->run();
+}
+
+void Server::destroy()
+{
+  spdlog::warn("quitting");
+
+  platform_->destroy();
+}
+
+void Server::enable_output(const std::string& name, bool enabled)
+{
+  auto lambda = [name](auto &output) -> bool { return output->is_named(name); };
+  auto it = std::find_if(outputs_.begin(), outputs_.end(), lambda);
+  if (it == outputs_.end()) {
+    return;
+  }
+
+  auto &output = (*it);
+  output->set_connected(enabled);
+}
+
+void Server::output_changed_state(Output* _output)
 {
   auto layout = settings_->display_find_layout(outputs_);
 
@@ -247,8 +512,10 @@ void Server::apply_layout()
     }
   }
 
+  auto cursor = platform_->cursor();
+
   for (auto& [output, display] : enabled_outputs) {
-    cursor_->load_scale(display.scale);
+    cursor->load_scale(display.scale);
 
     output->set_enabled(true);
     output->set_scale(display.scale);
@@ -261,9 +528,10 @@ void Server::apply_layout()
     output->set_primary(display.primary);
 
     if (display.primary) {
-      output->place_cursor(cursor_.get());
+      output->place_cursor(cursor.get());
 
-      for (auto &view : mapped_views()) {
+      auto mapped_views = filter_mapped_views(views_);
+      for (auto &view : mapped_views) {
         if (view->is_menubar()) {
           output->set_menubar(view.get());
         }
@@ -282,400 +550,10 @@ void Server::apply_layout()
   damage_outputs();
 }
 
-void Server::output_destroyed(Output *output)
+void Server::keyboard_created(std::shared_ptr<Keyboard>& keyboard)
 {
-  remove_output(output);
-}
-
-void Server::output_frame(Output *output)
-{
-  render_output(output);
-}
-
-void Server::output_mode(Output *output)
-{
-  if (!output->primary()) {
-    return;
-  }
-}
-
-void Server::new_output_notify(wl_listener *listener, void *data)
-{
-  Server *server = wl_container_of(listener, server, new_output);
-  auto wlr_output = static_cast<struct wlr_output*>(data);
-
-  auto damage = wlr_output_damage_create(wlr_output);
-  auto output = std::make_shared<Output>(wlr_output,
-    server->renderer_, damage, server->layout_);
-
-  wlr_output->data = output.get();
-
-  output->on_destroy.connect_member(server, &Server::output_destroyed);
-  output->on_frame.connect_member(server, &Server::output_frame);
-  output->on_mode.connect_member(server, &Server::output_mode);
-
-  spdlog::debug("{} connected", output->id());
-
-  server->add_output(output);
-}
-
-void Server::purge_deleted_views(void *data)
-{
-  Server *server = static_cast<Server*>(data);
-  std::erase_if(server->views_, [](const auto &el) { return el.get()->deleted; });
-}
-
-void Server::destroy_view(View *view)
-{
-  auto condition = [view](auto &el) { return el.get() == view; };
-  auto result = std::find_if(views_.begin(), views_.end(), condition);
-  if (result != views_.end()) {
-    (*result)->deleted = true;
-  }
-  auto *event_loop = wl_display_get_event_loop(display_);
-  wl_event_loop_add_idle(event_loop, &Server::purge_deleted_views, this);
-}
-
-void Server::view_damaged(View *view)
-{
-  damage_output(view);
-}
-
-void Server::view_destroyed(View *view)
-{
-  destroy_view(view);
-}
-
-void Server::view_moved(View *view)
-{
-  damage_outputs();
-}
-
-void Server::view_mapped(View *view)
-{
-  position_view(view);
-  focus_view(view);
-  damage_output(view);
-}
-
-void Server::view_unmapped(View *view)
-{
-  focus_top();
-  damage_outputs();
-}
-
-void Server::keyboard_key(uint32_t time_msec, uint32_t keycode, uint32_t modifiers, int state)
-{
-  bool handled = handle_key(keycode, modifiers, state);
-
-  if (!handled) {
-    seat_->keyboard_notify_key(time_msec, keycode, state);
-  }
-}
-
-void Server::cursor_button(Cursor *cursor, int x, int y)
-{
-  double sx, sy;
-  wlr_surface *surface;
-  View *view = desktop_view_at(x, y, &surface, &sx, &sy);
-
-  if (view == nullptr) {
-    return;
-  }
-
-  focus_view(view);
-}
-
-void Server::cursor_moved(Cursor *cursor, int x, int y, uint32_t time)
-{
-  /* Otherwise, find the view under the pointer and send the event along. */
-  double sx, sy;
-  wlr_surface *surface = NULL;
-  View *view = desktop_view_at(x, y, &surface, &sx, &sy);
-
-  if (!view) {
-    cursor->set_image("left_ptr");
-  }
-
-  if (surface) {
-    bool focus_changed = seat_->pointer_focused_surface() != surface;
-    /*
-     * "Enter" the surface if necessary. This lets the client know that the
-     * cursor has entered one of its surfaces.
-     *
-     * Note that this gives the surface "pointer focus", which is distinct
-     * from keyboard focus. You get pointer focus by moving the pointer over
-     * a window.
-     */
-    seat_->pointer_notify_enter(surface, sx, sy);
-
-    if (!focus_changed) {
-      /* The enter event contains coordinates, so we only need to notify
-       * on motion if the focus did not change. */
-      seat_->pointer_motion(time, sx, sy);
-    }
-  } else {
-    /* Clear pointer focus so future button events and such are not sent to
-     * the last client to have the cursor over it. */
-    seat_->pointer_clear_focus();
-  }
-}
-
-void Server::view_minimized(View *view)
-{
-  view->minimize();
-
-  auto condition = [view](auto &el) { return el.get() == view; };
-  auto result = std::find_if(views_.begin(), views_.end(), condition);
-  if (result != views_.end()) {
-    auto resultValue = *result;
-    views_.erase(result);
-    views_.push_back(resultValue);
-  }
-
-  focus_top();
-}
-
-void Server::new_xdg_surface_notify(wl_listener *listener, void *data)
-{
-  auto xdg_surface = static_cast<wlr_xdg_surface*>(data);
-  if (xdg_surface->role != WLR_XDG_SURFACE_ROLE_TOPLEVEL) {
-    return;
-  }
-
-  Server *server = wl_container_of(listener, server, new_xdg_surface);
-
-  auto view = std::make_shared<XDGView>(xdg_surface,
-    server->cursor_.get(), server->layout_, server->seat_.get());
-
-  view->on_map.connect_member(server, &Server::view_mapped);
-  view->on_unmap.connect_member(server, &Server::view_unmapped);
-  view->on_minimize.connect_member(server, &Server::view_minimized);
-  view->on_damage.connect_member(server, &Server::view_damaged);
-  view->on_destroy.connect_member(server, &Server::view_destroyed);
-  view->on_move.connect_member(server, &Server::view_moved);
-
-  server->views_.push_back(view);
-}
-
-void Server::minimize_view(View *view)
-{
-  view->minimize();
-
-  auto condition = [view](auto &el) { return el.get() == view; };
-  auto result = std::find_if(views_.begin(), views_.end(), condition);
-  if (result != views_.end()) {
-    auto resultValue = *result;
-    views_.erase(result);
-    views_.push_back(resultValue);
-  }
-
-  focus_top();
-}
-
-void Server::maximize_view(View *view)
-{
-  view->maximize();
-
-  wlr_output* output = wlr_output_layout_output_at(layout_,
-    cursor_->x(), cursor_->y());
-
-  wlr_box *output_box = wlr_output_layout_get_box(layout_, output);
-  view->resize(output_box->width, output_box->height);
-  view->move(output_box->x, output_box->y);
-}
-
-void Server::focus_top()
-{
-  auto views = mapped_views();
-  if (views.empty()) return;
-
-  auto top_view = views.front();
-  top_view->focus();
-}
-
-void Server::minimize_top()
-{
-  auto views = mapped_views();
-  if (views.empty()) return;
-
-  auto top_view = views.front();
-  minimize_view(top_view.get());
-}
-
-void Server::toggle_maximize()
-{
-  auto views = mapped_views();
-  if (views.empty()) return;
-
-  auto top_view = views.front();
-  top_view->toggle_maximized();
-}
-
-void Server::dock_left()
-{
-  auto views = mapped_views();
-  if (views.empty()) return;
-
-  auto top_view = views.front();
-  top_view->tile_left();
-}
-
-void Server::dock_right()
-{
-  auto views = mapped_views();
-  if (views.empty()) return;
-
-  auto top_view = views.front();
-  top_view->tile_right();
-}
-
-void Server::init()
-{
-  // Disable atomic for smooth cursor
-  setenv("WLR_DRM_NO_ATOMIC", "1", true);
-  // Modifiers can stop hotplugging working correctly
-  setenv("WLR_DRM_NO_MODIFIERS", "1", true);
-
-  wlr_log_init(WLR_DEBUG, NULL);
-  spdlog::set_level(spdlog::level::debug);
-
-  display_ = wl_display_create();
-  backend_ = wlr_backend_autocreate(display_, NULL);
-  renderer_ = wlr_backend_get_renderer(backend_);
-  wlr_renderer_init_wl_display(renderer_, display_);
-
-  wlr_compositor_create(display_, renderer_);
-  wlr_data_device_manager_create(display_);
-
-  wlr_seat *seat = wlr_seat_create(display_, "seat0");
-  seat_ = std::make_unique<Seat>(seat);
-
-  layout_ = wlr_output_layout_create();
-
-  new_output.notify = new_output_notify;
-  wl_signal_add(&backend_->events.new_output, &new_output);
-
-  xdg_shell_ = wlr_xdg_shell_create(display_);
-
-  new_xdg_surface.notify = new_xdg_surface_notify;
-  wl_signal_add(&xdg_shell_->events.new_surface, &new_xdg_surface);
-
-  new_input.notify = new_input_notify;
-  wl_signal_add(&backend_->events.new_input, &new_input);
-
-  xcursor_manager_ = wlr_xcursor_manager_create("default", 24);
-
-  cursor_ = std::make_unique<Cursor>(layout_, seat_.get());
-  cursor_->on_button.connect_member(this, &Server::cursor_button);
-  cursor_->on_move.connect_member(this, &Server::cursor_moved);
-  seat_->set_pointer(cursor_.get());
-
-  wlr_data_control_manager_v1_create(display_);
-  wlr_primary_selection_v1_device_manager_create(display_);
-  output_manager_ = wlr_output_manager_v1_create(display_);
-  wlr_xdg_output_manager_v1_create(display_, layout_);
-  wlr_screencopy_manager_v1_create(display_);
-
-  const char *socket = wl_display_add_socket_auto(display_);
-  if (!socket) {
-    wlr_backend_destroy(backend_);
-    return;
-  }
-
-  if (!wlr_backend_start(backend_)) {
-    wlr_backend_destroy(backend_);
-    wl_display_destroy(display_);
-    return;
-  }
-
-  gtk_shell_create(display_);
-
-  setenv("WAYLAND_DISPLAY", socket, true);
-  spdlog::info("WAYLAND_DISPLAY={}", socket);
-
-  setenv("MOZ_ENABLE_WAYLAND", "1", true);
-  setenv("QT_QPA_PLATFORM", "wayland", true);
-  setenv("QT_QPA_PLATFORMTHEME", "gnome", true);
-  setenv("QT_QPA_PLATFORMTHEME", "gnome", true);
-  setenv("XDG_CURRENT_DESKTOP", "sway", true);
-  setenv("XDG_SESSION_TYPE", "wayland", true);
-
-  dbus_ = std::thread(Server::dbus_thread, this);
-
-  if (fork() == 0) {
-    execl("/bin/sh", "/bin/sh", "-c", "lumin-menu", NULL);
-  }
-
-  if (fork() == 0) {
-    execl("/bin/sh", "/bin/sh", "-c", "lumin-shell", NULL);
-  }
-}
-
-void Server::run()
-{
-  wl_display_run(display_);
-}
-
-void Server::destroy()
-{
-  spdlog::warn("quitting");
-
-  wl_display_destroy_clients(display_);
-  wlr_xcursor_manager_destroy(xcursor_manager_);
-  wlr_backend_destroy(backend_);
-  wlr_output_layout_destroy(layout_);
-  wl_display_destroy(display_);
-}
-
-void Server::lid_toggle_notify(wl_listener *listener, void *data)
-{
-  auto event = static_cast<wlr_event_switch_toggle *>(data);
-
-  if (event->switch_type != WLR_SWITCH_TYPE_LID) {
-    return;
-  }
-
-  Server *server = wl_container_of(listener, server, lid_toggle);
-  bool enabled = event->switch_state == WLR_SWITCH_STATE_OFF;
-  server->enable_builtin_screen(enabled);
-}
-
-void Server::enable_builtin_screen(bool enabled)
-{
-  const std::vector<std::string> laptop_screen_names = { "eDP-1", "LVDS1" };
-
-  for (auto &laptop_screen_name : laptop_screen_names) {
-    enable_output(laptop_screen_name, enabled);
-  }
-}
-
-void Server::enable_output(const std::string& name, bool enabled)
-{
-  auto lambda = [name](auto &output) -> bool { return output->is_named(name); };
-  auto it = std::find_if(outputs_.begin(), outputs_.end(), lambda);
-  if (it == outputs_.end()) {
-    return;
-  }
-
-  auto &output = (*it);
-  output->set_connected(enabled);
-  apply_layout();
-}
-
-void Server::new_keyboard(wlr_input_device *device)
-{
-  auto keyboard = std::make_shared<Keyboard>(device, seat_.get());
-  keyboard->setup();
-  keyboards_.push_back(keyboard);
   keyboard->on_key.connect_member(this, &Server::keyboard_key);
-}
-
-void Server::new_switch(wlr_input_device *device)
-{
-  spdlog::debug("new_switch");
-  lid_toggle.notify = lid_toggle_notify;
-  wl_signal_add(&device->switch_device->events.toggle, &lid_toggle);
+  keyboards_.push_back(keyboard);
 }
 
 View* Server::desktop_view_at(double lx, double ly,
@@ -711,13 +589,6 @@ Output* Server::primary_output() const
   return (*result).get();
 }
 
-Output* Server::output_at(int x, int y) const
-{
-  wlr_output* wlr_output = wlr_output_layout_output_at(layout_, cursor_->x(), cursor_->y());
-  Output *output = static_cast<Output*>(wlr_output->data);
-  return output;
-}
-
 void Server::position_view(View *view)
 {
   if (view->is_menubar()) {
@@ -727,8 +598,9 @@ void Server::position_view(View *view)
   }
 
   bool is_root = view->is_root();
+  auto cursor = platform_->cursor();
   if (is_root) {
-    Output *output = output_at(cursor_->x(), cursor_->y());
+    Output *output = platform_->output_at(cursor->x(), cursor->y());
     output->add_view(view);
     return;
   }
@@ -737,6 +609,10 @@ void Server::position_view(View *view)
   view->geometry(&geometry);
 
   View *parent_view = view->parent();
+
+  if (!parent_view) {
+    return;
+  }
 
   wlr_box parent_geometry;
   parent_view->geometry(&parent_geometry);

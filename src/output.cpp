@@ -47,7 +47,7 @@ Output::Output(
   , damage_(damage)
   , layout_(layout)
   , enabled_(false)
-  , connected_(true)
+  , connected_(false)
   , primary_(false)
   , software_cursors_(false)
   , enter_frames_left_(0)
@@ -74,7 +74,21 @@ bool Output::connected() const
 
 void Output::set_connected(bool connected)
 {
+  if (connected_ == connected) {
+    return;
+  }
+
   connected_ = connected;
+
+  if (connected_) {
+    spdlog::debug("{} connected", id());
+
+    on_connect.emit(this);
+  } else {
+    spdlog::debug("{} disconnected", id());
+
+    on_disconnect.emit(this);
+  }
 }
 
 bool Output::primary() const
@@ -517,6 +531,11 @@ void Output::unlock_software_cursors()
   }
   wlr_output_lock_software_cursors(wlr_output, false);
   software_cursors_ = false;
+}
+
+wlr_box* Output::box() const
+{
+  return wlr_output_layout_get_box(layout_, wlr_output);
 }
 
 }  // namespace lumin

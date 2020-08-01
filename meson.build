@@ -35,6 +35,8 @@ dependencies = [
 includes = include_directories(['include', 'protocols', 'vendor', 'dbus'])
 
 sources = [
+  'src/wlroots_platform.cpp',
+  'src/posix_os.cpp',
   'src/cursor.cpp',
   'src/gtk_shell/gtk_shell_wl.cpp',
   'src/gtk_shell/gtk_shell.cpp',
@@ -42,7 +44,6 @@ sources = [
   'src/key_binding.cpp',
   'src/keyboard.cpp',
   'src/xdg_shell_wl.cpp',
-  'src/main.cpp',
   'src/output.cpp',
   'src/seat.cpp',
   'src/server.cpp',
@@ -52,9 +53,38 @@ sources = [
   'src/xdg_view.cpp',
 ]
 
-executable(
+compositor = shared_library(
   'compositor',
   sources,
   include_directories: includes,
   dependencies: dependencies
+)
+
+executable(
+  'compositor',
+  'src/main.cpp',
+  include_directories: includes,
+  link_with: compositor,
+  dependencies: dependencies
+)
+
+gtest = dependency('gtest')
+gmock = dependency('gmock')
+
+tests_dependencies = [
+  gtest,
+  gmock
+]
+
+tests_sources = [
+  'tests/server_tests.cpp',
+  'tests/main.cpp'
+]
+
+executable(
+  'tests',
+  tests_sources,
+  include_directories: includes,
+  dependencies: [dependencies, tests_dependencies],
+  link_with: compositor
 )

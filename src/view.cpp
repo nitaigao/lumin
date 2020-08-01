@@ -98,11 +98,15 @@ bool View::view_at(double lx, double ly, wlr_surface **surface, double *sx, doub
 void View::minimize()
 {
   minimized = true;
+  on_minimize.emit(this);
 }
 
 void View::focus()
 {
   minimized = false;
+
+  on_focus.emit(this);
+
   activate();
   seat_->keyboard_notify_enter(surface());
 }

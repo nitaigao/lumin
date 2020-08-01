@@ -69,7 +69,6 @@ class Signal {
     disconnect_all();
   }
 
- private:
   mutable std::map<int, std::function<void(Args...)>> slots_;
   mutable int current_id_;
 };

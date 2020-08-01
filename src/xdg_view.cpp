@@ -226,7 +226,7 @@ void XDGView::xdg_toplevel_request_maximize_notify(wl_listener *listener, void *
 void XDGView::xdg_toplevel_request_minimize_notify(wl_listener *listener, void *data)
 {
   XDGView *view = wl_container_of(listener, view, request_minimize);
-  view->on_minimize.emit(view);
+  view->minimize();
 }
 
 void XDGView::xdg_toplevel_request_fullscreen_notify(wl_listener *listener, void *data)

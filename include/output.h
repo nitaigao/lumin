@@ -13,6 +13,7 @@ struct wlr_output_damage;
 struct wlr_output_layout;
 struct wlr_output;
 struct wlr_renderer;
+struct wlr_box;
 
 namespace lumin {
 
@@ -59,6 +60,8 @@ class Output {
   void set_position(int x, int y);
   void set_scale(int scale);
   void set_mode();
+
+  wlr_box* box() const;
 
   bool connected() const;
   void set_connected(bool connected);
@@ -111,6 +114,8 @@ class Output {
   Signal<Output*> on_destroy;
   Signal<Output*> on_frame;
   Signal<Output*> on_mode;
+  Signal<Output*> on_connect;
+  Signal<Output*> on_disconnect;
 };
 
 }  // namespace lumin

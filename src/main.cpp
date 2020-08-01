@@ -5,6 +5,6 @@ int main(int argc, char *argv[])
   lumin::Server server;
   server.init();
   server.run();
-  server.destroy();
+  // server.destroy();
   return 0;
 }
