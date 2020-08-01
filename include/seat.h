@@ -14,7 +14,9 @@ class Cursor;
 
 class Seat {
  public:
-  Seat(wlr_seat *seat);
+  ~Seat();
+
+  explicit Seat(wlr_seat *seat);
 
  public:
   void add_capability(unsigned int capability);

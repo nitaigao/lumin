@@ -49,6 +49,8 @@ sources = [
   'src/services/settings_service.cpp',
   'src/settings.cpp',
   'src/view.cpp',
+  'src/xwayland_view.cpp',
+  'src/xdg_view.cpp',
 ]
 
 executable(
