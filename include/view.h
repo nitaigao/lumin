@@ -44,120 +44,72 @@ typedef void (*wlr_surface_iterator_func_t)(struct wlr_surface *surface,
 
 class View {
  public:
-  View(wlr_xdg_surface *surface, Cursor *cursor, wlr_output_layout *layout, Seat *seat);
+  virtual ~View() { }
+  View(Cursor *cursor, wlr_output_layout *layout, Seat *seat);
 
  public:
-  void geometry(wlr_box *box) const;
-  void extents(wlr_box *box) const;
+  virtual void geometry(wlr_box *box) const = 0;
+  virtual void extents(wlr_box *box) const = 0;
 
-  void move(int x, int y);
-  void resize(double width, double height);
+  virtual void move(int x, int y) = 0;
+  virtual void resize(double width, double height) = 0;
 
   void toggle_maximized();
   void maximize();
   bool maximized() const;
   void minimize();
-
   bool fullscreen() const;
 
   bool tiled() const;
   void tile_left();
   void tile_right();
 
-  void windowize();
-
   void focus();
   void unfocus();
 
   ViewLayer layer() const;
 
-  std::string id() const;
-  std::string title() const;
+  virtual std::string id() const = 0;
+  virtual std::string title() const = 0;
 
-  void enter(const Output* output);
+  virtual void enter(const Output* output) = 0;
 
-  uint min_width() const;
-  uint min_height() const;
+  virtual uint min_width() const = 0;
+  virtual uint min_height() const = 0;
 
-  bool is_child() const;
-  bool is_root() const;
-  View* parent() const;
-  const View *root() const;
+  virtual bool is_root() const = 0;
+  virtual View* parent() const = 0;
+  virtual const View *root() const = 0;
+
+  virtual void set_tiled(int edges) = 0;
+  virtual void set_maximized(bool maximized) = 0;
+  virtual void set_size(int width, int height) = 0;
 
   bool view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
 
-  bool has_surface(const wlr_surface *surface) const;
-  void for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const;
-  wlr_surface* surface_at(double sx, double sy, double *sub_x, double *sub_y);
+  virtual bool has_surface(const wlr_surface *surface) const = 0;
+  virtual void for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const = 0;
+  virtual wlr_surface* surface_at(double sx, double sy, double *sub_x, double *sub_y) = 0;
 
   bool is_launcher() const;
   bool is_menubar() const;
   bool is_shell() const;
 
-  bool is_always_focused() const;
-  bool steals_focus() const;
-
- private:
-  void save_geometry();
   void grab();
-  void tile(int edges);
+
+  void windowize();
   bool windowed() const;
-  void activate();
-  void notify_keyboard_enter(wlr_seat *seat);
 
- public:
-  bool mapped;
-  double x, y;
-  bool minimized;
-  bool deleted;
+  void tile(int edges);
+  void save_geometry();
 
- public:
-  wl_listener map;
-  wl_listener unmap;
-  wl_listener commit;
-  wl_listener destroy;
-  wl_listener request_move;
-  wl_listener request_resize;
-  wl_listener request_maximize;
-  wl_listener request_minimize;
-  wl_listener request_fullscreen;
-  wl_listener new_subsurface;
-  wl_listener new_popup;
+  virtual void activate() = 0;
+  virtual void deactivate() = 0;
 
- public:
-  static void xdg_toplevel_request_maximize_notify(wl_listener *listener, void *data);
-  static void xdg_toplevel_request_minimize_notify(wl_listener *listener, void *data);
-  static void xdg_toplevel_request_fullscreen_notify(wl_listener *listener, void *data);
-  static void xdg_toplevel_request_move_notify(wl_listener *listener, void *data);
-  static void xdg_toplevel_request_resize_notify(wl_listener *listener, void *data);
+  virtual wlr_surface* surface() const = 0;
 
-  static void xdg_popup_commit_notify(wl_listener *listener, void *data);
-  static void xdg_popup_destroy_notify(wl_listener *listener, void *data);
-  static void xdg_popup_subsurface_commit_notify(wl_listener *listener, void *data);
-  static void xdg_subsurface_commit_notify(wl_listener *listener, void *data);
-  static void xdg_surface_commit_notify(wl_listener *listener, void *data);
-  static void xdg_surface_destroy_notify(wl_listener *listener, void *data);
-  static void xdg_surface_map_notify(wl_listener *listener, void *data);
-  static void xdg_surface_unmap_notify(wl_listener *listener, void *data);
-
-  static void new_popup_notify(wl_listener *listener, void *data);
-  static void new_popup_popup_notify(wl_listener *listener, void *data);
-  static void new_popup_subsurface_notify(wl_listener *listener, void *data);
-  static void new_subsurface_notify(wl_listener *listener, void *data);
-
- private:
-  WindowState state;
-
-  struct {
-    int width, height;
-    int x, y;
-  } saved_state_;
-
- private:
-  Cursor *cursor_;
-  wlr_output_layout *layout_;
-  Seat *seat_;
-  wlr_xdg_surface *xdg_surface_;
+  virtual bool steals_focus() const;
+  bool is_always_focused() const;
 
  public:
   Signal<View*> on_map;
@@ -166,22 +118,37 @@ class View {
   Signal<View*> on_damage;
   Signal<View*> on_destroy;
   Signal<View*> on_move;
+  Signal<View*> on_commit;
+
+ public:
+  bool mapped;
+  double x, y;
+  bool minimized;
+  bool deleted;
+
+ protected:
+  WindowState state;
+
+  struct {
+    int width, height;
+    int x, y;
+  } saved_state_;
+
+ protected:
+  Cursor *cursor_;
+  wlr_output_layout *layout_;
+  Seat *seat_;
 
  public:
   static const int MENU_HEIGHT = 27;
-};
 
-struct Subsurface {
+ protected:
+  wl_listener map;
+  wl_listener unmap;
   wl_listener commit;
-   View *view;
-};
-
-struct Popup {
-  wl_listener commit;
-  wl_listener destroy;
-  wl_listener new_subsurface;
-  wl_listener new_popup;
-  View *view;
+  wl_listener request_move;
+  wl_listener request_configure;
+  wl_listener request_maximize;
 };
 
 }  // namespace lumin

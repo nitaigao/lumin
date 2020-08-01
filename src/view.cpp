@@ -13,7 +13,7 @@ const int DEFAULT_MINIMUM_HEIGHT = 600;
 
 namespace lumin {
 
-View::View(wlr_xdg_surface *surface, Cursor *cursor, wlr_output_layout *layout, Seat *seat)
+View::View(Cursor *cursor, wlr_output_layout *layout, Seat *seat)
   : mapped(false)
   , x(0)
   , y(0)
@@ -28,96 +28,36 @@ View::View(wlr_xdg_surface *surface, Cursor *cursor, wlr_output_layout *layout, 
   , cursor_(cursor)
   , layout_(layout)
   , seat_(seat)
-  , xdg_surface_(surface)
 {
-  map.notify = View::xdg_surface_map_notify;
-  wl_signal_add(&xdg_surface_->events.map, &map);
 
-  unmap.notify = View::xdg_surface_unmap_notify;
-  wl_signal_add(&xdg_surface_->events.unmap, &unmap);
-
-  destroy.notify = View::xdg_surface_destroy_notify;
-  wl_signal_add(&xdg_surface_->events.destroy, &destroy);
-
-  commit.notify = View::xdg_surface_commit_notify;
-  wl_signal_add(&xdg_surface_->surface->events.commit, &commit);
-
-  new_subsurface.notify = View::new_subsurface_notify;
-  wl_signal_add(&xdg_surface_->surface->events.new_subsurface, &new_subsurface);
-
-  new_popup.notify = View::new_popup_notify;
-  wl_signal_add(&xdg_surface_->events.new_popup, &new_popup);
-
-  struct wlr_xdg_toplevel *toplevel = xdg_surface_->toplevel;
-
-  request_move.notify = View::xdg_toplevel_request_move_notify;
-  wl_signal_add(&toplevel->events.request_move, &request_move);
-
-  request_resize.notify = View::xdg_toplevel_request_resize_notify;
-  wl_signal_add(&toplevel->events.request_resize, &request_resize);
-
-  request_maximize.notify = View::xdg_toplevel_request_maximize_notify;
-  wl_signal_add(&toplevel->events.request_maximize, &request_maximize);
-
-  request_minimize.notify = View::xdg_toplevel_request_minimize_notify;
-  wl_signal_add(&toplevel->events.request_minimize, &request_minimize);
-
-  request_fullscreen.notify = View::xdg_toplevel_request_fullscreen_notify;
-  wl_signal_add(&toplevel->events.request_fullscreen, &request_fullscreen);
-
-  surface->data = this;
 }
 
-std::string View::id() const {
-  if (xdg_surface_->toplevel->app_id == nullptr) {
-    return "";
-  }
-
-  return xdg_surface_->toplevel->app_id;
-}
-
-std::string View::title() const {
-  return xdg_surface_->toplevel->title;
-}
-
-uint View::min_width() const {
-  return xdg_surface_->toplevel->current.min_width;
-}
-
-uint View::min_height() const {
-  return xdg_surface_->toplevel->current.min_height;
-}
-
-bool View::windowed() const {
+bool View::windowed() const
+{
   bool windowed = state == WM_WINDOW_STATE_WINDOW;
   return windowed;
 }
 
-void surface_send_enter(wlr_surface *surface, int sx, int sy, void *data) {
-  auto output = static_cast<wlr_output*>(data);
-  wlr_surface_send_enter(surface, output);
-}
-
-void View::enter(const Output* output) {
-  for_each_surface(surface_send_enter, output->wlr_output);
-}
-
-bool View::tiled() const {
+bool View::tiled() const
+{
   bool tiled = state == WM_WINDOW_STATE_TILED;
   return tiled;
 }
 
-bool View::fullscreen() const {
+bool View::fullscreen() const
+{
   bool fullscreen = state == WM_WINDOW_STATE_FULLSCREEN;
   return fullscreen;
 }
 
-bool View::maximized() const {
+bool View::maximized() const
+{
   bool maximised = state == WM_WINDOW_STATE_MAXIMIZED;
   return maximised;
 }
 
-void View::toggle_maximized() {
+void View::toggle_maximized()
+{
   bool is_maximised = maximized();
 
   if (is_maximised) {
@@ -127,7 +67,8 @@ void View::toggle_maximized() {
   }
 }
 
-bool View::view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy) {
+bool View::view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy)
+{
   if (!mapped) {
     return false;
   }
@@ -154,72 +95,65 @@ bool View::view_at(double lx, double ly, wlr_surface **surface, double *sx, doub
   return false;
 }
 
-void View::for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const {
-  if (xdg_surface_->surface == NULL) {
-    return;
-  }
-  wlr_xdg_surface_for_each_surface(xdg_surface_, iterator, data);
+void View::minimize()
+{
+  minimized = true;
 }
 
-void View::focus() {
+void View::focus()
+{
   minimized = false;
   activate();
-  seat_->keyboard_notify_enter(xdg_surface_->surface);
+  seat_->keyboard_notify_enter(surface());
 }
 
-void View::unfocus() {
+void View::unfocus()
+{
   if (is_always_focused()) {
     return;
   }
 
-  wlr_xdg_toplevel_set_activated(xdg_surface_, false);
+  deactivate();
 }
 
-bool View::steals_focus() const {
-  return !(is_menubar() || is_launcher());
+bool View::steals_focus() const
+{
+  return !(is_menubar() || is_launcher() || is_shell());
 }
 
-bool View::is_always_focused() const {
+bool View::is_always_focused() const
+{
   return is_menubar() || is_launcher();
 }
 
-ViewLayer View::layer() const {
+ViewLayer View::layer() const
+{
   if (is_menubar() || is_launcher()) {
     return VIEW_LAYER_OVERLAY;
   }
   return VIEW_LAYER_TOP;
 }
 
-bool View::is_menubar() const {
+bool View::is_menubar() const
+{
   bool result = id().compare("org.os.Menu") == 0;
   return result;
 }
 
-bool View::is_launcher() const {
+bool View::is_launcher() const
+{
   bool result = id().compare("org.os.Launcher") == 0;
   return result;
 }
 
-bool View::is_shell() const {
+bool View::is_shell() const
+{
   bool result = id().compare("org.os.Shell") == 0;
   return result;
 }
 
-void View::extents(struct wlr_box *box) const {
-  wlr_surface_get_extends(xdg_surface_->surface, box);
-
-  if (!xdg_surface_->geometry.width) {
-    return;
-  }
-
-  wlr_box_intersection(&xdg_surface_->geometry, box, box);
-}
-
-bool View::has_surface(const wlr_surface *surface) const {
-  return xdg_surface_->surface == surface;
-}
-
-void View::save_geometry() {
+void View::save_geometry()
+{
   if (state != WM_WINDOW_STATE_WINDOW) {
     return;
   }
@@ -236,7 +170,8 @@ void View::save_geometry() {
   saved_state_.y = y;
 }
 
-void View::tile_left() {
+void View::tile_left()
+{
   tile(WLR_EDGE_LEFT);
 
   wlr_box box;
@@ -246,6 +181,11 @@ void View::tile_left() {
   int corner_y = y + box.y + (box.height / 2.0f);
   wlr_output* output = wlr_output_layout_output_at(layout_, corner_x, corner_y);
 
+  if (output == nullptr) {
+    spdlog::warn("Failed to get output for tiling");
+    return;
+  }
+
   int width = (output->width / 2.0f) / output->scale;
   int height = output->height / output->scale;
   resize(width, height - MENU_HEIGHT);
@@ -254,7 +194,8 @@ void View::tile_left() {
   wlr_output_layout_output_coords(layout_, output, &x, &y);
 }
 
-void View::tile_right() {
+void View::tile_right()
+{
   tile(WLR_EDGE_RIGHT);
 
   wlr_box box;
@@ -263,6 +204,11 @@ void View::tile_right() {
   int corner_x = x + box.x + (box.width / 2.0f);
   int corner_y = y + box.y + (box.height / 2.0f);
   wlr_output* output = wlr_output_layout_output_at(layout_, corner_x, corner_y);
+
+  if (output == nullptr) {
+    spdlog::warn("Failed to get output for tiling");
+    return;
+  }
 
   int new_y = MENU_HEIGHT;
   int new_x = 0;
@@ -278,7 +224,64 @@ void View::tile_right() {
   move(new_x, new_y);
 }
 
-void View::tile(int edges) {
+void View::maximize()
+{
+  if (maximized()) {
+    return;
+  }
+
+  wlr_output* wlr_output = wlr_output_layout_output_at(layout_,
+    cursor_->x(), cursor_->y());
+
+  if (wlr_output == nullptr) {
+    spdlog::warn("Failed to get output for maximize");
+    return;
+  }
+
+  save_geometry();
+
+  bool is_tiled = tiled();
+  if (is_tiled) {
+    set_tiled(WLR_EDGE_NONE);
+  }
+
+  set_maximized(true);
+
+  Output *output = static_cast<Output*>(wlr_output->data);
+  output->maximize_view(this);
+
+  state = WM_WINDOW_STATE_MAXIMIZED;
+}
+
+void View::windowize()
+{
+  if (windowed()) {
+    return;
+  }
+
+  wlr_output *wlr_output = wlr_output_layout_output_at(layout_, cursor_->x(), cursor_->y());
+
+  if (wlr_output == nullptr) {
+    spdlog::warn("Failed to get output for windowize");
+    return;
+  }
+
+  if (tiled()) {
+    set_tiled(WLR_EDGE_NONE);
+  } else if (maximized()) {
+    set_maximized(false);
+  }
+
+  set_size(saved_state_.width, saved_state_.height);
+
+  Output *output = static_cast<Output*>(wlr_output->data);
+  output->move_view(this, saved_state_.x, saved_state_.y);
+
+  state = WM_WINDOW_STATE_WINDOW;
+}
+
+void View::tile(int edges)
+{
   if (tiled()) {
     return;
   }
@@ -287,57 +290,31 @@ void View::tile(int edges) {
 
   bool is_maximized = maximized();
   if (is_maximized) {
-    wlr_xdg_toplevel_set_maximized(xdg_surface_, false);
+    set_maximized(false);
   }
 
-  wlr_xdg_toplevel_set_tiled(xdg_surface_, edges);
+  set_tiled(edges);
   state = WM_WINDOW_STATE_TILED;
 }
 
-void View::minimize() {
-  minimized = true;
-}
-
-void View::maximize() {
-  if (maximized()) {
-    return;
-  }
-
-  save_geometry();
-
-  bool is_tiled = tiled();
-  if (is_tiled) {
-    wlr_xdg_toplevel_set_tiled(xdg_surface_, WLR_EDGE_NONE);
-  }
-
-  wlr_xdg_toplevel_set_maximized(xdg_surface_, true);
-
-  wlr_output* wlr_output = wlr_output_layout_output_at(layout_,
-    cursor_->x(), cursor_->y());
-
-  Output *output = static_cast<Output*>(wlr_output->data);
-  output->maximize_view(this);
-
-  state = WM_WINDOW_STATE_MAXIMIZED;
-}
-
-void View::grab() {
+void View::grab()
+{
   if (windowed()) {
     return;
   }
 
   if (tiled()) {
-    wlr_xdg_toplevel_set_tiled(xdg_surface_, WLR_EDGE_NONE);
+    set_tiled(WLR_EDGE_NONE);
   }
 
   if (maximized()) {
-    wlr_xdg_toplevel_set_maximized(xdg_surface_, false);
+    set_maximized(false);
   }
-
-  wlr_xdg_toplevel_set_size(xdg_surface_, saved_state_.width, saved_state_.height);
 
   wlr_box box;
   geometry(&box);
+
+  resize(saved_state_.width, saved_state_.height);
 
   float surface_x = cursor_->x() - x;
   float x_percentage = surface_x / box.width;
@@ -345,206 +322,6 @@ void View::grab() {
   x = cursor_->x() - desired_x;
 
   state = WM_WINDOW_STATE_WINDOW;
-}
-
-void View::windowize() {
-  if (windowed()) {
-    return;
-  }
-
-  if (tiled()) {
-    wlr_xdg_toplevel_set_tiled(xdg_surface_, WLR_EDGE_NONE);
-  } else if (maximized()) {
-    wlr_xdg_toplevel_set_maximized(xdg_surface_, false);
-  }
-
-  wlr_xdg_toplevel_set_size(xdg_surface_, saved_state_.width, saved_state_.height);
-
-  wlr_output *wlr_output = wlr_output_layout_output_at(layout_, cursor_->x(), cursor_->y());
-  Output *output = static_cast<Output*>(wlr_output->data);
-  output->move_view(this, saved_state_.x, saved_state_.y);
-
-  state = WM_WINDOW_STATE_WINDOW;
-}
-
-void View::geometry(wlr_box *box) const {
-  wlr_xdg_surface_get_geometry(xdg_surface_, box);
-}
-
-void View::activate() {
-  wlr_xdg_toplevel_set_activated(xdg_surface_, true);
-}
-
-void View::move(int new_x, int new_y) {
-  x = new_x;
-  y = new_y;
-
-  on_move.emit(this);
-}
-
-void View::resize(double width, double height) {
-  wlr_xdg_toplevel_set_size(xdg_surface_, width, height);
-}
-
-wlr_surface* View::surface_at(double sx, double sy, double *sub_x, double *sub_y) {
-  return wlr_xdg_surface_surface_at(xdg_surface_, sx, sy, sub_x, sub_y);
-}
-
-View* View::parent() const {
-  auto parent_view = static_cast<View*>(xdg_surface_->toplevel->parent->surface->data);
-  return parent_view;
-}
-
-bool View::is_root() const
-{
-  return !is_child();
-}
-
-bool View::is_child() const {
-  bool is_child = xdg_surface_->toplevel->parent != NULL;
-  return is_child;
-}
-
-const View* View::root() const {
-  if (xdg_surface_->toplevel->parent == NULL) {
-    return this;
-  }
-  return parent()->root();
-}
-
-void View::xdg_toplevel_request_move_notify(wl_listener *listener, void *data) {
-  View *view = wl_container_of(listener, view, request_move);
-  view->grab();
-  view->cursor_->begin_interactive(view, WM_CURSOR_MOVE, WLR_EDGE_NONE);
-}
-
-void View::xdg_toplevel_request_resize_notify(wl_listener *listener, void *data) {
-  auto event = static_cast<wlr_xdg_toplevel_resize_event*>(data);
-  View *view = wl_container_of(listener, view, request_resize);
-  view->cursor_->begin_interactive(view, WM_CURSOR_RESIZE, event->edges);
-}
-
-void View::xdg_toplevel_request_maximize_notify(wl_listener *listener, void *data) {
-  View *view = wl_container_of(listener, view, request_maximize);
-  view->toggle_maximized();
-}
-
-void View::xdg_toplevel_request_minimize_notify(wl_listener *listener, void *data) {
-  View *view = wl_container_of(listener, view, request_minimize);
-  view->on_minimize.emit(view);
-}
-
-void View::xdg_toplevel_request_fullscreen_notify(wl_listener *listener, void *data) {
-  auto event = static_cast<wlr_xdg_toplevel_set_fullscreen_event*>(data);
-  View *view = wl_container_of(listener, view, request_fullscreen);
-  view->state = event->fullscreen ? WM_WINDOW_STATE_FULLSCREEN : WM_WINDOW_STATE_WINDOW;
-}
-
-void View::xdg_surface_destroy_notify(wl_listener *listener, void *data) {
-  View *view = wl_container_of(listener, view, destroy);
-  view->on_destroy.emit(view);
-}
-
-void View::xdg_popup_subsurface_commit_notify(wl_listener *listener, void *data) {
-  Subsurface *subsurface = wl_container_of(listener, subsurface, commit);
-  subsurface->view->on_damage.emit(subsurface->view);
-}
-
-void View::xdg_subsurface_commit_notify(wl_listener *listener, void *data) {
-  Subsurface *subsurface = wl_container_of(listener, subsurface, commit);
-  subsurface->view->on_damage.emit(subsurface->view);
-}
-
-void View::xdg_popup_destroy_notify(wl_listener *listener, void *data) {
-  Popup *popup = wl_container_of(listener, popup, destroy);
-  popup->view->on_damage.emit(popup->view);
-}
-
-void View::xdg_popup_commit_notify(wl_listener *listener, void *data) {
-  Popup *popup = wl_container_of(listener, popup, commit);
-  popup->view->on_damage.emit(popup->view);
-}
-
-void View::xdg_surface_commit_notify(wl_listener *listener, void *data) {
-  View *view = wl_container_of(listener, view, commit);
-  if (view->mapped) {
-    view->on_damage.emit(view);
-  }
-}
-
-void View::new_popup_subsurface_notify(wl_listener *listener, void *data) {
-  auto *wlr_subsurface_ = static_cast<wlr_subsurface*>(data);
-  Popup *popup = wl_container_of(listener, popup, new_subsurface);
-
-  auto subsurface = new Subsurface();
-  subsurface->view = popup->view;
-
-  subsurface->commit.notify = xdg_popup_subsurface_commit_notify;
-  wl_signal_add(&wlr_subsurface_->surface->events.commit, &subsurface->commit);
-}
-
-void View::new_subsurface_notify(wl_listener *listener, void *data) {
-  auto *wlr_subsurface_ = static_cast<wlr_subsurface*>(data);
-  View *view = wl_container_of(listener, view, new_subsurface);
-
-  auto subsurface = new Subsurface();
-  subsurface->view = view;
-
-  subsurface->commit.notify = xdg_subsurface_commit_notify;
-  wl_signal_add(&wlr_subsurface_->surface->events.commit, &subsurface->commit);
-}
-
-void View::new_popup_popup_notify(wl_listener *listener, void *data) {
-  auto *xdg_popup = static_cast<wlr_xdg_popup*>(data);
-  Popup *parent_popup = wl_container_of(listener, parent_popup, new_popup);
-
-  auto popup = new Popup();
-  popup->view = parent_popup->view;
-
-  popup->commit.notify = xdg_popup_commit_notify;
-  wl_signal_add(&xdg_popup->base->surface->events.commit, &popup->commit);
-
-  popup->destroy.notify = xdg_popup_destroy_notify;
-  wl_signal_add(&xdg_popup->base->surface->events.destroy, &popup->destroy);
-
-  popup->new_subsurface.notify = new_popup_subsurface_notify;
-  wl_signal_add(&xdg_popup->base->surface->events.new_subsurface, &popup->new_subsurface);
-
-  popup->new_popup.notify = new_popup_popup_notify;
-  wl_signal_add(&xdg_popup->base->events.new_popup, &popup->new_popup);
-}
-
-void View::new_popup_notify(wl_listener *listener, void *data) {
-  auto *xdg_popup = static_cast<wlr_xdg_popup*>(data);
-
-  View *view = wl_container_of(listener, view, new_popup);
-
-  auto popup = new Popup();
-  popup->view = view;
-
-  popup->commit.notify = xdg_popup_commit_notify;
-  wl_signal_add(&xdg_popup->base->surface->events.commit, &popup->commit);
-
-  popup->destroy.notify = xdg_popup_destroy_notify;
-  wl_signal_add(&xdg_popup->base->surface->events.destroy, &popup->destroy);
-
-  popup->new_subsurface.notify = new_popup_subsurface_notify;
-  wl_signal_add(&xdg_popup->base->surface->events.new_subsurface, &popup->new_subsurface);
-
-  popup->new_popup.notify = new_popup_popup_notify;
-  wl_signal_add(&xdg_popup->base->events.new_popup, &popup->new_popup);
-}
-
-void View::xdg_surface_map_notify(wl_listener *listener, void *data) {
-  View *view = wl_container_of(listener, view, map);
-  view->mapped = true;
-  view->on_map.emit(view);
-}
-
-void View::xdg_surface_unmap_notify(wl_listener *listener, void *data) {
-  View *view = wl_container_of(listener, view, unmap);
-  view->mapped = false;
-  view->on_unmap.emit(view);
 }
 
 }  // namespace lumin

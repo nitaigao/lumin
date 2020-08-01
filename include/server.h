@@ -22,6 +22,8 @@ struct wlr_xdg_shell;
 struct wlr_surface;
 struct wlr_input_device;
 struct wlr_output_manager_v1;
+struct wlr_data_control_manager_v1;
+struct wlr_xcursor_manager;
 
 namespace lumin {
 
@@ -64,6 +66,8 @@ class Server {
 
   int add_keybinding(int key_code, int modifiers, int state);
 
+  std::vector<std::shared_ptr<View>> mapped_views() const;
+
  public:
   View* desktop_view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
   View* view_from_surface(wlr_surface *surface);
@@ -91,7 +95,7 @@ class Server {
  private:
   wl_listener new_input;
   wl_listener new_output;
-  wl_listener new_surface;
+  wl_listener new_xdg_surface;
 
   wl_listener lid_toggle;
 
@@ -101,7 +105,7 @@ class Server {
 
   static void new_input_notify(wl_listener *listener, void *data);
   static void new_output_notify(wl_listener *listener, void *data);
-  static void new_surface_notify(wl_listener *listener, void *data);
+  static void new_xdg_surface_notify(wl_listener *listener, void *data);
 
  private:
   void view_mapped(View *view);
@@ -121,12 +125,11 @@ class Server {
   void keyboard_key(uint32_t time_msec, uint32_t keycode, uint32_t modifiers, int state);
 
  private:
-
   static void dbus_thread(Server *server);
 
  private:
-
   static void purge_deleted_views(void *data);
+  static void purge_deleted_outputs(void *data);
 
  private:
   std::map<uint, KeyBinding> key_bindings;
@@ -142,11 +145,11 @@ class Server {
   wlr_backend *backend_;
   wlr_renderer *renderer_;
   wlr_output_manager_v1 *output_manager_;
+  wlr_xcursor_manager *xcursor_manager_;
 
   std::unique_ptr<Cursor> cursor_;
   std::unique_ptr<Settings> settings_;
   std::unique_ptr<Seat> seat_;
-
   std::unique_ptr<CompositorEndpoint> endpoint_;
 
   std::thread dbus_;

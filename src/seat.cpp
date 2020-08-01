@@ -7,6 +7,11 @@
 
 namespace lumin {
 
+Seat::~Seat()
+{
+  wlr_seat_destroy(seat_);
+}
+
 Seat::Seat(wlr_seat *seat)
   : seat_(seat)
   , cursor_(NULL)
