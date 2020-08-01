@@ -20,7 +20,6 @@
 #include "settings.h"
 #include "dbus/adapters/compositor.h"
 #include "xdg_view.h"
-#include "xwayland_view.h"
 
 #include "key_binding.h"
 
@@ -437,26 +436,6 @@ void Server::view_minimized(View *view)
   focus_top();
 }
 
-void Server::new_xwayland_surface_notify(wl_listener *listener, void *data)
-{
-  auto xwayland_surface = static_cast<wlr_xwayland_surface*>(data);
-
-  Server *server = wl_container_of(listener, server, new_xwayland_surface);
-
-  auto view = std::make_shared<XWaylandView>(xwayland_surface,
-    server->cursor_.get(), server->layout_, server->seat_.get());
-
-  view->on_map.connect_member(server, &Server::view_mapped);
-  view->on_unmap.connect_member(server, &Server::view_unmapped);
-  view->on_minimize.connect_member(server, &Server::view_minimized);
-  view->on_damage.connect_member(server, &Server::view_damaged);
-  view->on_destroy.connect_member(server, &Server::view_destroyed);
-  view->on_move.connect_member(server, &Server::view_moved);
-  view->on_commit.connect_member(server, &Server::view_moved);
-
-  server->views_.push_back(view);
-}
-
 void Server::new_xdg_surface_notify(wl_listener *listener, void *data)
 {
   auto xdg_surface = static_cast<wlr_xdg_surface*>(data);
@@ -566,7 +545,7 @@ void Server::init()
   renderer_ = wlr_backend_get_renderer(backend_);
   wlr_renderer_init_wl_display(renderer_, display_);
 
-  auto compositor = wlr_compositor_create(display_, renderer_);
+  wlr_compositor_create(display_, renderer_);
   wlr_data_device_manager_create(display_);
 
   wlr_seat *seat = wlr_seat_create(display_, "seat0");
@@ -586,13 +565,6 @@ void Server::init()
   wl_signal_add(&backend_->events.new_input, &new_input);
 
   xcursor_manager_ = wlr_xcursor_manager_create("default", 24);
-
-  xwayland_ = wlr_xwayland_create(display_, compositor, false);
-  wlr_xwayland_set_seat(xwayland_, seat);
-  spdlog::info("XWAYLAND DISPLAY={}", xwayland_->display_name);
-
-  new_xwayland_surface.notify = new_xwayland_surface_notify;
-  wl_signal_add(&xwayland_->events.new_surface , &new_xwayland_surface);
 
   cursor_ = std::make_unique<Cursor>(layout_, seat_.get());
   cursor_->on_button.connect_member(this, &Server::cursor_button);
@@ -628,7 +600,6 @@ void Server::init()
   setenv("QT_QPA_PLATFORMTHEME", "gnome", true);
   setenv("XDG_CURRENT_DESKTOP", "sway", true);
   setenv("XDG_SESSION_TYPE", "wayland", true);
-  setenv("DISPLAY", xwayland_->display_name, true);
 
   dbus_ = std::thread(Server::dbus_thread, this);
 
@@ -650,7 +621,6 @@ void Server::destroy()
 {
   spdlog::warn("quitting");
 
-  wlr_xwayland_destroy(xwayland_);
   wl_display_destroy_clients(display_);
   wlr_xcursor_manager_destroy(xcursor_manager_);
   wlr_backend_destroy(backend_);

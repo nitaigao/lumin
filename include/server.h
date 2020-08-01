@@ -23,7 +23,6 @@ struct wlr_surface;
 struct wlr_input_device;
 struct wlr_output_manager_v1;
 struct wlr_data_control_manager_v1;
-struct wlr_xwayland;
 struct wlr_xcursor_manager;
 
 namespace lumin {
@@ -97,7 +96,6 @@ class Server {
   wl_listener new_input;
   wl_listener new_output;
   wl_listener new_xdg_surface;
-  wl_listener new_xwayland_surface;
 
   wl_listener lid_toggle;
 
@@ -108,7 +106,6 @@ class Server {
   static void new_input_notify(wl_listener *listener, void *data);
   static void new_output_notify(wl_listener *listener, void *data);
   static void new_xdg_surface_notify(wl_listener *listener, void *data);
-  static void new_xwayland_surface_notify(wl_listener *listener, void *data);
 
  private:
   void view_mapped(View *view);
@@ -148,7 +145,6 @@ class Server {
   wlr_backend *backend_;
   wlr_renderer *renderer_;
   wlr_output_manager_v1 *output_manager_;
-  wlr_xwayland *xwayland_;
   wlr_xcursor_manager *xcursor_manager_;
 
   std::unique_ptr<Cursor> cursor_;
