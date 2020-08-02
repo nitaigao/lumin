@@ -18,6 +18,7 @@ wayland_protocols = dependency('wayland-protocols', version: '>=1.17')
 wayland_server = dependency('wayland-server')
 wlroots = dependency('wlroots')
 xkbcommon = dependency('xkbcommon')
+yamlcpp = dependency('yaml-cpp')
 
 dependencies = [
   dbuscpp,
@@ -29,7 +30,8 @@ dependencies = [
   wayland_protocols,
   wayland_server,
   wlroots,
-  xkbcommon
+  xkbcommon,
+  yamlcpp
 ]
 
 includes = include_directories(['include', 'protocols', 'vendor', 'dbus'])
@@ -37,6 +39,7 @@ includes = include_directories(['include', 'protocols', 'vendor', 'dbus'])
 sources = [
   'src/wlroots_platform.cpp',
   'src/posix_os.cpp',
+  'src/display_config.cpp',
   'src/cursor.cpp',
   'src/gtk_shell/gtk_shell_wl.cpp',
   'src/gtk_shell/gtk_shell.cpp',

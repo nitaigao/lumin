@@ -37,16 +37,22 @@ class CompositorEndpoint;
 class View;
 class IPlatform;
 class IOS;
+class IDisplayConfig;
+class IOutput;
 
 class Server
 {
-public:
+ public:
   ~Server();
 
   Server();
-  Server(std::unique_ptr<IPlatform> &platform, std::unique_ptr<IOS> &ios);
 
-public:
+  Server(
+    std::unique_ptr<IPlatform> &platform,
+    std::unique_ptr<IOS> &os,
+    std::unique_ptr<IDisplayConfig> &display_config);
+
+ public:
   bool init();
   void run();
   void destroy();
@@ -68,13 +74,13 @@ public:
 
   int add_keybinding(int key_code, int modifiers, int state);
 
-public:
+ public:
   View *desktop_view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
   View *view_from_surface(wlr_surface *surface);
 
   std::vector<std::string> apps() const;
 
-private:
+ private:
   void focus_top();
 
   void position_view(View *view);
@@ -105,7 +111,8 @@ private:
   void output_destroyed(Output *output);
   void output_frame(Output *output);
   void output_mode(Output *output);
-  void output_changed_state(Output *output);
+  void output_connected(IOutput *output);
+  void output_disconnected(Output *output);
 
   void lid_switch(bool enabled);
 
@@ -120,11 +127,12 @@ private:
   std::map<uint, KeyBinding> key_bindings;
 
   std::vector<std::shared_ptr<Keyboard>> keyboards_;
-  std::vector<std::shared_ptr<Output>> outputs_;
+  std::vector<std::shared_ptr<IOutput>> outputs_;
   std::vector<std::shared_ptr<View>> views_;
 
   std::unique_ptr<IPlatform> platform_;
   std::unique_ptr<IOS> os_;
+  std::unique_ptr<IDisplayConfig> display_config_;
 
   std::unique_ptr<Settings> settings_;
   std::unique_ptr<CompositorEndpoint> endpoint_;

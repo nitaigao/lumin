@@ -32,9 +32,20 @@ struct damage_iterator_data {
 
 Output::~Output()
 {
+  wl_list_init(&frame_.link);
   wl_list_remove(&frame_.link);
+
+  wl_list_init(&destroy_.link);
   wl_list_remove(&destroy_.link);
 }
+
+Output::Output()
+  : deleted_(false)
+  , enabled_(false)
+  , connected_(false)
+  , primary_(false)
+  , software_cursors_(false)
+  , enter_frames_left_(0) {}
 
 Output::Output(
   struct wlr_output *output,
@@ -42,15 +53,9 @@ Output::Output(
   wlr_output_damage *damage,
   wlr_output_layout *layout)
   : wlr_output(output)
-  , deleted(false)
   , renderer_(renderer)
   , damage_(damage)
   , layout_(layout)
-  , enabled_(false)
-  , connected_(false)
-  , primary_(false)
-  , software_cursors_(false)
-  , enter_frames_left_(0)
 {
   destroy_.notify = Output::output_destroy_notify;
   wl_signal_add(&wlr_output->events.destroy, &destroy_);
@@ -81,14 +86,23 @@ void Output::set_connected(bool connected)
   connected_ = connected;
 
   if (connected_) {
-    spdlog::debug("{} connected", id());
-
     on_connect.emit(this);
   } else {
-    spdlog::debug("{} disconnected", id());
-
     on_disconnect.emit(this);
   }
+}
+
+void Output::configure(int scale, bool primary)
+{
+  spdlog::debug("Configuring {} scale:{}", id(), scale);
+  set_enabled(true);
+  set_scale(scale);
+  set_mode();
+  commit();
+
+  add_layout(0, 0);
+  set_primary(primary);
+  take_whole_damage();
 }
 
 bool Output::primary() const
@@ -500,6 +514,14 @@ void Output::set_scale(int scale)
   wlr_output_set_scale(wlr_output, scale);
 }
 
+bool Output::deleted() const {
+  return deleted_;
+}
+
+void Output::mark_deleted() {
+  deleted_ = true;
+}
+
 void Output::set_position(int x, int y)
 {
   wlr_output_layout_move(layout_, wlr_output, x, y);
@@ -512,7 +534,7 @@ void Output::remove_layout()
 
 void Output::add_layout(int x, int y)
 {
-  wlr_output_layout_add(layout_, wlr_output, x, y);
+  wlr_output_layout_add_auto(layout_, wlr_output);
 }
 
 void Output::lock_software_cursors()

@@ -24,6 +24,7 @@
 #include "xdg_view.h"
 
 #include "key_binding.h"
+#include "display_config.h"
 
 namespace lumin {
 
@@ -34,11 +35,17 @@ Server::Server()
   settings_ = std::make_unique<Settings>();
   platform_ = std::make_unique<WlRootsPlatform>();
   os_ = std::make_unique<PosixOS>();
+  display_config_ = std::make_unique<DisplayConfig>();
 }
 
-Server::Server(std::unique_ptr<IPlatform>& platform, std::unique_ptr<IOS>& os)
+Server::Server(
+  std::unique_ptr<IPlatform>& platform,
+  std::unique_ptr<IOS>& os,
+  std::unique_ptr<IDisplayConfig>& display_config
+)
   : platform_(std::move(platform))
   , os_(std::move(os))
+  , display_config_(std::move(display_config))
 {
 }
 
@@ -193,7 +200,7 @@ void Server::view_focused(View *view)
 void Server::purge_deleted_outputs(void *data)
 {
   Server *server = static_cast<Server*>(data);
-  std::erase_if(server->outputs_, [](const auto &el) { return el.get()->deleted; });
+  std::erase_if(server->outputs_, [](const auto &el) { return el.get()->deleted(); });
 }
 
 void Server::output_destroyed(Output *output)
@@ -201,7 +208,7 @@ void Server::output_destroyed(Output *output)
   auto condition = [output](auto &el) { return el.get() == output; };
   auto result = std::find_if(outputs_.begin(), outputs_.end(), condition);
   if (result != outputs_.end()) {
-    (*result)->deleted = true;
+    (*result)->mark_deleted();
   }
 
   platform_->add_idle(&Server::purge_deleted_outputs, this);
@@ -371,8 +378,8 @@ void Server::output_created(const std::shared_ptr<Output>& output)
   output->on_destroy.connect_member(this, &Server::output_destroyed);
   output->on_frame.connect_member(this, &Server::output_frame);
   output->on_mode.connect_member(this, &Server::output_mode);
-  output->on_connect.connect_member(this, &Server::output_changed_state);
-  output->on_disconnect.connect_member(this, &Server::output_changed_state);
+  output->on_connect.connect_member(this, &Server::output_connected);
+  output->on_disconnect.connect_member(this, &Server::output_disconnected);
 
   output->set_connected(true);
 }
@@ -493,61 +500,23 @@ void Server::enable_output(const std::string& name, bool enabled)
   output->set_connected(enabled);
 }
 
-void Server::output_changed_state(Output* _output)
+void Server::output_disconnected(Output* output)
 {
-  auto layout = settings_->display_find_layout(outputs_);
+  output->set_enabled(false);
+  output->remove_layout();
+  output->commit();
+}
 
-  std::map<Output*, DisplaySetting> enabled_outputs;
-  std::map<Output*, DisplaySetting> disabled_outputs;
-
-  for (auto &output : outputs_) {
-    DisplaySetting display = layout[output->id()];
-    spdlog::debug("{} scale:{} x:{} y:{} enabled:{}", output->id(),
-      display.scale, display.x, display.y, display.enabled);
-
-    if (output->connected() && display.enabled) {
-      enabled_outputs.insert(std::make_pair(output.get(), display));
-    } else {
-      disabled_outputs.insert(std::make_pair(output.get(), display));
-    }
-  }
-
+void Server::output_connected(IOutput* output)
+{
   auto cursor = platform_->cursor();
+  auto display_config = display_config_->find_layout(outputs_);
 
-  for (auto& [output, display] : enabled_outputs) {
-    cursor->load_scale(display.scale);
-
-    output->set_enabled(true);
-    output->set_scale(display.scale);
-    output->set_mode();
-    output->commit();
-
-    output->remove_layout();
-
-    output->add_layout(display.x, display.y);
-    output->set_primary(display.primary);
-
-    if (display.primary) {
-      output->place_cursor(cursor.get());
-
-      auto mapped_views = filter_mapped_views(views_);
-      for (auto &view : mapped_views) {
-        if (view->is_menubar()) {
-          output->set_menubar(view.get());
-        }
-      }
-    }
+  for (auto& output : outputs_) {
+    auto config = display_config[output->id()];
+    cursor->load_scale(config.scale);
+    output->configure(config.scale, config.primary);
   }
-
-  for (auto& [output, display] : disabled_outputs) {
-    output->set_primary(false);
-    output->set_enabled(false);
-    output->commit();
-
-    output->remove_layout();
-  }
-
-  damage_outputs();
 }
 
 void Server::keyboard_created(const std::shared_ptr<Keyboard>& keyboard)
@@ -586,7 +555,7 @@ Output* Server::primary_output() const
     return nullptr;
   }
 
-  return (*result).get();
+  return (Output*)(*result).get();
 }
 
 void Server::position_view(View *view)
