@@ -37,8 +37,8 @@ Server::Server()
 }
 
 Server::Server(std::unique_ptr<IPlatform>& platform, std::unique_ptr<IOS>& os)
- : platform_(std::move(platform))
- , os_(std::move(os))
+  : platform_(std::move(platform))
+  , os_(std::move(os))
 {
 }
 
