@@ -1,5 +1,7 @@
-#ifndef IPLATFORM_H
-#define IPLATFORM_H
+#ifndef IPLATFORM_H_
+#define IPLATFORM_H_
+
+#include <memory>
 
 #include "signal.hpp"
 
@@ -14,11 +16,10 @@ class View;
 typedef void (*idle_func)(void* data);
 
 class IPlatform {
-
-public:
+ public:
   virtual ~IPlatform() { }
 
-public:
+ public:
   virtual bool init() = 0;
   virtual bool start() = 0;
   virtual void run() = 0;
@@ -31,10 +32,10 @@ public:
   virtual void add_idle(idle_func function, void *data) = 0;
   virtual Output* output_at(int x, int y) const = 0;
 
-public:
-  Signal<std::shared_ptr<Keyboard>&> on_new_keyboard;
-  Signal<std::shared_ptr<Output>&> on_new_output;
-  Signal<std::shared_ptr<View>&> on_new_view;
+ public:
+  Signal<const std::shared_ptr<Keyboard>&> on_new_keyboard;
+  Signal<const std::shared_ptr<Output>&> on_new_output;
+  Signal<const std::shared_ptr<View>&> on_new_view;
 
   Signal<Cursor*, int, int, uint32_t> on_cursor_motion;
   Signal<Cursor*, int, int> on_cursor_button;
@@ -44,4 +45,4 @@ public:
 
 }  // namespace lumin
 
-#endif
+#endif  // IPLATFORM_H_

@@ -364,7 +364,7 @@ void Server::dock_right()
   top_view->tile_right();
 }
 
-void Server::output_created(std::shared_ptr<Output>& output)
+void Server::output_created(const std::shared_ptr<Output>& output)
 {
   outputs_.push_back(output);
 
@@ -377,7 +377,7 @@ void Server::output_created(std::shared_ptr<Output>& output)
   output->set_connected(true);
 }
 
-void Server::view_created(std::shared_ptr<View>& view)
+void Server::view_created(const std::shared_ptr<View>& view)
 {
   spdlog::debug("{} view launched", view->id());
 
@@ -550,7 +550,7 @@ void Server::output_changed_state(Output* _output)
   damage_outputs();
 }
 
-void Server::keyboard_created(std::shared_ptr<Keyboard>& keyboard)
+void Server::keyboard_created(const std::shared_ptr<Keyboard>& keyboard)
 {
   keyboard->on_key.connect_member(this, &Server::keyboard_key);
   keyboards_.push_back(keyboard);
