@@ -1,17 +1,19 @@
-#ifndef POSIX_OS_H
-#define POSIX_OS_H
+#ifndef POSIX_OS_H_
+#define POSIX_OS_H_
+
+#include <string>
 
 #include "ios.h"
 
 namespace lumin {
 
 class PosixOS : public IOS {
-
-public:
+ public:
   void set_env(const std::string& name, const std::string& value);
-
+  std::string open_file(const std::string& filepath);
+  void execute(const std::string& command);
 };
 
-} // namespace lumin
+}  // namespace lumin
 
-#endif
+#endif  // POSIX_OS_H_

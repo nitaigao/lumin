@@ -19,10 +19,14 @@ struct wlr_xcursor_manager;
 
 namespace lumin {
 
+class ICursor;
 class Cursor;
 class Seat;
 
 class WlRootsPlatform : public IPlatform {
+ public:
+  WlRootsPlatform();
+  explicit WlRootsPlatform(const std::shared_ptr<ICursor>& cursor);
 
  public:
   bool init();
@@ -32,11 +36,12 @@ class WlRootsPlatform : public IPlatform {
   void terminate();
 
   std::shared_ptr<Seat> seat() const;
-  std::shared_ptr<Cursor> cursor() const;
+  std::shared_ptr<ICursor> cursor() const;
 
   void add_idle(idle_func func, void *data);
 
   Output* output_at(int x, int y) const;
+
 
  private:
   wl_display *display_;
@@ -48,7 +53,6 @@ class WlRootsPlatform : public IPlatform {
   wlr_output_manager_v1 *output_manager_;
 
   std::shared_ptr<Seat> seat_;
-  std::shared_ptr<Cursor> cursor_;
 
  private:
   static void new_input_notify(wl_listener *listener, void *data);
@@ -69,6 +73,9 @@ class WlRootsPlatform : public IPlatform {
   wl_listener new_output;
   wl_listener new_surface;
   wl_listener lid_toggle;
+
+ private:
+  std::shared_ptr<ICursor> cursor_;
 };
 
 }  // namespace lumin

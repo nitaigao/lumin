@@ -7,7 +7,7 @@
 
 namespace lumin {
 
-class Cursor;
+class ICursor;
 class Output;
 class Keyboard;
 class Seat;
@@ -27,7 +27,7 @@ class IPlatform {
   virtual void terminate() = 0;
 
   virtual std::shared_ptr<Seat> seat() const = 0;
-  virtual std::shared_ptr<Cursor> cursor() const = 0;
+  virtual std::shared_ptr<ICursor> cursor() const = 0;
 
   virtual void add_idle(idle_func function, void *data) = 0;
   virtual Output* output_at(int x, int y) const = 0;
@@ -36,9 +36,6 @@ class IPlatform {
   Signal<const std::shared_ptr<Keyboard>&> on_new_keyboard;
   Signal<const std::shared_ptr<Output>&> on_new_output;
   Signal<const std::shared_ptr<View>&> on_new_view;
-
-  Signal<Cursor*, int, int, uint32_t> on_cursor_motion;
-  Signal<Cursor*, int, int> on_cursor_button;
 
   Signal<bool> on_lid_switch;
 };

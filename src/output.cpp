@@ -52,11 +52,13 @@ Output::Output(
   wlr_renderer *renderer,
   wlr_output_damage *damage,
   wlr_output_layout *layout)
-  : wlr_output(output)
-  , renderer_(renderer)
-  , damage_(damage)
-  , layout_(layout)
+  : Output()
 {
+  wlr_output = output;
+  renderer_ = renderer;
+  damage_ = damage;
+  layout_ = layout;
+
   destroy_.notify = Output::output_destroy_notify;
   wl_signal_add(&wlr_output->events.destroy, &destroy_);
 
@@ -88,6 +90,7 @@ void Output::set_connected(bool connected)
   if (connected_) {
     on_connect.emit(this);
   } else {
+    remove_layout();
     on_disconnect.emit(this);
   }
 }

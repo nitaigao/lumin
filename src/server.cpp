@@ -32,20 +32,22 @@ Server::~Server() {}
 
 Server::Server()
 {
-  settings_ = std::make_unique<Settings>();
-  platform_ = std::make_unique<WlRootsPlatform>();
-  os_ = std::make_unique<PosixOS>();
-  display_config_ = std::make_unique<DisplayConfig>();
+  settings_ = std::make_shared<Settings>();
+  platform_ = std::make_shared<WlRootsPlatform>();
+  os_ = std::make_shared<PosixOS>();
+  display_config_ = std::make_shared<DisplayConfig>(os_);
 }
 
 Server::Server(
-  std::unique_ptr<IPlatform>& platform,
-  std::unique_ptr<IOS>& os,
-  std::unique_ptr<IDisplayConfig>& display_config
+  const std::shared_ptr<IPlatform>& platform,
+  const std::shared_ptr<IOS>& os,
+  const std::shared_ptr<IDisplayConfig>& display_config,
+  const std::shared_ptr<ICursor>& cursor
 )
-  : platform_(std::move(platform))
-  , os_(std::move(os))
-  , display_config_(std::move(display_config))
+  : platform_(platform)
+  , os_(os)
+  , display_config_(display_config)
+  , cursor_(cursor)
 {
 }
 
@@ -287,7 +289,7 @@ void Server::lid_switch(bool enabled)
   }
 }
 
-void Server::cursor_button(Cursor *cursor, int x, int y)
+void Server::cursor_button(ICursor *cursor, int x, int y)
 {
   double sx, sy;
   wlr_surface *surface;
@@ -315,10 +317,9 @@ void Server::view_minimized(View *view)
 
 void Server::maximize_view(View *view)
 {
-  auto cursor = platform_->cursor();
   view->maximize();
 
-  auto output = platform_->output_at(cursor->x(), cursor->y());
+  auto output = platform_->output_at(cursor_->x(), cursor_->y());
   wlr_box *output_box = output->box();
 
   view->resize(output_box->width, output_box->height);
@@ -378,8 +379,8 @@ void Server::output_created(const std::shared_ptr<Output>& output)
   output->on_destroy.connect_member(this, &Server::output_destroyed);
   output->on_frame.connect_member(this, &Server::output_frame);
   output->on_mode.connect_member(this, &Server::output_mode);
-  output->on_connect.connect_member(this, &Server::output_connected);
-  output->on_disconnect.connect_member(this, &Server::output_disconnected);
+  output->on_connect.connect_member(this, &Server::outputs_changed);
+  output->on_disconnect.connect_member(this, &Server::outputs_changed);
 
   output->set_connected(true);
 }
@@ -399,7 +400,7 @@ void Server::view_created(const std::shared_ptr<View>& view)
   views_.push_back(view);
 }
 
-void Server::cursor_motion(Cursor* cursor, int x, int y, uint32_t time)
+void Server::cursor_motion(ICursor* cursor, int x, int y, uint32_t time)
 {
   /* Otherwise, find the view under the pointer and send the event along. */
   double sx, sy;
@@ -445,12 +446,15 @@ bool Server::init()
     return false;
   }
 
+  cursor_ = platform_->cursor();
+
   platform_->on_new_output.connect_member(this, &Server::output_created);
   platform_->on_new_view.connect_member(this, &Server::view_created);
   platform_->on_new_keyboard.connect_member(this, &Server::keyboard_created);
-  platform_->on_cursor_motion.connect_member(this, &Server::cursor_motion);
-  platform_->on_cursor_button.connect_member(this, &Server::cursor_button);
   platform_->on_lid_switch.connect_member(this, &Server::lid_switch);
+
+  cursor_->on_button.connect_member(this, &Server::cursor_button);
+  cursor_->on_move.connect_member(this, &Server::cursor_motion);
 
   bool platform_start_result = platform_->start();
   if (!platform_start_result) {
@@ -465,13 +469,8 @@ bool Server::init()
 
   dbus_ = std::thread(Server::dbus_thread, this);
 
-  if (fork() == 0) {
-    execl("/bin/sh", "/bin/sh", "-c", "lumin-menu", NULL);
-  }
-
-  if (fork() == 0) {
-    execl("/bin/sh", "/bin/sh", "-c", "lumin-shell", NULL);
-  }
+  os_->execute("lumin-menu");
+  os_->execute("lumin-shell");
 
   return true;
 }
@@ -500,21 +499,20 @@ void Server::enable_output(const std::string& name, bool enabled)
   output->set_connected(enabled);
 }
 
-void Server::output_disconnected(Output* output)
+void Server::outputs_changed(IOutput* _output)
 {
-  output->set_enabled(false);
-  output->remove_layout();
-  output->commit();
-}
-
-void Server::output_connected(IOutput* output)
-{
-  auto cursor = platform_->cursor();
   auto display_config = display_config_->find_layout(outputs_);
+  for (auto& configKV : display_config) {
+    auto name = configKV.first;
 
-  for (auto& output : outputs_) {
-    auto config = display_config[output->id()];
-    cursor->load_scale(config.scale);
+    auto it = std::find_if(outputs_.begin(), outputs_.end(),
+      [name](auto &output) -> bool { return name.compare(output->id()) == 0; });
+
+    if (it == outputs_.end()) continue;
+
+    auto output = (*it);
+    auto config = configKV.second;
+    cursor_->load_scale(config.scale);
     output->configure(config.scale, config.primary);
   }
 }
@@ -526,7 +524,8 @@ void Server::keyboard_created(const std::shared_ptr<Keyboard>& keyboard)
 }
 
 View* Server::desktop_view_at(double lx, double ly,
-  wlr_surface **surface, double *sx, double *sy) {
+  wlr_surface **surface, double *sx, double *sy)
+{
   for (auto &view : views_) {
     if (view->view_at(lx, ly, surface, sx, sy)) {
       return view.get();
@@ -567,9 +566,8 @@ void Server::position_view(View *view)
   }
 
   bool is_root = view->is_root();
-  auto cursor = platform_->cursor();
   if (is_root) {
-    Output *output = platform_->output_at(cursor->x(), cursor->y());
+    Output *output = platform_->output_at(cursor_->x(), cursor_->y());
     output->add_view(view);
     return;
   }

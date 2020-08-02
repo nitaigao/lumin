@@ -30,6 +30,7 @@ class IOutput {
   virtual void take_damage(const View *view) = 0;
   virtual void take_whole_damage() = 0;
   virtual bool is_named(const std::string& name) const = 0;
+  virtual bool connected() const = 0;
   virtual void set_connected(bool connected) = 0;
   virtual bool deleted() const = 0;
   virtual void mark_deleted() = 0;
@@ -137,7 +138,7 @@ class Output : public IOutput {
   Signal<Output*> on_frame;
   Signal<Output*> on_mode;
   Signal<IOutput*> on_connect;
-  Signal<Output*> on_disconnect;
+  Signal<IOutput*> on_disconnect;
 };
 
 }  // namespace lumin

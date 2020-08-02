@@ -27,7 +27,7 @@ class Server;
 
 class XDGView : public View {
  public:
-  XDGView(wlr_xdg_surface *surface, Cursor *cursor, wlr_output_layout *layout, Seat *seat);
+  XDGView(wlr_xdg_surface *surface, ICursor *cursor, wlr_output_layout *layout, Seat *seat);
 
  public:
   void geometry(wlr_box *box) const;

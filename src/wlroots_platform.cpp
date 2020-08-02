@@ -13,6 +13,17 @@
 
 namespace lumin {
 
+WlRootsPlatform::WlRootsPlatform()
+{
+
+}
+
+WlRootsPlatform::WlRootsPlatform(const std::shared_ptr<ICursor>& cursor)
+  : cursor_(cursor)
+{
+
+}
+
 bool WlRootsPlatform::init()
 {
   //  Disable atomic for smooth cursor
@@ -111,7 +122,6 @@ bool WlRootsPlatform::init()
     return false;
   }
 
-
   auto screencopy_manager = wlr_screencopy_manager_v1_create(display_);
 
   if (!screencopy_manager) {
@@ -128,13 +138,11 @@ bool WlRootsPlatform::init()
     return false;
   }
 
+
   seat_ = std::make_shared<Seat>(seat);
+  cursor_ = std::make_shared<Cursor>(layout_, seat_.get());
 
-  cursor_ = std::make_unique<Cursor>(layout_, seat_.get());
-  cursor_->on_button.connect_member(this, &WlRootsPlatform::handle_cursor_button);
-  cursor_->on_move.connect_member(this, &WlRootsPlatform::handle_cursor_moved);
-
-  seat_->set_pointer(cursor_.get());
+  seat_->set_pointer(cursor_);
 
   const char *socket = wl_display_add_socket_auto(display_);
   if (!socket) {
@@ -190,6 +198,11 @@ void WlRootsPlatform::new_output_notify(wl_listener *listener, void *data)
   platform->on_new_output.emit(output);
 }
 
+std::shared_ptr<ICursor> WlRootsPlatform::cursor() const
+{
+  return cursor_;
+}
+
 void WlRootsPlatform::new_surface_notify(wl_listener *listener, void *data)
 {
   auto xdg_surface = static_cast<wlr_xdg_surface*>(data);
@@ -210,16 +223,6 @@ void WlRootsPlatform::new_keyboard(wlr_input_device *device)
   auto keyboard = std::make_shared<Keyboard>(device, seat_.get());
   keyboard->setup();
   on_new_keyboard.emit(keyboard);
-}
-
-void WlRootsPlatform::handle_cursor_button(Cursor *cursor, int x, int y)
-{
-  on_cursor_button.emit(cursor, x, y);
-}
-
-void WlRootsPlatform::handle_cursor_moved(Cursor *cursor, int x, int y, uint32_t time)
-{
-  on_cursor_motion.emit(cursor, x, y, time);
 }
 
 void WlRootsPlatform::new_input_notify(wl_listener *listener, void *data)
@@ -293,11 +296,6 @@ void WlRootsPlatform::add_idle(idle_func func, void* data)
 std::shared_ptr<Seat> WlRootsPlatform::seat() const
 {
   return seat_;
-}
-
-std::shared_ptr<Cursor> WlRootsPlatform::cursor() const
-{
-  return cursor_;
 }
 
 Output* WlRootsPlatform::output_at(int x, int y) const

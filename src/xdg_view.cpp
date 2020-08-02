@@ -10,7 +10,7 @@
 
 namespace lumin {
 
-XDGView::XDGView(wlr_xdg_surface *surface, Cursor *cursor, wlr_output_layout *layout, Seat *seat)
+XDGView::XDGView(wlr_xdg_surface *surface, ICursor *cursor, wlr_output_layout *layout, Seat *seat)
   : View(cursor, layout, seat)
   , xdg_surface_(surface)
 {

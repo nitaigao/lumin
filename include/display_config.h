@@ -10,10 +10,18 @@
 
 namespace lumin {
 
+class IOS;
+
 class DisplayConfig : public IDisplayConfig {
+ public:
+  DisplayConfig(const std::shared_ptr<IOS>& os);
+
  public:
   std::map<std::string, OutputConfig> find_layout(
     const std::vector<std::shared_ptr<IOutput>>& outputs);
+
+ private:
+  std::shared_ptr<IOS> os_;
 };
 
 }  // namespace lumin

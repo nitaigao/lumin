@@ -39,6 +39,7 @@ class IPlatform;
 class IOS;
 class IDisplayConfig;
 class IOutput;
+class ICursor;
 
 class Server
 {
@@ -48,9 +49,10 @@ class Server
   Server();
 
   Server(
-    std::unique_ptr<IPlatform> &platform,
-    std::unique_ptr<IOS> &os,
-    std::unique_ptr<IDisplayConfig> &display_config);
+    const std::shared_ptr<IPlatform> &platform,
+    const std::shared_ptr<IOS> &os,
+    const std::shared_ptr<IDisplayConfig> &display_config,
+    const std::shared_ptr<ICursor> &cursor);
 
  public:
   bool init();
@@ -104,15 +106,14 @@ class Server
   void keyboard_created(const std::shared_ptr<Keyboard> &keyboard);
   void keyboard_key(uint32_t time_msec, uint32_t keycode, uint32_t modifiers, int state);
 
-  void cursor_motion(Cursor* cursor, int x, int y, uint32_t time);
-  void cursor_button(Cursor* cursor, int x, int y);
+  void cursor_motion(ICursor* cursor, int x, int y, uint32_t time);
+  void cursor_button(ICursor* cursor, int x, int y);
 
   void output_created(const std::shared_ptr<Output> &output);
   void output_destroyed(Output *output);
   void output_frame(Output *output);
   void output_mode(Output *output);
-  void output_connected(IOutput *output);
-  void output_disconnected(Output *output);
+  void outputs_changed(IOutput *output);
 
   void lid_switch(bool enabled);
 
@@ -130,11 +131,13 @@ class Server
   std::vector<std::shared_ptr<IOutput>> outputs_;
   std::vector<std::shared_ptr<View>> views_;
 
-  std::unique_ptr<IPlatform> platform_;
-  std::unique_ptr<IOS> os_;
-  std::unique_ptr<IDisplayConfig> display_config_;
+  std::shared_ptr<Seat> seat_;
+  std::shared_ptr<IPlatform> platform_;
+  std::shared_ptr<IOS> os_;
+  std::shared_ptr<IDisplayConfig> display_config_;
+  std::shared_ptr<ICursor> cursor_;
 
-  std::unique_ptr<Settings> settings_;
+  std::shared_ptr<Settings> settings_;
   std::unique_ptr<CompositorEndpoint> endpoint_;
 
   std::thread dbus_;

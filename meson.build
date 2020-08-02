@@ -81,13 +81,14 @@ tests_dependencies = [
 
 tests_sources = [
   'tests/server_tests.cpp',
+  'tests/display_config_tests.cpp',
   'tests/main.cpp'
 ]
 
 executable(
   'tests',
   tests_sources,
-  include_directories: includes,
+  include_directories: ['tests', includes],
   dependencies: [dependencies, tests_dependencies],
   link_with: compositor
 )

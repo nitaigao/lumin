@@ -13,7 +13,7 @@ const int DEFAULT_MINIMUM_HEIGHT = 600;
 
 namespace lumin {
 
-View::View(Cursor *cursor, wlr_output_layout *layout, Seat *seat)
+View::View(ICursor *cursor, wlr_output_layout *layout, Seat *seat)
   : mapped(false)
   , x(0)
   , y(0)

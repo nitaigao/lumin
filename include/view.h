@@ -19,7 +19,7 @@ struct wlr_output_layout;
 
 namespace lumin {
 
-class Cursor;
+class ICursor;
 class Output;
 class Seat;
 class Server;
@@ -45,7 +45,7 @@ typedef void (*wlr_surface_iterator_func_t)(struct wlr_surface *surface,
 class View {
  public:
   virtual ~View() { }
-  View(Cursor *cursor, wlr_output_layout *layout, Seat *seat);
+  View(ICursor *cursor, wlr_output_layout *layout, Seat *seat);
 
  public:
   void toggle_maximized();
@@ -137,7 +137,7 @@ class View {
   } saved_state_;
 
  protected:
-  Cursor *cursor_;
+  ICursor *cursor_;
   wlr_output_layout *layout_;
   Seat *seat_;
 
