@@ -14,10 +14,8 @@ Cursor::~Cursor()
   wlr_xcursor_manager_destroy(cursor_manager_);
 }
 
-Cursor::Cursor(wlr_output_layout *layout, Seat *seat)
-  : layout_(layout)
-  , seat_(seat)
-  , grab_state_({
+Cursor::Cursor()
+  : grab_state_({
     .view = NULL,
     .cursor_x = 0,
     .cursor_y = 0,
@@ -27,8 +25,16 @@ Cursor::Cursor(wlr_output_layout *layout, Seat *seat)
     .height = 0,
     .resize_edges = 0,
     .CursorMode = WM_CURSOR_NONE
-    })
+  })
 {
+}
+
+Cursor::Cursor(wlr_output_layout *layout, Seat *seat)
+  : Cursor::Cursor()
+{
+  layout_ = layout;
+  seat_ = seat;
+
   cursor_ = wlr_cursor_create();
   wlr_cursor_attach_output_layout(cursor_, layout_);
 

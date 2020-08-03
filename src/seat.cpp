@@ -62,7 +62,7 @@ void Seat::set_keyboard(wlr_input_device *device) {
   wlr_seat_set_keyboard(seat_, device);
 }
 
-void Seat::set_pointer(Cursor *cursor) {
+void Seat::set_pointer(const std::shared_ptr<ICursor>& cursor) {
   cursor_ = cursor;
 }
 

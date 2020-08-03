@@ -32,26 +32,33 @@ struct damage_iterator_data {
 
 Output::~Output()
 {
+  wl_list_init(&frame_.link);
   wl_list_remove(&frame_.link);
+
+  wl_list_init(&destroy_.link);
   wl_list_remove(&destroy_.link);
 }
+
+Output::Output()
+  : deleted_(false)
+  , enabled_(false)
+  , connected_(false)
+  , primary_(false)
+  , software_cursors_(false)
+  , enter_frames_left_(0) {}
 
 Output::Output(
   struct wlr_output *output,
   wlr_renderer *renderer,
   wlr_output_damage *damage,
   wlr_output_layout *layout)
-  : wlr_output(output)
-  , deleted(false)
-  , renderer_(renderer)
-  , damage_(damage)
-  , layout_(layout)
-  , enabled_(false)
-  , connected_(true)
-  , primary_(false)
-  , software_cursors_(false)
-  , enter_frames_left_(0)
+  : Output()
 {
+  wlr_output = output;
+  renderer_ = renderer;
+  damage_ = damage;
+  layout_ = layout;
+
   destroy_.notify = Output::output_destroy_notify;
   wl_signal_add(&wlr_output->events.destroy, &destroy_);
 
@@ -74,7 +81,31 @@ bool Output::connected() const
 
 void Output::set_connected(bool connected)
 {
+  if (connected_ == connected) {
+    return;
+  }
+
   connected_ = connected;
+
+  if (connected_) {
+    on_connect.emit(this);
+  } else {
+    remove_layout();
+    on_disconnect.emit(this);
+  }
+}
+
+void Output::configure(int scale, bool primary, bool enabled, int x, int y)
+{
+  spdlog::debug("Configuring {} scale:{}", id(), scale);
+  set_enabled(enabled);
+  set_scale(scale);
+  set_mode();
+  commit();
+
+  add_layout(x, y);
+  set_primary(primary);
+  take_whole_damage();
 }
 
 bool Output::primary() const
@@ -486,6 +517,14 @@ void Output::set_scale(int scale)
   wlr_output_set_scale(wlr_output, scale);
 }
 
+bool Output::deleted() const {
+  return deleted_;
+}
+
+void Output::mark_deleted() {
+  deleted_ = true;
+}
+
 void Output::set_position(int x, int y)
 {
   wlr_output_layout_move(layout_, wlr_output, x, y);
@@ -517,6 +556,11 @@ void Output::unlock_software_cursors()
   }
   wlr_output_lock_software_cursors(wlr_output, false);
   software_cursors_ = false;
+}
+
+wlr_box* Output::box() const
+{
+  return wlr_output_layout_get_box(layout_, wlr_output);
 }
 
 }  // namespace lumin

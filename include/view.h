@@ -19,7 +19,7 @@ struct wlr_output_layout;
 
 namespace lumin {
 
-class Cursor;
+class ICursor;
 class Output;
 class Seat;
 class Server;
@@ -45,19 +45,13 @@ typedef void (*wlr_surface_iterator_func_t)(struct wlr_surface *surface,
 class View {
  public:
   virtual ~View() { }
-  View(Cursor *cursor, wlr_output_layout *layout, Seat *seat);
+  View(ICursor *cursor, wlr_output_layout *layout, Seat *seat);
 
  public:
-  virtual void geometry(wlr_box *box) const = 0;
-  virtual void extents(wlr_box *box) const = 0;
-
-  virtual void move(int x, int y) = 0;
-  virtual void resize(double width, double height) = 0;
-
   void toggle_maximized();
   void maximize();
   bool maximized() const;
-  void minimize();
+  virtual void minimize();
   bool fullscreen() const;
 
   bool tiled() const;
@@ -68,6 +62,28 @@ class View {
   void unfocus();
 
   ViewLayer layer() const;
+
+  bool is_launcher() const;
+  bool is_menubar() const;
+  bool is_shell() const;
+
+  bool view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
+
+  void grab();
+
+  void windowize();
+  bool windowed() const;
+
+  void tile(int edges);
+  void save_geometry();
+
+  bool is_always_focused() const;
+
+  virtual void geometry(wlr_box *box) const = 0;
+  virtual void extents(wlr_box *box) const = 0;
+
+  virtual void move(int x, int y) = 0;
+  virtual void resize(double width, double height) = 0;
 
   virtual std::string id() const = 0;
   virtual std::string title() const = 0;
@@ -85,23 +101,9 @@ class View {
   virtual void set_maximized(bool maximized) = 0;
   virtual void set_size(int width, int height) = 0;
 
-  bool view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
-
   virtual bool has_surface(const wlr_surface *surface) const = 0;
   virtual void for_each_surface(wlr_surface_iterator_func_t iterator, void *data) const = 0;
   virtual wlr_surface* surface_at(double sx, double sy, double *sub_x, double *sub_y) = 0;
-
-  bool is_launcher() const;
-  bool is_menubar() const;
-  bool is_shell() const;
-
-  void grab();
-
-  void windowize();
-  bool windowed() const;
-
-  void tile(int edges);
-  void save_geometry();
 
   virtual void activate() = 0;
   virtual void deactivate() = 0;
@@ -109,7 +111,6 @@ class View {
   virtual wlr_surface* surface() const = 0;
 
   virtual bool steals_focus() const;
-  bool is_always_focused() const;
 
  public:
   Signal<View*> on_map;
@@ -119,6 +120,7 @@ class View {
   Signal<View*> on_destroy;
   Signal<View*> on_move;
   Signal<View*> on_commit;
+  Signal<View*> on_focus;
 
  public:
   bool mapped;
@@ -135,7 +137,7 @@ class View {
   } saved_state_;
 
  protected:
-  Cursor *cursor_;
+  ICursor *cursor_;
   wlr_output_layout *layout_;
   Seat *seat_;
 

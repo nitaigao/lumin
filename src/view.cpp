@@ -13,7 +13,7 @@ const int DEFAULT_MINIMUM_HEIGHT = 600;
 
 namespace lumin {
 
-View::View(Cursor *cursor, wlr_output_layout *layout, Seat *seat)
+View::View(ICursor *cursor, wlr_output_layout *layout, Seat *seat)
   : mapped(false)
   , x(0)
   , y(0)
@@ -98,11 +98,15 @@ bool View::view_at(double lx, double ly, wlr_surface **surface, double *sx, doub
 void View::minimize()
 {
   minimized = true;
+  on_minimize.emit(this);
 }
 
 void View::focus()
 {
   minimized = false;
+
+  on_focus.emit(this);
+
   activate();
   seat_->keyboard_notify_enter(surface());
 }

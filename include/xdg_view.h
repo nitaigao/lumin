@@ -27,7 +27,7 @@ class Server;
 
 class XDGView : public View {
  public:
-  XDGView(wlr_xdg_surface *surface, Cursor *cursor, wlr_output_layout *layout, Seat *seat);
+  XDGView(wlr_xdg_surface *surface, ICursor *cursor, wlr_output_layout *layout, Seat *seat);
 
  public:
   void geometry(wlr_box *box) const;
@@ -86,7 +86,9 @@ class XDGView : public View {
   static void xdg_popup_commit_notify(wl_listener *listener, void *data);
   static void xdg_popup_destroy_notify(wl_listener *listener, void *data);
   static void xdg_popup_subsurface_commit_notify(wl_listener *listener, void *data);
+  static void xdg_popup_subsurface_destroy_notify(wl_listener *listener, void *data);
   static void xdg_subsurface_commit_notify(wl_listener *listener, void *data);
+  static void xdg_subsurface_destroy_notify(wl_listener *listener, void *data);
   static void xdg_surface_commit_notify(wl_listener *listener, void *data);
   static void xdg_surface_destroy_notify(wl_listener *listener, void *data);
   static void xdg_surface_map_notify(wl_listener *listener, void *data);
@@ -103,6 +105,7 @@ class XDGView : public View {
 
 struct Subsurface {
   wl_listener commit;
+  wl_listener destroy;
   View *view;
 };
 

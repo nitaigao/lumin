@@ -3,6 +3,8 @@
 
 #include <wayland-server-core.h>
 
+#include <memory>
+
 struct wlr_input_device;
 struct wlr_keyboard_modifiers;
 struct wlr_seat;
@@ -10,7 +12,7 @@ struct wlr_surface;
 
 namespace lumin {
 
-class Cursor;
+class ICursor;
 
 class Seat {
  public:
@@ -28,7 +30,7 @@ class Seat {
   void keyboard_notify_key(uint32_t time_msec, uint32_t button, unsigned int state);
   void keyboard_notify_modifiers(wlr_keyboard_modifiers *modifiers);
 
-  void set_pointer(Cursor *cursor);
+  void set_pointer(const std::shared_ptr<ICursor>& cursor);
   wlr_surface* pointer_focused_surface() const;
 
   void pointer_clear_focus();
@@ -51,7 +53,7 @@ class Seat {
 
  private:
   wlr_seat *seat_;
-  Cursor *cursor_;
+  std::shared_ptr<ICursor> cursor_;
   unsigned int capabilities_;
 };
 
