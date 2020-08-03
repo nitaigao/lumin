@@ -35,6 +35,7 @@ class IOutput {
   virtual bool deleted() const = 0;
   virtual void mark_deleted() = 0;
   virtual bool primary() const = 0;
+  virtual int width() const = 0;
 };
 
 class Output : public IOutput {

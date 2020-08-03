@@ -103,7 +103,13 @@ TEST_F(ServerTest, MinimizeViewMinimizedAView) {
 }
 
 TEST_F(ServerTest, OutputConnectedConfiguresOutputsWithALayout) {
-  OutputConfig outputConfig = { .scale = 1, .primary = true };
+  OutputConfig outputConfig = {
+    .scale = 1,
+    .primary = true,
+    .enabled = true,
+    .x = 0,
+    .y = 0
+  };
   const char *name = "TEST";
 
   std::map<std::string, OutputConfig> config;
@@ -155,7 +161,13 @@ TEST_F(ServerTest, OutputsChangedConfiguresTheOutputWithANewLayout) {
   int scale = 2;
   bool primary = false;
 
-  OutputConfig outputConfig { .scale = scale, .primary = primary };
+  OutputConfig outputConfig = {
+    .scale = scale,
+    .primary = primary,
+    .enabled = true,
+    .x = 0,
+    .y = 0
+  };
 
   std::map<std::string, OutputConfig> config;
   config[name] = outputConfig;

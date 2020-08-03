@@ -13,6 +13,9 @@ class IOutput;
 struct OutputConfig {
   int scale;
   bool primary;
+  bool enabled;
+  int x;
+  int y;
 };
 
 class IDisplayConfig {

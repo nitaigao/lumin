@@ -108,6 +108,7 @@ class MockOutput : public IOutput {
   MOCK_METHOD(bool, deleted, () , (const));
   MOCK_METHOD(void, mark_deleted, (), ());
   MOCK_METHOD(bool, primary, (), (const));
+  MOCK_METHOD(int, width, (), (const));
 };
 
 class MockOS : public IOS {

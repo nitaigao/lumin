@@ -14,7 +14,7 @@ class IOS;
 
 class DisplayConfig : public IDisplayConfig {
  public:
-  DisplayConfig(const std::shared_ptr<IOS>& os);
+  explicit DisplayConfig(const std::shared_ptr<IOS>& os);
 
  public:
   std::map<std::string, OutputConfig> find_layout(

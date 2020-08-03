@@ -26,17 +26,25 @@ std::map<std::string, OutputConfig> DisplayConfig::find_layout(
   std::map<std::string, OutputConfig> default_layout;
 
   bool primary = true;
+  bool x = 0;
   for (auto output : connected_outputs) {
     OutputConfig config = {
       .scale = 1,
-      .primary = primary
+      .primary = primary,
+      .enabled = true,
+      .x = x,
+      .y = 0,
     };
     auto name = output->id();
     default_layout[name] = config;
     primary = false;
+    x += output->width();
   }
 
-  std::string configFilePath = "$HOME/.config/monitors";
+  const char *home = getenv("HOME");
+  std::stringstream configFilePathStream;
+  configFilePathStream << home << "/.config/monitors";
+  std::string configFilePath = configFilePathStream.str();
 
   bool configFileExists = os_->file_exists(configFilePath);
 
@@ -73,7 +81,10 @@ std::map<std::string, OutputConfig> DisplayConfig::find_layout(
     for (auto monitor : node) {
       OutputConfig config = {
         .scale = monitor["scale"].as<int>(),
-        .primary = monitor["primary"].as<bool>()
+        .primary = monitor["primary"].as<bool>(),
+        .enabled = monitor["enabled"].as<bool>(),
+        .x = monitor["x"].as<int>(),
+        .y = monitor["y"].as<int>()
       };
       auto name = monitor["name"].as<std::string>();
       layout[name] = config;
