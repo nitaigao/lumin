@@ -120,7 +120,7 @@ TEST_F(ServerTest, OutputConnectedConfiguresOutputsWithALayout) {
   auto output = std::make_shared<MockOutput>();
 
   EXPECT_CALL(*output, id).WillOnce(Return(name));
-  EXPECT_CALL(*output, configure(outputConfig.scale, outputConfig.primary)).Times(Exactly(1));
+  EXPECT_CALL(*output, configure(outputConfig.scale, outputConfig.primary, outputConfig.enabled, outputConfig.x, outputConfig.y)).Times(Exactly(1));
 
   subject->outputs_.push_back(output);
 
@@ -160,13 +160,16 @@ TEST_F(ServerTest, OutputsChangedConfiguresTheOutputWithANewLayout) {
 
   int scale = 2;
   bool primary = false;
+  bool enabled = true;
+  int x = 0;
+  int y = 0;
 
   OutputConfig outputConfig = {
     .scale = scale,
     .primary = primary,
-    .enabled = true,
-    .x = 0,
-    .y = 0
+    .enabled = enabled,
+    .x = x,
+    .y = y
   };
 
   std::map<std::string, OutputConfig> config;
@@ -174,7 +177,7 @@ TEST_F(ServerTest, OutputsChangedConfiguresTheOutputWithANewLayout) {
 
   EXPECT_CALL(*display_config, find_layout(subject->outputs_)).WillOnce(Return(config));
 
-  EXPECT_CALL(*output, configure(scale, primary));
+  EXPECT_CALL(*output, configure(scale, primary, enabled, x, y));
 
   subject->outputs_changed(NULL);
 }

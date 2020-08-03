@@ -26,7 +26,7 @@ class IOutput {
 
  public:
   virtual std::string id() const = 0;
-  virtual void configure(int scale, bool primary) = 0;
+  virtual void configure(int scale, bool primary, bool enabled, int x, int y) = 0;
   virtual void take_damage(const View *view) = 0;
   virtual void take_whole_damage() = 0;
   virtual bool is_named(const std::string& name) const = 0;
@@ -83,7 +83,7 @@ class Output : public IOutput {
 
   wlr_box* box() const;
 
-  void configure(int scale, bool primary);
+  void configure(int scale, bool primary, bool enabled, int x, int y);
 
   bool connected() const;
   void set_connected(bool connected);

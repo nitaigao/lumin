@@ -310,4 +310,4 @@ Output* WlRootsPlatform::output_at(int x, int y) const
   return output;
 }
 
-}
+}  // namespace lumin

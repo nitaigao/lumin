@@ -99,7 +99,7 @@ class MockView : public View {
 class MockOutput : public IOutput {
  public:
   MOCK_METHOD(std::string, id, (), (const));
-  MOCK_METHOD(void, configure, (int, bool));
+  MOCK_METHOD(void, configure, (int, bool, bool enabled, int x, int y));
   MOCK_METHOD(void, take_damage, (const View *));
   MOCK_METHOD(void, take_whole_damage, ());
   MOCK_METHOD(bool, is_named, (const std::string&), (const));

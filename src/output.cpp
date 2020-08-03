@@ -95,15 +95,15 @@ void Output::set_connected(bool connected)
   }
 }
 
-void Output::configure(int scale, bool primary)
+void Output::configure(int scale, bool primary, bool enabled, int x, int y)
 {
   spdlog::debug("Configuring {} scale:{}", id(), scale);
-  set_enabled(true);
+  set_enabled(enabled);
   set_scale(scale);
   set_mode();
   commit();
 
-  add_layout(0, 0);
+  add_layout(x, y);
   set_primary(primary);
   take_whole_damage();
 }
@@ -537,7 +537,7 @@ void Output::remove_layout()
 
 void Output::add_layout(int x, int y)
 {
-  wlr_output_layout_add_auto(layout_, wlr_output);
+  wlr_output_layout_add(layout_, wlr_output, x, y);
 }
 
 void Output::lock_software_cursors()
