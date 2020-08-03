@@ -113,7 +113,7 @@ TEST_F(ServerTest, OutputConnectedConfiguresOutputsWithALayout) {
 
   auto output = std::make_shared<MockOutput>();
 
-  EXPECT_CALL(*output, is_named(name)).WillOnce(Return(true));
+  EXPECT_CALL(*output, id).WillOnce(Return(name));
   EXPECT_CALL(*output, configure(outputConfig.scale, outputConfig.primary)).Times(Exactly(1));
 
   subject->outputs_.push_back(output);
@@ -149,7 +149,7 @@ TEST_F(ServerTest, OutputsChangedConfiguresTheOutputWithANewLayout) {
   const char *name = "TEST";
 
   auto output = std::make_shared<MockOutput>();
-  EXPECT_CALL(*output, is_named(name)).WillRepeatedly(Return(true));
+  EXPECT_CALL(*output, id).WillOnce(Return(name));
   subject->outputs_.push_back(output);
 
   int scale = 2;

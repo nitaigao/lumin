@@ -467,7 +467,7 @@ bool Server::init()
   os_->set_env("XDG_CURRENT_DESKTOP", "sway");
   os_->set_env("XDG_SESSION_TYPE", "wayland");
 
-  dbus_ = std::thread(Server::dbus_thread, this);
+  // dbus_ = std::thread(Server::dbus_thread, this);
 
   os_->execute("lumin-menu");
   os_->execute("lumin-shell");

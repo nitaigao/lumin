@@ -17,17 +17,39 @@ DisplayConfig::DisplayConfig(const std::shared_ptr<IOS>& os)
 std::map<std::string, OutputConfig> DisplayConfig::find_layout(
   const std::vector<std::shared_ptr<IOutput>>& outputs)
 {
-  std::map<std::string, OutputConfig> layout;
-  auto configFileData = os_->open_file("/home/nk/.config/monitors");
-  auto document = YAML::Load(configFileData);
-
   std::vector<std::shared_ptr<IOutput>> connected_outputs;
   std::copy_if(outputs.begin(), outputs.end(),
     std::back_inserter(connected_outputs), [](auto &output) {
     return output->connected();
   });
 
+  std::map<std::string, OutputConfig> default_layout;
+
+  bool primary = true;
+  for (auto output : connected_outputs) {
+    OutputConfig config = {
+      .scale = 1,
+      .primary = primary
+    };
+    auto name = output->id();
+    default_layout[name] = config;
+    primary = false;
+  }
+
+  std::string configFilePath = "$HOME/.config/monitors";
+
+  bool configFileExists = os_->file_exists(configFilePath);
+
+  if (!configFileExists) {
+    return default_layout;
+  }
+
+  auto configFileData = os_->open_file(configFilePath);
+  auto document = YAML::Load(configFileData);
+
   for (auto node : document) {
+    std::map<std::string, OutputConfig> layout;
+
     auto monitor_count = node.size();
     if (monitor_count != connected_outputs.size()) {
       continue;
@@ -60,7 +82,7 @@ std::map<std::string, OutputConfig> DisplayConfig::find_layout(
     return layout;
   }
 
-  return layout;
+  return default_layout;
 }
 
 }  // namespace lumin

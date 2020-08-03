@@ -6,6 +6,10 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <filesystem>
+
+using std::filesystem::exists;
+using std::filesystem::path;
 
 namespace lumin {
 
@@ -20,6 +24,12 @@ std::string PosixOS::open_file(const std::string& filepath)
   std::stringstream buffer;
   buffer << ifs.rdbuf();
   return buffer.str();
+}
+
+bool PosixOS::file_exists(const std::string& filepath)
+{
+  path pathToTest(filepath);
+  return exists(pathToTest);
 }
 
 void PosixOS::execute(const std::string& command)

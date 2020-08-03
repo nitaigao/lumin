@@ -11,6 +11,7 @@ class PosixOS : public IOS {
  public:
   void set_env(const std::string& name, const std::string& value);
   std::string open_file(const std::string& filepath);
+  bool file_exists(const std::string& filepath);
   void execute(const std::string& command);
 };
 

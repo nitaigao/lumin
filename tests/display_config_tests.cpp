@@ -59,6 +59,44 @@ class DisplayConfigTest : public ::testing::Test {
   }
 };
 
+TEST_F(DisplayConfigTest, GivesADefaultLayoutWhenTheConfigFileDoesntExist) {
+  std::vector<std::shared_ptr<IOutput>> outputs;
+
+  outputs.push_back(output1_);
+
+  std::stringstream data;
+  EXPECT_CALL(*os_, file_exists("$HOME/.config/monitors")).WillOnce(Return(false));
+
+  auto result = subject_->find_layout(outputs);
+  EXPECT_EQ(result.size(), 1);
+  EXPECT_EQ(result.begin()->first, "OUTPUT1");
+
+  EXPECT_EQ(result["OUTPUT1"].primary, true);
+  EXPECT_EQ(result["OUTPUT1"].scale, 1);
+}
+
+TEST_F(DisplayConfigTest, GivesADefaultLayoutWhenNoMatches) {
+  std::vector<std::shared_ptr<IOutput>> outputs;
+
+  outputs.push_back(output1_);
+  outputs.push_back(output2_);
+
+  std::stringstream data;
+  EXPECT_CALL(*os_, file_exists).WillOnce(Return(true));
+  EXPECT_CALL(*os_, open_file).WillOnce(Return(data.str()));
+
+  auto result = subject_->find_layout(outputs);
+  EXPECT_EQ(result.size(), 2);
+  EXPECT_EQ(result.begin()->first, "OUTPUT1");
+  EXPECT_EQ(result.rbegin()->first, "OUTPUT2");
+
+  EXPECT_EQ(result["OUTPUT1"].primary, true);
+  EXPECT_EQ(result["OUTPUT1"].scale, 1);
+
+  EXPECT_EQ(result["OUTPUT2"].primary, false);
+  EXPECT_EQ(result["OUTPUT2"].scale, 1);
+}
+
 TEST_F(DisplayConfigTest, MatchesASingleConfig) {
   std::vector<std::shared_ptr<IOutput>> outputs;
 
@@ -74,6 +112,7 @@ TEST_F(DisplayConfigTest, MatchesASingleConfig) {
         primary: false
   )";
 
+  EXPECT_CALL(*os_, file_exists).WillOnce(Return(true));
   EXPECT_CALL(*os_, open_file).WillOnce(Return(data.str()));
 
   auto result = subject_->find_layout(outputs);
@@ -103,6 +142,7 @@ TEST_F(DisplayConfigTest, MatchesADoubleConfig) {
         primary: false
   )";
 
+  EXPECT_CALL(*os_, file_exists).WillOnce(Return(true));
   EXPECT_CALL(*os_, open_file).WillOnce(Return(data.str()));
 
   auto result = subject_->find_layout(outputs);
@@ -138,6 +178,7 @@ TEST_F(DisplayConfigTest, MatchesADoubleConfigEvenWithADisconnectedScreen) {
         primary: true
   )";
 
+  EXPECT_CALL(*os_, file_exists).WillOnce(Return(true));
   EXPECT_CALL(*os_, open_file).WillOnce(Return(data.str()));
 
   auto result = subject_->find_layout(outputs);

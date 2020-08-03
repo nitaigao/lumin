@@ -114,6 +114,7 @@ class MockOS : public IOS {
  public:
   MOCK_METHOD(void, set_env, (const std::string&, const std::string&), ());
   MOCK_METHOD(std::string, open_file, (const std::string&), ());
+  MOCK_METHOD(bool, file_exists, (const std::string&), ());
   MOCK_METHOD(void, execute, (const std::string&), ());
 };
 
