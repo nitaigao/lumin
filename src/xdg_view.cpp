@@ -248,6 +248,18 @@ void XDGView::xdg_popup_subsurface_commit_notify(wl_listener *listener, void *da
   subsurface->view->on_damage.emit(subsurface->view);
 }
 
+void XDGView::xdg_popup_subsurface_destroy_notify(wl_listener *listener, void *data)
+{
+  Subsurface *subsurface = wl_container_of(listener, subsurface, destroy);
+  subsurface->view->on_damage.emit(subsurface->view);
+}
+
+void XDGView::xdg_subsurface_destroy_notify(wl_listener *listener, void *data)
+{
+  Subsurface *subsurface = wl_container_of(listener, subsurface, destroy);
+  subsurface->view->on_damage.emit(subsurface->view);
+}
+
 void XDGView::xdg_subsurface_commit_notify(wl_listener *listener, void *data)
 {
   Subsurface *subsurface = wl_container_of(listener, subsurface, commit);
@@ -257,7 +269,7 @@ void XDGView::xdg_subsurface_commit_notify(wl_listener *listener, void *data)
 void XDGView::xdg_popup_destroy_notify(wl_listener *listener, void *data)
 {
   Popup *popup = wl_container_of(listener, popup, destroy);
-  popup->view->on_damage.emit(popup->view);
+  popup->view->on_move.emit(popup->view);
 }
 
 void XDGView::xdg_popup_commit_notify(wl_listener *listener, void *data)
@@ -284,6 +296,9 @@ void XDGView::new_popup_subsurface_notify(wl_listener *listener, void *data)
 
   subsurface->commit.notify = xdg_popup_subsurface_commit_notify;
   wl_signal_add(&wlr_subsurface_->surface->events.commit, &subsurface->commit);
+
+  subsurface->destroy.notify = xdg_popup_subsurface_destroy_notify;
+  wl_signal_add(&wlr_subsurface_->surface->events.destroy, &subsurface->destroy);
 }
 
 void XDGView::new_subsurface_notify(wl_listener *listener, void *data)
@@ -296,6 +311,9 @@ void XDGView::new_subsurface_notify(wl_listener *listener, void *data)
 
   subsurface->commit.notify = xdg_subsurface_commit_notify;
   wl_signal_add(&wlr_subsurface_->surface->events.commit, &subsurface->commit);
+
+  subsurface->destroy.notify = xdg_subsurface_destroy_notify;
+  wl_signal_add(&wlr_subsurface_->surface->events.destroy, &subsurface->destroy);
 }
 
 void XDGView::new_popup_popup_notify(wl_listener *listener, void *data)
