@@ -32,7 +32,6 @@ class KeyBinding;
 class Keyboard;
 class Output;
 class Seat;
-class Settings;
 class CompositorEndpoint;
 class View;
 class IPlatform;
@@ -137,7 +136,6 @@ class Server
   std::shared_ptr<IDisplayConfig> display_config_;
   std::shared_ptr<ICursor> cursor_;
 
-  std::shared_ptr<Settings> settings_;
   std::unique_ptr<CompositorEndpoint> endpoint_;
 
   std::thread dbus_;

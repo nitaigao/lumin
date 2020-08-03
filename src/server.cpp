@@ -19,7 +19,6 @@
 #include "keyboard.h"
 #include "output.h"
 #include "seat.h"
-#include "settings.h"
 #include "dbus/adapters/compositor.h"
 #include "xdg_view.h"
 
@@ -32,7 +31,6 @@ Server::~Server() {}
 
 Server::Server()
 {
-  settings_ = std::make_shared<Settings>();
   platform_ = std::make_shared<WlRootsPlatform>();
   os_ = std::make_shared<PosixOS>();
   display_config_ = std::make_shared<DisplayConfig>(os_);
