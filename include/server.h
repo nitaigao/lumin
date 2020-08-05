@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "cursor_mode.h"
+#include "signal.hpp"
 
 typedef uint32_t xkb_keysym_t;
 
@@ -28,7 +29,6 @@ struct wlr_xcursor_manager;
 namespace lumin
 {
 class Cursor;
-class KeyBinding;
 class Keyboard;
 class Output;
 class Seat;
@@ -59,25 +59,13 @@ class Server
   void destroy();
   void quit();
 
-  void focus_view(View *view);
-  void focus_app(const std::string &app_id);
-
-  void enable_output(const std::string &name, bool enabled);
-
-  void dock_right();
-  void dock_left();
-
+  void dock_top_right();
+  void dock_top_left();
   void minimize_top();
-  void toggle_maximize();
-  void maximize_view(View *view);
-
-  bool key(uint32_t keycode, uint32_t modifiers, int state);
-
-  int add_keybinding(int key_code, int modifiers, int state);
+  void maximize_top();
 
  public:
   View *desktop_view_at(double lx, double ly, wlr_surface **surface, double *sx, double *sy);
-  View *view_from_surface(wlr_surface *surface);
 
   std::vector<std::string> apps() const;
 
@@ -85,6 +73,7 @@ class Server
   void focus_top();
 
   void position_view(View *view);
+  void enable_output(const std::string &name, bool enabled);
 
   void damage_outputs();
   void damage_output(View *view);
@@ -117,15 +106,10 @@ class Server
   void lid_switch(bool enabled);
 
  private:
-  static void dbus_thread(Server *server);
-
- private:
   static void purge_deleted_views(void *data);
   static void purge_deleted_outputs(void *data);
 
  public:
-  std::map<uint, KeyBinding> key_bindings;
-
   std::vector<std::shared_ptr<Keyboard>> keyboards_;
   std::vector<std::shared_ptr<IOutput>> outputs_;
   std::vector<std::shared_ptr<View>> views_;
@@ -136,9 +120,8 @@ class Server
   std::shared_ptr<IDisplayConfig> display_config_;
   std::shared_ptr<ICursor> cursor_;
 
-  std::unique_ptr<CompositorEndpoint> endpoint_;
-
-  std::thread dbus_;
+  Signal<Server*> on_ready;
+  Signal<uint, uint, int, bool*> on_key;
 };
 
 }  // namespace lumin

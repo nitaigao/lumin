@@ -19,6 +19,7 @@ wayland_server = dependency('wayland-server')
 wlroots = dependency('wlroots')
 xkbcommon = dependency('xkbcommon')
 yamlcpp = dependency('yaml-cpp')
+gtkmm = dependency('gtkmm-3.0')
 
 dependencies = [
   dbuscpp,
@@ -31,7 +32,8 @@ dependencies = [
   wayland_server,
   wlroots,
   xkbcommon,
-  yamlcpp
+  yamlcpp,
+  gtkmm
 ]
 
 includes = include_directories(['include', 'protocols', 'vendor', 'dbus'])

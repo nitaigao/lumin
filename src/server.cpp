@@ -19,10 +19,8 @@
 #include "keyboard.h"
 #include "output.h"
 #include "seat.h"
-#include "dbus/adapters/compositor.h"
 #include "xdg_view.h"
 
-#include "key_binding.h"
 #include "display_config.h"
 
 namespace lumin {
@@ -104,76 +102,6 @@ void Server::damage_output(View *view)
   }
 }
 
-void Server::dbus_thread(Server *server)
-{
-  DBus::BusDispatcher dispatcher;
-  DBus::default_dispatcher = &dispatcher;
-  DBus::Connection bus = DBus::Connection::SessionBus();
-
-  bus.request_name("org.os.Compositor");
-
-  server->endpoint_ = std::make_unique<CompositorEndpoint>(bus, server);
-
-  dispatcher.enter();
-}
-
-int Server::add_keybinding(int key_code, int modifiers, int state)
-{
-  unsigned int id = 0;
-  bool exists = false;
-  for (auto &pair : key_bindings) {
-    if (pair.second.key_code_ == key_code && pair.second.modifiers_ == modifiers &&
-      pair.second.state_ == state) {
-      exists = true;
-      id = pair.first;
-      break;
-    }
-  }
-
-  if (exists) {
-    return id;
-  }
-
-  if (!key_bindings.empty()) {
-    auto it = key_bindings.end();
-    id = (*it).first + 1;
-  }
-
-  KeyBinding key_binding(key_code, modifiers, state);
-  key_bindings.insert(std::make_pair(id, key_binding));
-
-  return id;
-}
-
-bool Server::key(uint32_t keycode, uint32_t modifiers, int state)
-{
-  // Global shortcut to quit the compositor
-  if (keycode == KEY_BACKSPACE && modifiers == (WLR_MODIFIER_CTRL | WLR_MODIFIER_ALT)) {
-    quit();
-    return true;
-  }
-
-  for (auto &pair : key_bindings) {
-    bool matched = pair.second.matches(modifiers, keycode, (wlr_key_state)state);
-    if (matched) {
-      endpoint_->Shortcut(pair.first);
-      return true;
-    }
-  }
-
-  return false;
-}
-
-void Server::focus_app(const std::string& app_id)
-{
-  auto mapped_views = filter_mapped_views(views_);
-  auto condition = [app_id](auto &el) { return el->id() == app_id; };
-  auto result = std::find_if(mapped_views.begin(), mapped_views.end(), condition);
-  if (result == mapped_views.end()) return;
-  auto view = (*result).get();
-  view->focus();
-}
-
 void Server::view_focused(View *view)
 {
   auto seat = platform_->seat();
@@ -184,7 +112,7 @@ void Server::view_focused(View *view)
   }
 
   if (view->steals_focus() && prev_surface != nullptr) {
-    View *previous_view = view_from_surface(prev_surface);
+    View *previous_view = static_cast<View*>(prev_surface->data);
     previous_view->unfocus();
   }
 
@@ -268,10 +196,12 @@ void Server::view_unmapped(View *view)
   damage_outputs();
 }
 
-void Server::keyboard_key(uint32_t time_msec, uint32_t keycode, uint32_t modifiers, int state)
+void Server::keyboard_key(uint time_msec, uint keycode, uint modifiers, int state)
 {
   auto seat = platform_->seat();
-  bool handled = key(keycode, modifiers, state);
+  bool handled = false;
+
+  on_key.emit(keycode, modifiers, state, &handled);
 
   if (!handled) {
     seat->keyboard_notify_key(time_msec, keycode, state);
@@ -313,17 +243,6 @@ void Server::view_minimized(View *view)
   focus_top();
 }
 
-void Server::maximize_view(View *view)
-{
-  view->maximize();
-
-  auto output = platform_->output_at(cursor_->x(), cursor_->y());
-  wlr_box *output_box = output->box();
-
-  view->resize(output_box->width, output_box->height);
-  view->move(output_box->x, output_box->y);
-}
-
 void Server::focus_top()
 {
   auto mapped_views = filter_mapped_views(views_);
@@ -343,7 +262,7 @@ void Server::minimize_top()
   top_view->minimize();
 }
 
-void Server::toggle_maximize()
+void Server::maximize_top()
 {
   auto mapped_views = filter_mapped_views(views_);
   if (mapped_views.empty()) return;
@@ -352,7 +271,7 @@ void Server::toggle_maximize()
   top_view->toggle_maximized();
 }
 
-void Server::dock_left()
+void Server::dock_top_left()
 {
   auto mapped_views = filter_mapped_views(views_);
   if (mapped_views.empty()) return;
@@ -361,7 +280,7 @@ void Server::dock_left()
   top_view->tile_left();
 }
 
-void Server::dock_right()
+void Server::dock_top_right()
 {
   auto mapped_views = filter_mapped_views(views_);
   if (mapped_views.empty()) return;
@@ -465,16 +384,18 @@ bool Server::init()
   os_->set_env("XDG_CURRENT_DESKTOP", "sway");
   os_->set_env("XDG_SESSION_TYPE", "wayland");
 
-  dbus_ = std::thread(Server::dbus_thread, this);
-
-  os_->execute("lumin-menu");
-  os_->execute("lumin-shell");
-
   return true;
+}
+
+void running(void* data)
+{
+  auto server = static_cast<Server*>(data);
+  server->on_ready.emit(server);
 }
 
 void Server::run()
 {
+  platform_->add_idle(running, this);
   platform_->run();
 }
 
@@ -526,16 +447,6 @@ View* Server::desktop_view_at(double lx, double ly,
 {
   for (auto &view : views_) {
     if (view->view_at(lx, ly, surface, sx, sy)) {
-      return view.get();
-    }
-  }
-  return NULL;
-}
-
-View* Server::view_from_surface(wlr_surface *surface)
-{
-  for (auto &view : views_) {
-    if (view->has_surface(surface)) {
       return view.get();
     }
   }

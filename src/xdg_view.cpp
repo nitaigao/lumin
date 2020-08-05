@@ -14,6 +14,8 @@ XDGView::XDGView(wlr_xdg_surface *surface, ICursor *cursor, wlr_output_layout *l
   : View(cursor, layout, seat)
   , xdg_surface_(surface)
 {
+  surface->surface->data = this;
+
   map.notify = XDGView::xdg_surface_map_notify;
   wl_signal_add(&xdg_surface_->events.map, &map);
 
