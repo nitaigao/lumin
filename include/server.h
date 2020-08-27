@@ -39,6 +39,7 @@ class IOS;
 class IDisplayConfig;
 class IOutput;
 class ICursor;
+class IGraph;
 
 class Server
 {
@@ -112,8 +113,8 @@ class Server
  public:
   std::vector<std::shared_ptr<Keyboard>> keyboards_;
   std::vector<std::shared_ptr<IOutput>> outputs_;
-  std::vector<std::shared_ptr<View>> views_;
 
+  std::shared_ptr<IGraph> graph_;
   std::shared_ptr<Seat> seat_;
   std::shared_ptr<IPlatform> platform_;
   std::shared_ptr<IOS> os_;

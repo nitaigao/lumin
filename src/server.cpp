@@ -20,6 +20,7 @@
 #include "output.h"
 #include "seat.h"
 #include "xdg_view.h"
+#include "graph.h"
 
 #include "display_config.h"
 
@@ -32,6 +33,7 @@ Server::Server()
   platform_ = std::make_shared<WlRootsPlatform>();
   os_ = std::make_shared<PosixOS>();
   display_config_ = std::make_shared<DisplayConfig>(os_);
+  graph_ = std::make_shared<Graph>();
 }
 
 Server::Server(
@@ -47,24 +49,6 @@ Server::Server(
 {
 }
 
-std::vector<std::shared_ptr<View>> filter_unminimized_views(const std::vector<std::shared_ptr<View>>& views)
-{
-  std::vector<std::shared_ptr<View>> filtered_views;
-  std::copy_if(views.begin(), views.end(), std::back_inserter(filtered_views), [](auto &view) {
-    return !view->minimized;
-  });
-  return filtered_views;
-}
-
-std::vector<std::shared_ptr<View>> filter_mapped_views(const std::vector<std::shared_ptr<View>>& views)
-{
-  std::vector<std::shared_ptr<View>> filtered_views;
-  std::copy_if(views.begin(), views.end(), std::back_inserter(filtered_views), [](auto &view) {
-    return !view->deleted && view->mapped;
-  });
-  return filtered_views;
-}
-
 void Server::quit()
 {
   platform_->terminate();
@@ -73,7 +57,7 @@ void Server::quit()
 std::vector<std::string> Server::apps() const
 {
   std::vector<std::string> apps;
-  auto mapped_views = filter_mapped_views(views_);
+  auto mapped_views = graph_->mapped_views();
   for (auto &view : mapped_views) {
     auto id = view->root()->id();
     if (id.empty()) {
@@ -116,13 +100,7 @@ void Server::view_focused(View *view)
     previous_view->unfocus();
   }
 
-  auto condition = [view](auto &el) { return el.get() == view; };
-  auto result = std::find_if(views_.begin(), views_.end(), condition);
-  if (result != views_.end()) {
-    auto resultValue = *result;
-    views_.erase(result);
-    views_.insert(views_.begin(), resultValue);
-  }
+  graph_->bring_to_front(view);
 }
 
 void Server::purge_deleted_outputs(void *data)
@@ -144,10 +122,17 @@ void Server::output_destroyed(Output *output)
 
 void Server::output_frame(Output *output)
 {
-  auto mapped_views = filter_mapped_views(views_);
-  auto unminimized_views = filter_unminimized_views(mapped_views);
-  output->send_enter(unminimized_views);
-  output->render(unminimized_views);
+  auto mapped_views = graph_->mapped_views();
+  output->send_enter(mapped_views);
+
+  for (auto& view : mapped_views) {
+    if (view->is_menubar()) {
+      view->set_size(output->width() / output->scale(), View::MENU_HEIGHT);
+      view->move(output->x(), output->y());
+    }
+  }
+
+  output->render(mapped_views);
 }
 
 void Server::output_mode(Output *output)
@@ -159,8 +144,9 @@ void Server::output_mode(Output *output)
 
 void Server::purge_deleted_views(void *data)
 {
-  Server *server = static_cast<Server*>(data);
-  std::erase_if(server->views_, [](const auto &el) { return el.get()->deleted; });
+  auto graph = static_cast<Graph*>(data);
+  graph->remove_deleted_views();
+  // std::erase_if(server->views_, [](const auto &el) { return el.get()->deleted; });
 }
 
 void Server::view_damaged(View *view)
@@ -170,12 +156,8 @@ void Server::view_damaged(View *view)
 
 void Server::view_destroyed(View *view)
 {
-  auto condition = [view](auto &el) { return el.get() == view; };
-  auto result = std::find_if(views_.begin(), views_.end(), condition);
-  if (result != views_.end()) {
-    (*result)->deleted = true;
-  }
-  platform_->add_idle(&Server::purge_deleted_views, this);
+  view->deleted = true;
+  platform_->add_idle(&Server::purge_deleted_views, graph_.get());
 }
 
 void Server::view_moved(View *view)
@@ -232,30 +214,22 @@ void Server::cursor_button(ICursor *cursor, int x, int y)
 
 void Server::view_minimized(View *view)
 {
-  auto condition = [view](auto &el) { return el.get() == view; };
-  auto result = std::find_if(views_.begin(), views_.end(), condition);
-  if (result != views_.end()) {
-    auto resultValue = *result;
-    views_.erase(result);
-    views_.push_back(resultValue);
-  }
-
+  graph_->bring_to_front(view);
   focus_top();
 }
 
 void Server::focus_top()
 {
-  auto mapped_views = filter_mapped_views(views_);
-  auto unminimized_views = filter_unminimized_views(mapped_views);
-  if (unminimized_views.empty()) return;
+  auto mapped_views = graph_->mapped_views();
+  if (mapped_views.empty()) return;
 
-  auto top_view = unminimized_views.front();
+  auto top_view = mapped_views.front();
   top_view->focus();
 }
 
 void Server::minimize_top()
 {
-  auto mapped_views = filter_mapped_views(views_);
+  auto mapped_views = graph_->mapped_views();
   if (mapped_views.empty()) return;
 
   auto top_view = mapped_views.front();
@@ -264,7 +238,7 @@ void Server::minimize_top()
 
 void Server::maximize_top()
 {
-  auto mapped_views = filter_mapped_views(views_);
+  auto mapped_views = graph_->mapped_views();
   if (mapped_views.empty()) return;
 
   auto top_view = mapped_views.front();
@@ -273,7 +247,7 @@ void Server::maximize_top()
 
 void Server::dock_top_left()
 {
-  auto mapped_views = filter_mapped_views(views_);
+  auto mapped_views = graph_->mapped_views();
   if (mapped_views.empty()) return;
 
   auto top_view = mapped_views.front();
@@ -282,7 +256,7 @@ void Server::dock_top_left()
 
 void Server::dock_top_right()
 {
-  auto mapped_views = filter_mapped_views(views_);
+  auto mapped_views = graph_->mapped_views();
   if (mapped_views.empty()) return;
 
   auto top_view = mapped_views.front();
@@ -314,7 +288,7 @@ void Server::view_created(const std::shared_ptr<View>& view)
   view->on_move.connect_member(this, &Server::view_moved);
   view->on_focus.connect_member(this, &Server::view_focused);
 
-  views_.push_back(view);
+  graph_->add_view(view);
 }
 
 void Server::cursor_motion(ICursor* cursor, int x, int y, uint32_t time)
@@ -445,7 +419,8 @@ void Server::keyboard_created(const std::shared_ptr<Keyboard>& keyboard)
 View* Server::desktop_view_at(double lx, double ly,
   wlr_surface **surface, double *sx, double *sy)
 {
-  for (auto &view : views_) {
+  auto mapped_views = graph_->mapped_views();
+  for (auto &view : mapped_views) {
     if (view->view_at(lx, ly, surface, sx, sy)) {
       return view.get();
     }
@@ -468,12 +443,6 @@ Output* Server::primary_output() const
 
 void Server::position_view(View *view)
 {
-  if (view->is_menubar()) {
-    auto output = primary_output();
-    output->set_menubar(view);
-    return;
-  }
-
   bool is_root = view->is_root();
   if (is_root) {
     Output *output = platform_->output_at(cursor_->x(), cursor_->y());

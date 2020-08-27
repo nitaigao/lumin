@@ -517,6 +517,11 @@ void Output::set_scale(int scale)
   wlr_output_set_scale(wlr_output, scale);
 }
 
+int Output::scale() const
+{
+  return wlr_output->scale;
+}
+
 bool Output::deleted() const {
   return deleted_;
 }

@@ -56,9 +56,9 @@ XDGView::XDGView(wlr_xdg_surface *surface, ICursor *cursor, wlr_output_layout *l
 
 std::string XDGView::id() const
 {
-  if (!mapped) {
-    return "";
-  }
+  // if (!mapped) {
+  //   return "";
+  // }
 
   if (xdg_surface_->toplevel->app_id == nullptr) {
     return "";

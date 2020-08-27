@@ -78,7 +78,10 @@ class Output : public IOutput {
 
   void set_enabled(bool enabled);
   void set_position(int x, int y);
+
   void set_scale(int scale);
+  int scale() const;
+
   void set_mode();
 
   wlr_box* box() const;

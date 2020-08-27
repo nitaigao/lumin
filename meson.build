@@ -39,20 +39,21 @@ dependencies = [
 includes = include_directories(['include', 'protocols', 'vendor', 'dbus'])
 
 sources = [
-  'src/wlroots_platform.cpp',
-  'src/posix_os.cpp',
-  'src/display_config.cpp',
   'src/cursor.cpp',
+  'src/display_config.cpp',
+  'src/graph.cpp',
   'src/gtk_shell/gtk_shell_wl.cpp',
   'src/gtk_shell/gtk_shell.cpp',
   'src/gtk_shell/gtk_surface.cpp',
   'src/key_binding.cpp',
   'src/keyboard.cpp',
-  'src/xdg_shell_wl.cpp',
   'src/output.cpp',
+  'src/posix_os.cpp',
   'src/seat.cpp',
   'src/server.cpp',
   'src/view.cpp',
+  'src/wlroots_platform.cpp',
+  'src/xdg_shell_wl.cpp',
   'src/xdg_view.cpp',
 ]
 
