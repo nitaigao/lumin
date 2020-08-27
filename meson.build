@@ -8,7 +8,9 @@ project('compositor', 'cpp', default_options : [
 add_global_arguments('-Wno-unused-parameter', language : 'cpp')
 add_project_arguments(['-DWLR_USE_UNSTABLE'], language: 'cpp')
 
+fmt = dependency('fmt')
 gtk = dependency('gtk+-3.0')
+gtkmm = dependency('gtkmm-3.0')
 libinput = dependency('libinput')
 pixman = dependency('pixman-1')
 spdlog = dependency('spdlog')
@@ -18,10 +20,12 @@ wayland_server = dependency('wayland-server')
 wlroots = dependency('wlroots')
 xkbcommon = dependency('xkbcommon')
 yamlcpp = dependency('yaml-cpp')
-gtkmm = dependency('gtkmm-3.0')
+zmqpp = dependency('libzmqpp')
 
 dependencies = [
+  fmt,
   gtk,
+  gtkmm,
   libinput,
   pixman,
   spdlog,
@@ -31,7 +35,7 @@ dependencies = [
   wlroots,
   xkbcommon,
   yamlcpp,
-  gtkmm
+  zmqpp
 ]
 
 includes = include_directories(['include', 'protocols', 'vendor'])
@@ -53,6 +57,7 @@ sources = [
   'src/wlroots_platform.cpp',
   'src/xdg_shell_wl.cpp',
   'src/xdg_view.cpp',
+  'src/shell.cpp',
 ]
 
 compositor = shared_library(
@@ -63,7 +68,7 @@ compositor = shared_library(
 )
 
 executable(
-  'compositor',
+  'lumen',
   'src/main.cpp',
   include_directories: includes,
   link_with: compositor,

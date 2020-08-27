@@ -8,7 +8,6 @@
 
 #include "cursor.h"
 #include "view.h"
-#include "server.h"
 
 namespace lumin {
 

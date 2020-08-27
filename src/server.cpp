@@ -361,15 +361,8 @@ bool Server::init()
   return true;
 }
 
-void running(void* data)
-{
-  auto server = static_cast<Server*>(data);
-  server->on_ready.emit(server);
-}
-
 void Server::run()
 {
-  platform_->add_idle(running, this);
   platform_->run();
 }
 

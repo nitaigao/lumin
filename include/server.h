@@ -121,7 +121,6 @@ class Server
   std::shared_ptr<IDisplayConfig> display_config_;
   std::shared_ptr<ICursor> cursor_;
 
-  Signal<Server*> on_ready;
   Signal<uint, uint, int, bool*> on_key;
 };
 

@@ -3,7 +3,6 @@
 #include <wlroots.h>
 
 #include "cursor.h"
-#include "server.h"
 
 namespace lumin {
 

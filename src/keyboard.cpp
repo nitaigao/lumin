@@ -3,7 +3,6 @@
 #include <wlroots.h>
 
 #include "seat.h"
-#include "server.h"
 
 namespace lumin {
 
