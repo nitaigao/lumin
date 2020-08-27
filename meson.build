@@ -8,7 +8,6 @@ project('compositor', 'cpp', default_options : [
 add_global_arguments('-Wno-unused-parameter', language : 'cpp')
 add_project_arguments(['-DWLR_USE_UNSTABLE'], language: 'cpp')
 
-dbuscpp = dependency('dbus-c++-1')
 gtk = dependency('gtk+-3.0')
 libinput = dependency('libinput')
 pixman = dependency('pixman-1')
@@ -22,7 +21,6 @@ yamlcpp = dependency('yaml-cpp')
 gtkmm = dependency('gtkmm-3.0')
 
 dependencies = [
-  dbuscpp,
   gtk,
   libinput,
   pixman,
@@ -36,7 +34,7 @@ dependencies = [
   gtkmm
 ]
 
-includes = include_directories(['include', 'protocols', 'vendor', 'dbus'])
+includes = include_directories(['include', 'protocols', 'vendor'])
 
 sources = [
   'src/cursor.cpp',
