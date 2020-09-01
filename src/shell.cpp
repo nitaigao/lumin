@@ -3,6 +3,7 @@
 #include <fmt/core.h>
 #include <zmqpp/zmqpp.hpp>
 
+#include "rpc.h"
 #include "server.h"
 
 namespace lumin {
@@ -12,6 +13,7 @@ zmqpp::socket socket(context, zmqpp::socket_type::publish);
 
 Shell::Shell()
 {
+  rpc_ = std::make_shared<RPC>();
   server_ = std::make_shared<Server>();
 }
 
@@ -21,6 +23,8 @@ void Shell::run()
 
   server_->init();
   server_->on_key.connect_member(this, &Shell::handle_key);
+
+  rpc_->start(server_.get());
 
   server_->run();
   server_->destroy();

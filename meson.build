@@ -57,6 +57,7 @@ sources = [
   'src/wlroots_platform.cpp',
   'src/xdg_shell_wl.cpp',
   'src/xdg_view.cpp',
+  'src/rpc.cpp',
   'src/shell.cpp',
 ]
 
