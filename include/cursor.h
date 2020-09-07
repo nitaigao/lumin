@@ -95,6 +95,6 @@ class Cursor : public ICursor {
   static void cursor_frame_notify(wl_listener *listener, void *data);
 };
 
-}
+}  // namespace lumin
 
 #endif  // CURSOR_H_

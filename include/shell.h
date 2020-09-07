@@ -6,6 +6,7 @@
 
 namespace lumin {
 
+class IOS;
 class RPC;
 class Server;
 
@@ -19,6 +20,7 @@ class Shell {
  private:
   std::shared_ptr<RPC> rpc_;
   std::shared_ptr<Server> server_;
+  std::shared_ptr<IOS> os_;
 };
 
 }  // namespace lumin
