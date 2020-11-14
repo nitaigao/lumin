@@ -146,7 +146,6 @@ void Server::purge_deleted_views(void *data)
 {
   auto graph = static_cast<Graph*>(data);
   graph->remove_deleted_views();
-  // std::erase_if(server->views_, [](const auto &el) { return el.get()->deleted; });
 }
 
 void Server::view_damaged(View *view)
