@@ -95,8 +95,8 @@ void Cursor::add_device(wlr_input_device* device)
     libinput_device *libinput_device = wlr_libinput_get_device_handle(device);
     libinput_device_config_tap_set_enabled(libinput_device, LIBINPUT_CONFIG_TAP_ENABLED);
     libinput_device_config_scroll_set_natural_scroll_enabled(libinput_device, 1);
-    libinput_device_config_accel_set_profile(libinput_device, LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT);
-    libinput_device_config_accel_set_speed(libinput_device, -0.5);
+    // libinput_device_config_accel_set_profile(libinput_device, LIBINPUT_CONFIG_ACCEL_PROFILE_FLAT);
+    // libinput_device_config_accel_set_speed(libinput_device, -0.5);
   }
 
   wlr_cursor_attach_input_device(cursor_, device);

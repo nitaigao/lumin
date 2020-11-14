@@ -70,17 +70,6 @@ class Server
 
   std::vector<std::string> apps() const;
 
- private:
-  void focus_top();
-
-  void position_view(View *view);
-  void enable_output(const std::string &name, bool enabled);
-
-  void damage_outputs();
-  void damage_output(View *view);
-
-  Output *primary_output() const;
-
  public:
   void view_created(const std::shared_ptr<View> &view);
   void view_mapped(View *view);
@@ -105,6 +94,17 @@ class Server
   void outputs_changed(IOutput *output);
 
   void lid_switch(bool enabled);
+
+ private:
+  void focus_top();
+
+  void position_view(View *view);
+  void enable_output(const std::string &name, bool enabled);
+
+  void damage_outputs();
+  void damage_output(View *view);
+
+  Output *primary_output() const;
 
  private:
   static void purge_deleted_views(void *data);

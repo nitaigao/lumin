@@ -37,7 +37,8 @@ void Shell::run()
 
 void Shell::handle_key(uint keycode, uint modifiers, int state, bool *handled)
 {
-  if (keycode == KEY_BACKSPACE && modifiers == (WLR_MODIFIER_CTRL | WLR_MODIFIER_ALT) && state == 1) {
+  if (keycode == KEY_BACKSPACE &&
+      modifiers == (WLR_MODIFIER_CTRL | WLR_MODIFIER_ALT) && state == WLR_KEY_PRESSED) {
     server_->quit();
     *handled = true;
     return;
@@ -72,11 +73,6 @@ void Shell::handle_key(uint keycode, uint modifiers, int state, bool *handled)
     *handled = true;
     return;
   }
-
-  zmqpp::message message;
-  message << "switch";
-  message << fmt::format("{} {} {}", keycode, modifiers, state);
-  socket.send(message);
 }
 
 }  // namespace lumin
